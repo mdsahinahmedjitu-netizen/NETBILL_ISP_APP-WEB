@@ -111,10 +111,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { list, filter ->
         list.filter { cust ->
             val matchQuery = filter.searchQuery.isEmpty() ||
-                    cust.name.contains(filter.searchQuery, ignoreCase = true) ||
                     cust.customerCode.contains(filter.searchQuery, ignoreCase = true) ||
+                    cust.id.toString().contains(filter.searchQuery.trim(), ignoreCase = true) ||
+                    cust.name.contains(filter.searchQuery, ignoreCase = true) ||
                     cust.mobile.contains(filter.searchQuery, ignoreCase = true) ||
-                    cust.pppoeUsername.contains(filter.searchQuery, ignoreCase = true)
+                    cust.altMobile.contains(filter.searchQuery, ignoreCase = true) ||
+                    cust.emergencyContact.contains(filter.searchQuery, ignoreCase = true) ||
+                    cust.pppoeUsername.contains(filter.searchQuery, ignoreCase = true) ||
+                    cust.address.contains(filter.searchQuery, ignoreCase = true) ||
+                    cust.ipAddress.contains(filter.searchQuery, ignoreCase = true)
 
             val matchZone = filter.selectedZone == "All" || cust.zone == filter.selectedZone
             val matchPkg = filter.selectedPackage == "All" || cust.packageName == filter.selectedPackage

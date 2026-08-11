@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
@@ -118,12 +119,19 @@ fun CustomerManagementScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // Search Input
+            // Search Input with Clear Button
             OutlinedTextField(
                 value = filterState.searchQuery,
                 onValueChange = { viewModel.updateFilter(query = it) },
-                placeholder = { Text(AppTranslation("search_customer"), color = Slate600, fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Teal600) },
+                placeholder = { Text("Search by Customer ID, Name, Phone Number, or PPPoE...", color = Slate600, fontSize = 12.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = Teal600) },
+                trailingIcon = {
+                    if (filterState.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.updateFilter(query = "") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear search", tint = Slate600)
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
@@ -135,7 +143,32 @@ fun CustomerManagementScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Search results counter & active filters badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (filterState.searchQuery.isNotEmpty()) "Found ${customers.size} customer(s) matching \"${filterState.searchQuery}\"" else "Total Customers: ${customers.size}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (filterState.searchQuery.isNotEmpty()) Teal600 else Slate600
+                )
+
+                if (filterState.searchQuery.isNotEmpty()) {
+                    TextButton(
+                        onClick = { viewModel.updateFilter(query = "") },
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Text("Reset Search", fontSize = 11.sp, color = CoralWarning)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Filters Row: Status Chips & Due Only Switch
             Row(
