@@ -310,7 +310,7 @@ fun FilterChipItem(
                 text = shortLabel,
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color.White else Slate800
+                color = if (isSelected) Color.White else Color(0xFF0F172A)
             )
         }
     }
