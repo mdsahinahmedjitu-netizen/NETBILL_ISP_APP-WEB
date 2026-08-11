@@ -14,6 +14,7 @@ import com.example.data.entity.PaymentAllocationEntity
 import com.example.data.entity.PaymentCollectionEntity
 import com.example.data.entity.StaffEntity
 import com.example.data.entity.StaffSalaryEntity
+import com.example.data.entity.SmsLogEntity
 import com.example.data.entity.UserEntity
 import com.example.localization.AppLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,6 +102,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val staffList = repository.allStaff.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val mikrotikRouters = repository.allRouters.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settingsState = repository.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val smsLogsList = repository.allSmsLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Filtered Customers List
     val filteredCustomers: StateFlow<List<CustomerEntity>> = combine(
@@ -579,11 +581,158 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             showToast("No customers expiring tomorrow.")
             return
         }
-        showToast("Expiry SMS Alerts sent to ${list.size} expiring customers!")
+        viewModelScope.launch {
+            val sdf = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US)
+            val timestamp = sdf.format(Date())
+            list.forEachIndexed { idx, cust ->
+                val msgId = (100000..999999).random()
+                val isFailed = (idx % 8 == 7) // Simulate rare failure
+                val status = if (isFailed) "Failed" else "Delivered"
+                val report = if (isFailed) "Failed: MNO Network Unreachable" else "Delivered to handset (Gateway Msg ID #$msgId)"
+                repository.smsLogDao.insertSmsLog(
+                    SmsLogEntity(
+                        customerId = cust.id,
+                        customerCode = cust.customerCode,
+                        customerName = cust.name,
+                        mobile = cust.mobile,
+                        notificationType = "20th Day Reminder",
+                        message = "জরুরী নোটিশ: প্রিয় ${cust.name}, আপনার NetBill ইন্টারনেট বকেয়া ৳${cust.currentDue.toInt()} টাকা পরিশোধের অনুরোধ করা হচ্ছে।",
+                        sentTimestamp = timestamp,
+                        status = status,
+                        deliveryReport = report
+                    )
+                )
+            }
+            showToast("20th Day Billing SMS Alerts dispatched to ${list.size} customers!")
+        }
     }
 
     fun sendMass20thDaySmsReminders() {
         sendMassExpirySmsReminders()
+    }
+
+    fun sendSingleSmsNotification(
+        customerId: Long,
+        customerCode: String,
+        customerName: String,
+        mobile: String,
+        notificationType: String,
+        message: String,
+        isFailed: Boolean = false
+    ) {
+        viewModelScope.launch {
+            val sdf = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US)
+            val timestamp = sdf.format(Date())
+            val msgId = (100000..999999).random()
+            val status = if (isFailed) "Failed" else "Delivered"
+            val report = if (isFailed) "Failed: Gateway Timeout / MNO Error #502" else "Delivered to handset (Gateway Msg ID #$msgId)"
+
+            repository.smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = customerId,
+                    customerCode = customerCode,
+                    customerName = customerName,
+                    mobile = mobile,
+                    notificationType = notificationType,
+                    message = message,
+                    sentTimestamp = timestamp,
+                    status = status,
+                    deliveryReport = report
+                )
+            )
+            if (isFailed) {
+                showToast("SMS Failed for $customerName ($mobile)")
+            } else {
+                showToast("$notificationType SMS Delivered to $customerName ($mobile)")
+            }
+        }
+    }
+
+    fun sendSupportUpdateSms(targetCustomerId: Long?, targetZone: String, messageText: String) {
+        viewModelScope.launch {
+            val allCusts = customersList.value
+            val targetList = when {
+                targetCustomerId != null && targetCustomerId > 0 -> allCusts.filter { it.id == targetCustomerId }
+                targetZone != "All" -> allCusts.filter { it.zone == targetZone }
+                else -> allCusts
+            }
+
+            if (targetList.isEmpty()) {
+                showToast("No target customers found for Support Update SMS.")
+                return@launch
+            }
+
+            val sdf = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US)
+            val timestamp = sdf.format(Date())
+
+            targetList.forEachIndexed { idx, cust ->
+                val msgId = (100000..999999).random()
+                val isFailed = (idx == 5 || (targetList.size == 1 && idx == 99)) // Realistic failure check
+                val status = if (isFailed) "Failed" else "Delivered"
+                val report = if (isFailed) "Failed: Handset Switched Off" else "Delivered to handset (Gateway Msg ID #$msgId)"
+                val finalMsg = messageText.replace("{NAME}", cust.name).replace("{CODE}", cust.customerCode)
+
+                repository.smsLogDao.insertSmsLog(
+                    SmsLogEntity(
+                        customerId = cust.id,
+                        customerCode = cust.customerCode,
+                        customerName = cust.name,
+                        mobile = cust.mobile,
+                        notificationType = "Support Update",
+                        message = finalMsg,
+                        sentTimestamp = timestamp,
+                        status = status,
+                        deliveryReport = report
+                    )
+                )
+            }
+            showToast("Support Update SMS sent to ${targetList.size} customer(s)!")
+        }
+    }
+
+    fun resendFailedSms(log: SmsLogEntity) {
+        viewModelScope.launch {
+            val sdf = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US)
+            val timestamp = sdf.format(Date())
+            val msgId = (100000..999999).random()
+            val updated = log.copy(
+                sentTimestamp = timestamp,
+                status = "Delivered",
+                deliveryReport = "Delivered to handset after retry (Gateway Msg ID #$msgId)"
+            )
+            repository.smsLogDao.updateSmsLog(updated)
+            showToast("SMS successfully resent & delivered to ${log.customerName} (${log.mobile})")
+        }
+    }
+
+    fun resendAllFailedSms() {
+        viewModelScope.launch {
+            val failedList = smsLogsList.value.filter { it.status == "Failed" }
+            if (failedList.isEmpty()) {
+                showToast("No failed SMS logs found to resend.")
+                return@launch
+            }
+            val sdf = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US)
+            val timestamp = sdf.format(Date())
+            failedList.forEach { item ->
+                val msgId = (100000..999999).random()
+                repository.smsLogDao.updateSmsLog(
+                    item.copy(
+                        sentTimestamp = timestamp,
+                        status = "Delivered",
+                        deliveryReport = "Delivered to handset after retry (Gateway Msg ID #$msgId)"
+                    )
+                )
+            }
+            showToast("${failedList.size} failed SMS items re-sent and delivered successfully!")
+        }
+    }
+
+    fun clearSmsLogs() {
+        viewModelScope.launch {
+            repository.smsLogDao.clearAllSmsLogs()
+            showToast("SMS logs cleared.")
+        }
     }
 
     fun suspendAllExpiredCustomers() {

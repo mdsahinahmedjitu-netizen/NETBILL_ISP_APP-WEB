@@ -9,6 +9,7 @@ import com.example.data.entity.MikroTikRouterEntity
 import com.example.data.entity.PackageEntity
 import com.example.data.entity.PaymentAllocationEntity
 import com.example.data.entity.PaymentCollectionEntity
+import com.example.data.entity.SmsLogEntity
 import com.example.data.entity.StaffEntity
 import com.example.data.entity.StaffSalaryEntity
 import com.example.data.entity.UserEntity
@@ -31,6 +32,7 @@ class ISPRepository(private val db: AppDatabase) {
     val mikrotikDao = db.mikrotikDao()
     val settingsDao = db.ispSettingsDao()
     val ledgerDao = db.ledgerDao()
+    val smsLogDao = db.smsLogDao()
 
     val allCustomers: Flow<List<CustomerEntity>> = customerDao.getAllCustomers()
     val allPackages: Flow<List<PackageEntity>> = packageDao.getAllPackages()
@@ -42,6 +44,7 @@ class ISPRepository(private val db: AppDatabase) {
     val allRouters: Flow<List<MikroTikRouterEntity>> = mikrotikDao.getAllRouters()
     val settings: Flow<ISPSettingsEntity?> = settingsDao.getSettings()
     val allLedgerEntries: Flow<List<LedgerEntryEntity>> = ledgerDao.getAllLedgerEntries()
+    val allSmsLogs: Flow<List<SmsLogEntity>> = smsLogDao.getAllSmsLogs()
 
     fun getLedgerForCustomer(customerId: Long): Flow<List<LedgerEntryEntity>> {
         return ledgerDao.getLedgerForCustomer(customerId)
@@ -214,6 +217,99 @@ class ISPRepository(private val db: AppDatabase) {
                 notes = "Pending monthly payment"
             )
             val cust3Id = customerDao.insertCustomer(cust3)
+
+            // Seed SMS Delivery Tracker Logs
+            smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = cust1Id,
+                    customerCode = "NET-1001",
+                    customerName = "Rahim Uddin",
+                    mobile = "01711223344",
+                    notificationType = "Payment Receipt",
+                    message = "ধন্যবাদ Rahim Uddin! আপনার ৳800.0 টাকা ইন্টারনেট বিল পরিশোধ সফল হয়েছে। Receipt #: REC-2026-8801",
+                    sentTimestamp = "2026-08-11 09:30 AM",
+                    status = "Delivered",
+                    deliveryReport = "Delivered to handset (Gateway Msg ID #884920)"
+                )
+            )
+            smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = cust2Id,
+                    customerCode = "NET-1002",
+                    customerName = "Tanvir Ahmed",
+                    mobile = "01811998877",
+                    notificationType = "Billing Alert",
+                    message = "প্রিয় Tanvir Ahmed, আপনার NetBill ইন্টারনেট প্যাকেজ 20 Mbps Super এর মাসিক বিল ৳800 টাকা পরিশোধের শেষ সময় ২৫ আগস্ট।",
+                    sentTimestamp = "2026-08-11 08:15 AM",
+                    status = "Delivered",
+                    deliveryReport = "Delivered to handset (Gateway Msg ID #884921)"
+                )
+            )
+            smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = cust3Id,
+                    customerCode = "NET-1003",
+                    customerName = "Kamrul Islam",
+                    mobile = "01911223344",
+                    notificationType = "20th Day Reminder",
+                    message = "জরুরী নোটিশ: প্রিয় Kamrul Islam, আপনার ইন্টারনেট বিল বকেয়া থাকায় সংযোগ স্থগিত এড়াতে আজই বিল পরিশোধ করুন।",
+                    sentTimestamp = "2026-08-10 05:40 PM",
+                    status = "Delivered",
+                    deliveryReport = "Delivered to handset (Gateway Msg ID #884922)"
+                )
+            )
+            smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = cust2Id,
+                    customerCode = "NET-1002",
+                    customerName = "Tanvir Ahmed",
+                    mobile = "01811998877",
+                    notificationType = "Support Update",
+                    message = "নেটওয়ার্ক আপডেট: উত্তরা জোনে অপটিক্যাল ফাইবার রক্ষণাবেক্ষণ কাজ সম্পন্ন হয়েছে। আপনার ইন্টারনেট সংযোগ সক্রিয় আছে।",
+                    sentTimestamp = "2026-08-10 02:10 PM",
+                    status = "Delivered",
+                    deliveryReport = "Delivered to handset (Gateway Msg ID #884923)"
+                )
+            )
+            smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = 99L,
+                    customerCode = "NET-1088",
+                    customerName = "Jahid Hossain",
+                    mobile = "01500000000",
+                    notificationType = "Billing Alert",
+                    message = "প্রিয় Jahid Hossain, আপনার বকেয়া বিল ৳1200 পরিশোধ করার জন্য অনুরোধ করা হচ্ছে।",
+                    sentTimestamp = "2026-08-10 11:20 AM",
+                    status = "Failed",
+                    deliveryReport = "Failed: Mobile network switched off or out of coverage (Err #302)"
+                )
+            )
+            smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = 100L,
+                    customerCode = "NET-1090",
+                    customerName = "Farhana Yeasmin",
+                    mobile = "01688112233",
+                    notificationType = "Support Update",
+                    message = "সহযোগিতা টিকিট #TK-402: ধানমন্ডি পপ রাউটার রিবুট সম্পন্ন হয়েছে। যেকোনো সমস্যায় 01911000000 নম্বরে কল করুন।",
+                    sentTimestamp = "2026-08-09 07:05 PM",
+                    status = "Delivered",
+                    deliveryReport = "Delivered to handset (Gateway Msg ID #884925)"
+                )
+            )
+            smsLogDao.insertSmsLog(
+                SmsLogEntity(
+                    customerId = 101L,
+                    customerCode = "NET-1095",
+                    customerName = "Shohel Rana",
+                    mobile = "01300112233",
+                    notificationType = "Billing Alert",
+                    message = "প্রিয় Shohel Rana, আপনার সংযোগ সচল রাখতে ৳500 টাকা বিল জমা দিন।",
+                    sentTimestamp = "2026-08-09 10:00 AM",
+                    status = "Failed",
+                    deliveryReport = "Failed: Invalid MNO response / Gateway Timeout (Err #504)"
+                )
+            )
 
             // Seed MikroTik Routers
             mikrotikDao.insertRouter(

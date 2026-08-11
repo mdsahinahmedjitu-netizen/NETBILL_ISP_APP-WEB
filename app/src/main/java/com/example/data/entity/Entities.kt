@@ -200,3 +200,18 @@ data class LedgerEntryEntity(
     val paymentMethod: String = "", // Cash, bKash, Nagad, Rocket, Bank
     val collector: String = ""
 )
+
+@Entity(tableName = "sms_logs")
+data class SmsLogEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val customerId: Long = 0,
+    val customerCode: String,
+    val customerName: String,
+    val mobile: String,
+    val notificationType: String, // "Billing Alert", "Support Update", "Payment Receipt", "20th Day Reminder"
+    val message: String,
+    val sentTimestamp: String,
+    val status: String, // "Delivered", "Failed", "Pending", "Sent"
+    val deliveryReport: String = "",
+    val gatewayProvider: String = "Greenweb Gateway"
+)

@@ -16,6 +16,7 @@ import com.example.data.entity.PaymentAllocationEntity
 import com.example.data.entity.PaymentCollectionEntity
 import com.example.data.entity.StaffEntity
 import com.example.data.entity.StaffSalaryEntity
+import com.example.data.entity.SmsLogEntity
 import com.example.data.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -214,5 +215,26 @@ interface LedgerDao {
 
     @Query("DELETE FROM ledger_entries WHERE customerId = :customerId")
     suspend fun deleteLedgerForCustomer(customerId: Long)
+}
+
+@Dao
+interface SmsLogDao {
+    @Query("SELECT * FROM sms_logs ORDER BY id DESC")
+    fun getAllSmsLogs(): Flow<List<SmsLogEntity>>
+
+    @Query("SELECT * FROM sms_logs WHERE customerId = :customerId ORDER BY id DESC")
+    fun getSmsLogsForCustomer(customerId: Long): Flow<List<SmsLogEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSmsLog(log: SmsLogEntity): Long
+
+    @Update
+    suspend fun updateSmsLog(log: SmsLogEntity)
+
+    @Query("DELETE FROM sms_logs WHERE id = :id")
+    suspend fun deleteSmsLogById(id: Long)
+
+    @Query("DELETE FROM sms_logs")
+    suspend fun clearAllSmsLogs()
 }
 
