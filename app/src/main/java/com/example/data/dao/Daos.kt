@@ -17,6 +17,7 @@ import com.example.data.entity.PaymentCollectionEntity
 import com.example.data.entity.StaffEntity
 import com.example.data.entity.StaffSalaryEntity
 import com.example.data.entity.SmsLogEntity
+import com.example.data.entity.SmsTemplateEntity
 import com.example.data.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -236,5 +237,23 @@ interface SmsLogDao {
 
     @Query("DELETE FROM sms_logs")
     suspend fun clearAllSmsLogs()
+}
+
+@Dao
+interface SmsTemplateDao {
+    @Query("SELECT * FROM sms_templates ORDER BY id DESC")
+    fun getAllTemplates(): Flow<List<SmsTemplateEntity>>
+
+    @Query("SELECT * FROM sms_templates WHERE category = :category AND isActive = 1 ORDER BY id DESC")
+    fun getTemplatesByCategory(category: String): Flow<List<SmsTemplateEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTemplate(template: SmsTemplateEntity): Long
+
+    @Update
+    suspend fun updateTemplate(template: SmsTemplateEntity)
+
+    @Query("DELETE FROM sms_templates WHERE id = :id")
+    suspend fun deleteTemplateById(id: Long)
 }
 

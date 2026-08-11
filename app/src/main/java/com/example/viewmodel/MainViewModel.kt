@@ -15,6 +15,7 @@ import com.example.data.entity.PaymentCollectionEntity
 import com.example.data.entity.StaffEntity
 import com.example.data.entity.StaffSalaryEntity
 import com.example.data.entity.SmsLogEntity
+import com.example.data.entity.SmsTemplateEntity
 import com.example.data.entity.UserEntity
 import com.example.localization.AppLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -103,6 +104,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val mikrotikRouters = repository.allRouters.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settingsState = repository.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val smsLogsList = repository.allSmsLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val smsTemplatesList = repository.allSmsTemplates.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Filtered Customers List
     val filteredCustomers: StateFlow<List<CustomerEntity>> = combine(
@@ -737,6 +739,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.smsLogDao.clearAllSmsLogs()
             showToast("SMS logs cleared.")
+        }
+    }
+
+    fun addSmsTemplate(template: SmsTemplateEntity) {
+        viewModelScope.launch {
+            repository.insertSmsTemplate(template)
+            showToast("SMS Template '${template.title}' saved successfully!")
+        }
+    }
+
+    fun updateSmsTemplate(template: SmsTemplateEntity) {
+        viewModelScope.launch {
+            repository.updateSmsTemplate(template)
+            showToast("SMS Template '${template.title}' updated successfully!")
+        }
+    }
+
+    fun deleteSmsTemplate(templateId: Long) {
+        viewModelScope.launch {
+            repository.deleteSmsTemplate(templateId)
+            showToast("SMS Template deleted.")
+        }
+    }
+
+    fun sendTestSmsTemplate(
+        template: SmsTemplateEntity,
+        recipientName: String = "Rahim Uddin",
+        recipientMobile: String = "01712345678"
+    ) {
+        viewModelScope.launch {
+            val dateStr = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.US).format(Date())
+            var message = template.messageContent
+                .replace("{NAME}", recipientName)
+                .replace("{CUSTOMER_CODE}", "NET-1001")
+                .replace("{AMOUNT}", "800")
+                .replace("{DUE_DATE}", "2026-08-20")
+                .replace("{BILL_MONTH}", "August 2026")
+                .replace("{ZONE}", "Uttara Zone")
+                .replace("{START_TIME}", "02:00 PM")
+                .replace("{END_TIME}", "05:00 PM")
+                .replace("{ESTIMATED_TIME}", "2 Hours")
+                .replace("{REASON}", "Fiber Cable Maintenance")
+                .replace("{SUPPORT_PHONE}", "01911000000")
+                .replace("{RECEIPT_NO}", "REC-99201")
+                .replace("{DATE}", "2026-08-11")
+
+            val log = SmsLogEntity(
+                customerId = 1L,
+                customerCode = "NET-1001",
+                customerName = recipientName,
+                mobile = recipientMobile,
+                notificationType = template.category,
+                message = message,
+                sentTimestamp = dateStr,
+                status = "Delivered",
+                deliveryReport = "Test Dispatch Successful (Gateway Msg ID #${(100000..999999).random()})",
+                gatewayProvider = "Greenweb Gateway"
+            )
+            repository.smsLogDao.insertSmsLog(log)
+            showToast("Test SMS for '${template.title}' sent to $recipientMobile")
         }
     }
 

@@ -27,7 +27,10 @@ import com.example.ui.components.CustomerSmsLogsBottomSheet
 import com.example.viewmodel.MainViewModel
 
 @Composable
-fun NotificationScreen(viewModel: MainViewModel) {
+fun NotificationScreen(
+    viewModel: MainViewModel,
+    onNavigateToTemplates: () -> Unit = {}
+) {
     val overdueCustomers by viewModel.expiringTomorrowCustomers.collectAsState()
     val allCustomers by viewModel.customersList.collectAsState()
     val totalOverdueAmount = remember(overdueCustomers) { overdueCustomers.sumOf { it.currentDue } }
@@ -98,27 +101,42 @@ fun NotificationScreen(viewModel: MainViewModel) {
                 )
             }
 
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Teal600.copy(alpha = 0.1f),
-                border = BorderStroke(1.dp, Teal600.copy(alpha = 0.3f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(
+                    onClick = onNavigateToTemplates,
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Teal600),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(Teal600, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Greenweb Gateway",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Teal600
-                    )
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = Teal600, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("SMS Templates", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Teal600)
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Teal600.copy(alpha = 0.1f),
+                    border = BorderStroke(1.dp, Teal600.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Teal600, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Greenweb Gateway",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Teal600
+                        )
+                    }
                 }
             }
         }

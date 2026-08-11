@@ -72,8 +72,11 @@ val NagadOrange = Color(0xFFF7921E)
 val RocketViolet = Color(0xFF8C3494)
 
 val EmeraldSuccess = Color(0xFF10B981)
+val SuccessGreen = EmeraldSuccess
 val CoralWarning = Color(0xFFEF4444)
 val AmberAlert = Color(0xFFF59E0B)
+val Teal200 = Color(0xFF99F6E4)
+val Slate300 = Color(0xFFCBD5E1)
 
 val LightSurfaceBg: Color @Composable get() = MaterialTheme.colorScheme.background
 val LightCardBg: Color @Composable get() = MaterialTheme.colorScheme.surface

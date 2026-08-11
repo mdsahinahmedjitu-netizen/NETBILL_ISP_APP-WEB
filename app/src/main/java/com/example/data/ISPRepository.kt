@@ -10,6 +10,7 @@ import com.example.data.entity.PackageEntity
 import com.example.data.entity.PaymentAllocationEntity
 import com.example.data.entity.PaymentCollectionEntity
 import com.example.data.entity.SmsLogEntity
+import com.example.data.entity.SmsTemplateEntity
 import com.example.data.entity.StaffEntity
 import com.example.data.entity.StaffSalaryEntity
 import com.example.data.entity.UserEntity
@@ -33,6 +34,7 @@ class ISPRepository(private val db: AppDatabase) {
     val settingsDao = db.ispSettingsDao()
     val ledgerDao = db.ledgerDao()
     val smsLogDao = db.smsLogDao()
+    val smsTemplateDao = db.smsTemplateDao()
 
     val allCustomers: Flow<List<CustomerEntity>> = customerDao.getAllCustomers()
     val allPackages: Flow<List<PackageEntity>> = packageDao.getAllPackages()
@@ -45,6 +47,7 @@ class ISPRepository(private val db: AppDatabase) {
     val settings: Flow<ISPSettingsEntity?> = settingsDao.getSettings()
     val allLedgerEntries: Flow<List<LedgerEntryEntity>> = ledgerDao.getAllLedgerEntries()
     val allSmsLogs: Flow<List<SmsLogEntity>> = smsLogDao.getAllSmsLogs()
+    val allSmsTemplates: Flow<List<SmsTemplateEntity>> = smsTemplateDao.getAllTemplates()
 
     fun getLedgerForCustomer(customerId: Long): Flow<List<LedgerEntryEntity>> {
         return ledgerDao.getLedgerForCustomer(customerId)
@@ -63,6 +66,7 @@ class ISPRepository(private val db: AppDatabase) {
     }
 
     suspend fun seedDatabaseIfEmpty() {
+        seedSmsTemplatesIfEmpty()
         // Check if users exist
         val existingUser = userDao.getUserByUsernameOrMobile("admin")
         if (existingUser == null) {
@@ -864,6 +868,82 @@ class ISPRepository(private val db: AppDatabase) {
                 }
             }
         }
+    }
+
+    suspend fun seedSmsTemplatesIfEmpty() {
+        val existing = smsTemplateDao.getAllTemplates().firstOrNull()
+        if (existing.isNullOrEmpty()) {
+            val dateStr = getCurrentDateString()
+            val defaultTemplates = listOf(
+                SmsTemplateEntity(
+                    title = "Monthly Bill Due Reminder",
+                    category = "Billing Alert",
+                    messageContent = "প্রিয় {NAME} ({CUSTOMER_CODE}), আপনার {BILL_MONTH} মাসের ইন্টারনেট বিল ৳{AMOUNT} টাকা বকেয়া রয়েছে। পরিশোধের শেষ তারিখ: {DUE_DATE}। bKash/Nagad এ পরিশোধ করুন। - NetBill ISP",
+                    targetAudience = "Due Customers",
+                    isDefault = true,
+                    isActive = true,
+                    lastUpdated = dateStr
+                ),
+                SmsTemplateEntity(
+                    title = "Payment Received Receipt",
+                    category = "Payment Receipt",
+                    messageContent = "ধন্যবাদ {NAME}! আপনার ৳{AMOUNT} টাকা ইন্টারনেট বিল পরিশোধ সফল হয়েছে। রশিদ নং: {RECEIPT_NO}। NetBill Broadband ISP",
+                    targetAudience = "Paid Customers",
+                    isDefault = true,
+                    isActive = true,
+                    lastUpdated = dateStr
+                ),
+                SmsTemplateEntity(
+                    title = "Scheduled Fiber Maintenance",
+                    category = "Service Downtime",
+                    messageContent = "জরুরী বিজ্ঞপ্তি: {ZONE} এলাকায় নেটওয়ার্ক সংস্কার কাজের জন্য {DATE} তারিখ {START_TIME} হতে {END_TIME} পর্যন্ত ইন্টারনেট সেবা সাময়িক বন্ধ থাকবে। সাময়িক অসুবিধার জন্য অত্যন্ত দুঃখিত। - NetBill ISP",
+                    targetAudience = "Zone Customers",
+                    isDefault = true,
+                    isActive = true,
+                    lastUpdated = dateStr
+                ),
+                SmsTemplateEntity(
+                    title = "Emergency Fiber Cut Outage Alert",
+                    category = "Network Outage",
+                    messageContent = "জরুরী ঘোষণা: {ZONE} এলাকায় ফাইবার অপটিক ক্যাবল কাটা পরায় সংযোগ ব্যাহত হয়েছে। আমাদের টেকনিক্যাল টিম কাজ করছে। সম্ভাব্য সচল সময়: {ESTIMATED_TIME}। সহায়তায়: {SUPPORT_PHONE}",
+                    targetAudience = "Affected Zone",
+                    isDefault = false,
+                    isActive = true,
+                    lastUpdated = dateStr
+                ),
+                SmsTemplateEntity(
+                    title = "Service Restored Confirmation",
+                    category = "Service Downtime",
+                    messageContent = "সংবাদ: {ZONE} এলাকায় ফাইবার মেরামত কাজ সফলভাবে সম্পন্ন হয়েছে এবং ইন্টারনেট সংযোগ সম্পূর্ণ সচল হয়েছে। আপনার ধৈর্যের জন্য ধন্যবাদ! - NetBill ISP",
+                    targetAudience = "Affected Zone",
+                    isDefault = false,
+                    isActive = true,
+                    lastUpdated = dateStr
+                ),
+                SmsTemplateEntity(
+                    title = "20th Day Line Suspension Warning",
+                    category = "Billing Alert",
+                    messageContent = "সতর্কবার্তা: প্রিয় {NAME}, ২০ তারিখে আপনার {BILL_MONTH} মাসের বকেয়া ৳{AMOUNT} টাকা না মেটালে লাইন স্বয়ংক্রিয় বন্ধ হবে। সংযোগ সচল রাখতে দ্রুত পরিশোধ করুন।",
+                    targetAudience = "Unpaid Customers",
+                    isDefault = false,
+                    isActive = true,
+                    lastUpdated = dateStr
+                )
+            )
+            defaultTemplates.forEach { smsTemplateDao.insertTemplate(it) }
+        }
+    }
+
+    suspend fun insertSmsTemplate(template: SmsTemplateEntity): Long {
+        return smsTemplateDao.insertTemplate(template)
+    }
+
+    suspend fun updateSmsTemplate(template: SmsTemplateEntity) {
+        smsTemplateDao.updateTemplate(template)
+    }
+
+    suspend fun deleteSmsTemplate(id: Long) {
+        smsTemplateDao.deleteTemplateById(id)
     }
 
     private fun getCurrentDateString(): String {

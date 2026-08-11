@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -103,6 +104,7 @@ import com.example.ui.screens.PackageScreen
 import com.example.ui.screens.PaymentCollectionScreen
 import com.example.ui.screens.ReportsScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SmsTemplateManagementScreen
 import com.example.ui.screens.StaffScreen
 import com.example.ui.theme.AppTheme
 import com.example.ui.theme.CyanAccent
@@ -230,6 +232,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     Triple("packages", "packages_title", Icons.Default.Wifi),
                     Triple("reports", "reports_title", Icons.Default.Receipt),
                     Triple("notifications", "sms_title", Icons.Default.Receipt),
+                    Triple("sms_templates", "SMS Templates", Icons.Default.Edit),
                     Triple("backup", "backup_title", Icons.Default.Receipt),
                     Triple("settings", "settings_title", Icons.Default.Settings)
                 )
@@ -565,7 +568,17 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     }
 
                     composable("notifications") {
-                        NotificationScreen(viewModel = viewModel)
+                        NotificationScreen(
+                            viewModel = viewModel,
+                            onNavigateToTemplates = { navController.navigate("sms_templates") }
+                        )
+                    }
+
+                    composable("sms_templates") {
+                        SmsTemplateManagementScreen(
+                            viewModel = viewModel,
+                            onBack = { navController.popBackStack() }
+                        )
                     }
 
                     composable("backup") {

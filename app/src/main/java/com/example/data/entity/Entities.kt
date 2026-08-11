@@ -215,3 +215,15 @@ data class SmsLogEntity(
     val deliveryReport: String = "",
     val gatewayProvider: String = "Greenweb Gateway"
 )
+
+@Entity(tableName = "sms_templates")
+data class SmsTemplateEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String, // e.g. "Monthly Bill Due Alert", "Scheduled Fiber Downtime"
+    val category: String, // "Billing Alert", "Service Downtime", "Payment Receipt", "Network Outage", "General Notice"
+    val messageContent: String, // Template string with placeholders like {NAME}, {AMOUNT}, {ZONE}, {DUE_DATE}, etc.
+    val targetAudience: String = "All Active Customers",
+    val isDefault: Boolean = false,
+    val isActive: Boolean = true,
+    val lastUpdated: String = ""
+)

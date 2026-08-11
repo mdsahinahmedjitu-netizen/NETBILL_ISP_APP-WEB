@@ -14,6 +14,7 @@ import com.example.data.dao.PackageDao
 import com.example.data.dao.PaymentAllocationDao
 import com.example.data.dao.PaymentCollectionDao
 import com.example.data.dao.SmsLogDao
+import com.example.data.dao.SmsTemplateDao
 import com.example.data.dao.StaffDao
 import com.example.data.dao.UserDao
 import com.example.data.entity.CustomerEntity
@@ -26,6 +27,7 @@ import com.example.data.entity.PackageEntity
 import com.example.data.entity.PaymentAllocationEntity
 import com.example.data.entity.PaymentCollectionEntity
 import com.example.data.entity.SmsLogEntity
+import com.example.data.entity.SmsTemplateEntity
 import com.example.data.entity.StaffEntity
 import com.example.data.entity.StaffSalaryEntity
 import com.example.data.entity.UserEntity
@@ -44,9 +46,10 @@ import com.example.data.entity.UserEntity
         MikroTikRouterEntity::class,
         ISPSettingsEntity::class,
         LedgerEntryEntity::class,
-        SmsLogEntity::class
+        SmsLogEntity::class,
+        SmsTemplateEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -63,6 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun ispSettingsDao(): ISPSettingsDao
     abstract fun ledgerDao(): LedgerDao
     abstract fun smsLogDao(): SmsLogDao
+    abstract fun smsTemplateDao(): SmsTemplateDao
 
     companion object {
         @Volatile
