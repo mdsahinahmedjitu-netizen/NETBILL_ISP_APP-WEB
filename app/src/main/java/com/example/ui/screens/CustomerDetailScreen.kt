@@ -70,6 +70,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.filled.Schedule
 
+import com.example.ui.components.CustomerSmsLogsBottomSheet
+import androidx.compose.material.icons.filled.Sms
+
 @Composable
 fun CustomerDetailScreen(
     customer: CustomerEntity,
@@ -82,6 +85,7 @@ fun CustomerDetailScreen(
     val invoices by viewModel.invoicesList.collectAsState()
 
     var showEditExpiryDialog by remember { mutableStateOf(false) }
+    var showSmsLogsBottomSheet by remember { mutableStateOf(false) }
 
     val customerPayments = payments.filter { it.customerId == customer.id }
     val customerInvoices = invoices.filter { it.customerId == customer.id }
@@ -196,6 +200,19 @@ fun CustomerDetailScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(if (customer.status == "Active") "Suspend" else "Enable", fontSize = 12.sp)
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Button(
+                            onClick = { showSmsLogsBottomSheet = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("SMS Delivery Logs & Gateway Tracker", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -483,6 +500,14 @@ fun CustomerDetailScreen(
                     Text("বাতিল")
                 }
             }
+        )
+    }
+
+    if (showSmsLogsBottomSheet) {
+        CustomerSmsLogsBottomSheet(
+            customer = customer,
+            viewModel = viewModel,
+            onDismiss = { showSmsLogsBottomSheet = false }
         )
     }
 }

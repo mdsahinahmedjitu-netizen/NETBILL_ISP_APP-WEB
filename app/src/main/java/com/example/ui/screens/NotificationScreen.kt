@@ -20,13 +20,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.entity.CustomerEntity
 import com.example.data.entity.SmsLogEntity
 import com.example.localization.AppTranslation
+import com.example.ui.components.CustomerSmsLogsBottomSheet
 import com.example.viewmodel.MainViewModel
 
 @Composable
 fun NotificationScreen(viewModel: MainViewModel) {
     val overdueCustomers by viewModel.expiringTomorrowCustomers.collectAsState()
+    val allCustomers by viewModel.customersList.collectAsState()
     val totalOverdueAmount = remember(overdueCustomers) { overdueCustomers.sumOf { it.currentDue } }
     val smsLogs by viewModel.smsLogsList.collectAsState()
 
@@ -34,6 +37,7 @@ fun NotificationScreen(viewModel: MainViewModel) {
     var typeFilter by remember { mutableStateOf("All") }
 
     var showSupportSmsModal by remember { mutableStateOf(false) }
+    var selectedCustomerForLogs by remember { mutableStateOf<CustomerEntity?>(null) }
 
     var billReminderText by remember {
         mutableStateOf("প্রিয় {NAME}, আপনার NetBill ইন্টারনেট বিল ৳{AMOUNT} টাকা বকেয়া রয়েছে। অনুগ্রহ করে bKash/Nagad এ পরিশোধ করুন। ধন্যবাদ!")
@@ -344,7 +348,33 @@ fun NotificationScreen(viewModel: MainViewModel) {
                 items(filteredLogs, key = { it.id }) { log ->
                     SmsDeliveryLogCard(
                         log = log,
-                        onResend = { viewModel.resendFailedSms(log) }
+                        onResend = { viewModel.resendFailedSms(log) },
+                        onViewCustomerLogs = {
+                            val target = allCustomers.find { it.id == log.customerId || it.customerCode.equals(log.customerCode, ignoreCase = true) }
+                                ?: CustomerEntity(
+                                    id = log.customerId,
+                                    customerCode = log.customerCode,
+                                    name = log.customerName,
+                                    mobile = log.mobile,
+                                    address = "N/A",
+                                    zone = "General",
+                                    packageName = "Standard",
+                                    monthlyBill = 800.0,
+                                    discount = 0.0,
+                                    connectionFee = 0.0,
+                                    joinDate = "2026-01-01",
+                                    joinDayOfMonth = 1,
+                                    billingType = "Postpaid",
+                                    currentDue = 0.0,
+                                    advanceBalance = 0.0,
+                                    status = "Active",
+                                    expireDate = "2026-08-25",
+                                    expireTime = "11:59 PM",
+                                    pppoeUsername = log.customerCode.lowercase(),
+                                    pppoePassword = "123"
+                                )
+                            selectedCustomerForLogs = target
+                        }
                     )
                 }
             }
@@ -687,12 +717,21 @@ fun NotificationScreen(viewModel: MainViewModel) {
             onDismiss = { showSupportSmsModal = false }
         )
     }
+
+    selectedCustomerForLogs?.let { customer ->
+        CustomerSmsLogsBottomSheet(
+            customer = customer,
+            viewModel = viewModel,
+            onDismiss = { selectedCustomerForLogs = null }
+        )
+    }
 }
 
 @Composable
 fun SmsDeliveryLogCard(
     log: SmsLogEntity,
-    onResend: () -> Unit
+    onResend: () -> Unit,
+    onViewCustomerLogs: (() -> Unit)? = null
 ) {
     val isDelivered = log.status == "Delivered"
     val isFailed = log.status == "Failed"
@@ -841,17 +880,32 @@ fun SmsDeliveryLogCard(
                     )
                 }
 
-                if (isFailed) {
-                    Button(
-                        onClick = onResend,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
-                        shape = RoundedCornerShape(6.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(12.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(AppTranslation("resend_now"), fontSize = 10.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (onViewCustomerLogs != null) {
+                        OutlinedButton(
+                            onClick = onViewCustomerLogs,
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(Icons.Default.ManageSearch, contentDescription = null, modifier = Modifier.size(12.dp), tint = Slate700)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Customer Sheet", fontSize = 10.sp, color = Slate700)
+                        }
+                    }
+
+                    if (isFailed) {
+                        Button(
+                            onClick = onResend,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(AppTranslation("resend_now"), fontSize = 10.sp)
+                        }
                     }
                 }
             }
