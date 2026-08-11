@@ -1,0 +1,6 @@
+{
+  "name": "NetBill ISP",
+  "description": "Professional ISP Billing and CRM Software for Bangladesh ISPs featuring MikroTik integration, bKash/Nagad collections, 20th-day billing rules, and English/Bangla dual language support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
