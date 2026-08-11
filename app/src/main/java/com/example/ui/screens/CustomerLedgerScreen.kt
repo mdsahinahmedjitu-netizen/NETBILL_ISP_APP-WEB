@@ -556,7 +556,7 @@ fun CustomerLedgerScreen(
                     isDebit = isDebit,
                     description = desc,
                     referenceNo = refNo,
-                    paymentMethod = payMethod
+                    method = payMethod
                 )
                 showAddLedgerDialog = false
             }

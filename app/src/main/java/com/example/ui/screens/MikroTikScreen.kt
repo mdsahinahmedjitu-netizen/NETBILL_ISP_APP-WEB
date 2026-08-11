@@ -184,9 +184,9 @@ fun MikroTikScreen(viewModel: MainViewModel) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
     // Active Router Selection
-    var selectedRouterId by remember { mutableStateOf<Long?>(null) }
+    var selectedRouterId by remember { mutableStateOf<String?>(null) }
     val currentRouter = routers.find { it.id == selectedRouterId } ?: routers.firstOrNull() ?: MikroTikRouterEntity(
-        id = 1,
+        id = "1",
         routerName = "Core RouterBOARD CCR2116",
         ipAddress = "192.168.88.1",
         apiPort = 8728,

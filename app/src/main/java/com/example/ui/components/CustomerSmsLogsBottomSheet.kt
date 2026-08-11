@@ -490,12 +490,12 @@ fun SendCustomerSingleSmsDialog(
             Button(
                 onClick = {
                     viewModel.sendSingleSmsNotification(
-                        customerId = customer.id,
-                        customerCode = customer.customerCode,
-                        customerName = customer.name,
+                        id = customer.id,
+                        code = customer.customerCode,
+                        name = customer.name,
                         mobile = customer.mobile,
-                        notificationType = notificationType,
-                        message = smsText
+                        type = notificationType,
+                        msg = smsText
                     )
                     onDismiss()
                 },

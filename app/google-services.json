@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "208674105924",
+    "project_id": "netbill-isp",
+    "storage_bucket": "netbill-isp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:208674105924:android:10b38a82184160d7b02a11",
+        "android_client_info": {
+          "package_name": "com.aistudio.netbillisp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbVMsdooGwLAqwPMCdbsTvvEHVIV1qOWE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

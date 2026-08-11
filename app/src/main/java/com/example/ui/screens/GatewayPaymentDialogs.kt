@@ -439,10 +439,10 @@ fun OnlineGatewayCheckoutDialog(
 
                             viewModel.processAutomatedGatewayPayment(
                                 customerId = cust.id,
-                                invoiceId = selectedInvoice?.id ?: 0,
+                                invoiceId = selectedInvoice?.id ?: "",
                                 amount = amt,
                                 gateway = selectedGateway,
-                                customerMobile = customerMobile
+                                mobile = customerMobile
                             ) { success, msg ->
                                 isProcessing = false
                                 if (success) {

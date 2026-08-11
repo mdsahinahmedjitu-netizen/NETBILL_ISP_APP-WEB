@@ -270,7 +270,7 @@ fun PaymentCard(payment: PaymentCollectionEntity, currency: String, onClick: () 
 fun RecordPaymentDialog(
     customers: List<CustomerEntity>,
     onDismiss: () -> Unit,
-    onSave: (Long, Double, String, String, String) -> Unit
+    onSave: (String, Double, String, String, String) -> Unit
 ) {
     var selectedCustomer by remember { mutableStateOf(customers.firstOrNull()) }
     var expandedCustomerDropdown by remember { mutableStateOf(false) }

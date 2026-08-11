@@ -90,7 +90,7 @@ fun CarryForwardDueCard(
     val currency = AppTranslation("currency_symbol")
 
     var expandedSimulator by remember { mutableStateOf(false) }
-    var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
+    var selectedCustomerId by remember { mutableStateOf<String?>(null) }
     var simPaymentAmountInput by remember { mutableStateOf("1000") }
     var selectedPaymentMethod by remember { mutableStateOf("Cash") }
 
@@ -382,9 +382,8 @@ fun CarryForwardDueCard(
                                         viewModel.recordPayment(
                                             customerId = selectedCustomer.id,
                                             amount = amt,
-                                            paymentMethod = selectedPaymentMethod,
-                                            transactionId = "FIFO-${System.currentTimeMillis().toString().takeLast(6)}",
-                                            collectorName = "Super Admin",
+                                            method = selectedPaymentMethod,
+                                            trxId = "FIFO-${System.currentTimeMillis().toString().takeLast(6)}",
                                             remarks = "Executed via FIFO Allocation Engine"
                                         )
                                         viewModel.showToast("৳$amt payment allocated via FIFO algorithm!")

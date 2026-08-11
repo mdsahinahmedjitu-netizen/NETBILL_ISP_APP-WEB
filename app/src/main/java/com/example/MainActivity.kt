@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -52,8 +53,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -65,10 +64,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,7 +81,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.data.entity.CustomerEntity
 import com.example.localization.AppLanguage
 import com.example.localization.AppTranslation
 import com.example.localization.LocalAppLanguage
@@ -103,14 +98,16 @@ import com.example.ui.screens.PackageScreen
 import com.example.ui.screens.PaymentCollectionScreen
 import com.example.ui.screens.ReportsScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SmsTemplateManagementScreen
 import com.example.ui.screens.StaffScreen
 import com.example.ui.theme.AppTheme
-import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.Navy700
+import com.example.ui.theme.IspAmberTertiary
 import com.example.ui.theme.Navy800
-import com.example.ui.theme.Navy900
-import com.example.ui.theme.NetBillISPTheme
+import com.example.ui.theme.Slate700
+import com.example.ui.theme.Teal100
+import com.example.ui.theme.Teal50
+import com.example.ui.theme.Teal600
+import com.example.ui.theme.Teal700
 import com.example.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -184,7 +181,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                         .fillMaxWidth()
                         .background(
                             brush = Brush.horizontalGradient(
-                                colors = listOf(com.example.ui.theme.Teal600, com.example.ui.theme.Teal700)
+                                colors = listOf(Teal600, Teal700)
                             )
                         )
                         .padding(20.dp)
@@ -198,7 +195,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                                     .background(Color.White),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Wifi, contentDescription = null, tint = com.example.ui.theme.Teal600)
+                                Icon(Icons.Default.Wifi, contentDescription = null, tint = Teal600)
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
@@ -230,6 +227,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     Triple("packages", "packages_title", Icons.Default.Wifi),
                     Triple("reports", "reports_title", Icons.Default.Receipt),
                     Triple("notifications", "sms_title", Icons.Default.Receipt),
+                    Triple("sms_templates", "SMS Templates", Icons.Default.Edit),
                     Triple("backup", "backup_title", Icons.Default.Receipt),
                     Triple("settings", "settings_title", Icons.Default.Settings)
                 )
@@ -237,8 +235,8 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                 drawerItems.forEach { (route, labelKey, icon) ->
                     val isSelected = currentDestination == route
                     NavigationDrawerItem(
-                        icon = { Icon(icon, contentDescription = null, tint = if (isSelected) com.example.ui.theme.Teal600 else MaterialTheme.colorScheme.onSurfaceVariant) },
-                        label = { Text(AppTranslation(labelKey), color = if (isSelected) com.example.ui.theme.Teal600 else MaterialTheme.colorScheme.onSurface, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        icon = { Icon(icon, contentDescription = null, tint = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurfaceVariant) },
+                        label = { Text(AppTranslation(labelKey), color = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurface, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                         selected = isSelected,
                         onClick = {
                             scope.launch { drawerState.close() }
@@ -251,7 +249,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                             }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = if (isDarkMode) com.example.ui.theme.Navy800 else com.example.ui.theme.Teal50,
+                            selectedContainerColor = if (isDarkMode) Navy800 else Teal50,
                             unselectedContainerColor = Color.Transparent
                         ),
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
@@ -276,7 +274,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                         Icon(
                             imageVector = if (isDarkMode) Icons.Default.WbSunny else Icons.Default.DarkMode,
                             contentDescription = null,
-                            tint = if (isDarkMode) com.example.ui.theme.IspAmberTertiary else com.example.ui.theme.Teal600,
+                            tint = if (isDarkMode) IspAmberTertiary else Teal600,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -299,7 +297,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                         onCheckedChange = { viewModel.setDarkMode(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = com.example.ui.theme.Teal600
+                            checkedTrackColor = Teal600
                         )
                     )
                 }
@@ -327,7 +325,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                             Text(
                                 text = AppTranslation("dashboard_title"),
                                 fontWeight = FontWeight.Bold,
-                                color = com.example.ui.theme.Teal600,
+                                color = Teal600,
                                 fontSize = 16.sp
                             )
                         }
@@ -348,7 +346,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                             Icon(
                                 imageVector = if (isDarkMode) Icons.Default.WbSunny else Icons.Default.DarkMode,
                                 contentDescription = if (isDarkMode) "Switch to Light Mode" else "Switch to Night Mode",
-                                tint = if (isDarkMode) com.example.ui.theme.IspAmberTertiary else com.example.ui.theme.Teal600
+                                tint = if (isDarkMode) IspAmberTertiary else Teal600
                             )
                         }
 
@@ -392,15 +390,15 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                         OutlinedButton(
                             onClick = { viewModel.toggleLanguage() },
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isDarkMode) com.example.ui.theme.Navy800 else com.example.ui.theme.Teal50,
-                                contentColor = com.example.ui.theme.Teal600
+                                containerColor = if (isDarkMode) Navy800 else Teal50,
+                                contentColor = Teal600
                             ),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDarkMode) com.example.ui.theme.Slate700 else com.example.ui.theme.Teal100),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDarkMode) Slate700 else Teal100),
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
-                            Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp), tint = com.example.ui.theme.Teal600)
+                            Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp), tint = Teal600)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (currentLang == AppLanguage.BANGLA) "EN" else "বাংলা", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = com.example.ui.theme.Teal600)
+                            Text(if (currentLang == AppLanguage.BANGLA) "EN" else "বাংলা", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Teal600)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -440,7 +438,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                                 Icon(
                                     icon,
                                     contentDescription = null,
-                                    tint = if (isSelected) com.example.ui.theme.Teal600 else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             label = {
@@ -448,15 +446,15 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                                     text = AppTranslation(labelKey),
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = if (isSelected) com.example.ui.theme.Teal600 else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = if (isDarkMode) com.example.ui.theme.Navy800 else com.example.ui.theme.Teal50,
-                                selectedIconColor = com.example.ui.theme.Teal600,
-                                selectedTextColor = com.example.ui.theme.Teal600,
+                                indicatorColor = if (isDarkMode) Navy800 else Teal50,
+                                selectedIconColor = Teal600,
+                                selectedTextColor = Teal600,
                                 unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -502,9 +500,9 @@ fun NetBillISPApp(viewModel: MainViewModel) {
 
                     composable(
                         route = "customer_detail/{customerId}",
-                        arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+                        arguments = listOf(navArgument("customerId") { type = NavType.StringType })
                     ) { backStackEntry ->
-                        val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+                        val customerId = backStackEntry.arguments?.getString("customerId") ?: ""
                         val customerList by viewModel.customersList.collectAsState()
                         val customer = customerList.find { it.id == customerId }
 
@@ -521,9 +519,9 @@ fun NetBillISPApp(viewModel: MainViewModel) {
 
                     composable(
                         route = "customer_ledger/{customerId}",
-                        arguments = listOf(navArgument("customerId") { type = NavType.LongType })
+                        arguments = listOf(navArgument("customerId") { type = NavType.StringType })
                     ) { backStackEntry ->
-                        val customerId = backStackEntry.arguments?.getLong("customerId") ?: 0L
+                        val customerId = backStackEntry.arguments?.getString("customerId") ?: ""
                         val customerList by viewModel.customersList.collectAsState()
                         val customer = customerList.find { it.id == customerId }
 
@@ -565,7 +563,17 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     }
 
                     composable("notifications") {
-                        NotificationScreen(viewModel = viewModel)
+                        NotificationScreen(
+                            viewModel = viewModel,
+                            onNavigateToTemplates = { navController.navigate("sms_templates") }
+                        )
+                    }
+
+                    composable("sms_templates") {
+                        SmsTemplateManagementScreen(
+                            viewModel = viewModel,
+                            onBack = { navController.popBackStack() }
+                        )
                     }
 
                     composable("backup") {

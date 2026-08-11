@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.localization.AppTranslation
+import java.util.UUID
 import com.example.ui.theme.AmberAlert
 import com.example.ui.theme.CoralWarning
 import com.example.ui.theme.CyanAccent
@@ -881,7 +882,7 @@ fun AddEditCustomerDialog(
                     }
                     val finalName = if (name.isNotBlank()) name else "গ্রাহক ${code.takeLast(4)}"
                     val entity = CustomerEntity(
-                        id = customer?.id ?: 0L,
+                        id = customer?.id ?: UUID.randomUUID().toString(),
                         customerCode = code,
                         name = finalName,
                         mobile = mobile,

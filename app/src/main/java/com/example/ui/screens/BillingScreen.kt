@@ -18,24 +18,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -97,9 +95,9 @@ fun BillingScreen(viewModel: MainViewModel) {
 
     var selectedTab by remember { mutableStateOf("All") }
     var searchQuery by remember { mutableStateOf("") }
-    var showGenerateBillsDialog by remember { mutableStateOf(false) }
-    var showOnlineGatewayDialog by remember { mutableStateOf(false) }
-    var showReconciliationDialog by remember { mutableStateOf(false) }
+    var showGenerateBillsDialog by remember { mutableStateOf(value = false) }
+    var showOnlineGatewayDialog by remember { mutableStateOf(value = false) }
+    var showReconciliationDialog by remember { mutableStateOf(value = false) }
 
     var selectedInvoiceForPayment by remember { mutableStateOf<InvoiceEntity?>(null) }
     var selectedInvoiceForReceipt by remember { mutableStateOf<InvoiceEntity?>(null) }
@@ -108,11 +106,11 @@ fun BillingScreen(viewModel: MainViewModel) {
     val totalBilled = invoices.sumOf { it.totalPayable }
     val totalCollected = invoices.sumOf { it.paidAmount }
     val totalOutstanding = invoices.sumOf { it.dueAmount }
-    val unpaidCount = invoices.count { it.status == "Unpaid" || it.status == "Partial" }
+    val unpaidCount = invoices.count { (it.status == "Unpaid") || (it.status == "Partial") }
 
     val filteredInvoices = invoices.filter { inv ->
         val matchTab = when (selectedTab) {
-            "Unpaid" -> inv.status == "Unpaid" || inv.status == "Partial"
+            "Unpaid" -> (inv.status == "Unpaid") || (inv.status == "Partial")
             "Paid" -> inv.status == "Paid"
             else -> true
         }
@@ -129,20 +127,20 @@ fun BillingScreen(viewModel: MainViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(SleekBg)
-            .padding(16.dp)
+            .padding(16.dp),
     ) {
         // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
                 Text(
                     text = AppTranslation("billing_management"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Slate900
+                    color = Slate900,
                 )
                 Text(
                     text = "Automated Monthly Bills & Invoicing Engine",
@@ -244,7 +242,7 @@ fun BillingScreen(viewModel: MainViewModel) {
         // Filter Tabs
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             listOf("All", "Unpaid", "Paid", "Carry Forward Due").forEach { tab ->
                 val isSelected = selectedTab == tab
@@ -288,16 +286,15 @@ fun BillingScreen(viewModel: MainViewModel) {
             ) {
                 item {
                     CarryForwardDueCard(
-                        viewModel = viewModel,
-                        onCollectPaymentClick = { customer ->
-                            val inv = invoices.find { it.customerId == customer.id && it.dueAmount > 0 }
-                            if (inv != null) {
-                                selectedInvoiceForPayment = inv
-                            } else {
-                                viewModel.showToast("Selected customer has no unpaid invoices.")
-                            }
+                        viewModel = viewModel
+                    ) { customer ->
+                        val inv = invoices.find { (it.customerId == customer.id) && (it.dueAmount > 0) }
+                        if (inv != null) {
+                            selectedInvoiceForPayment = inv
+                        } else {
+                            viewModel.showToast("Selected customer has no unpaid invoices.")
                         }
-                    )
+                    }
                 }
             }
         } else if (filteredInvoices.isEmpty()) {
@@ -333,11 +330,10 @@ fun BillingScreen(viewModel: MainViewModel) {
                         invoice = invoice,
                         currency = currency,
                         onCollectPayment = { selectedInvoiceForPayment = invoice },
-                        onPrintInvoice = { selectedInvoiceForReceipt = invoice },
-                        onSendReminder = {
-                            Toast.makeText(context, "SMS Bill Reminder sent to ${invoice.customerName} (${invoice.invoiceNo})", Toast.LENGTH_SHORT).show()
-                        }
-                    )
+                        onPrintInvoice = { selectedInvoiceForReceipt = invoice }
+                    ) {
+                        Toast.makeText(context, "SMS Bill Reminder sent to ${invoice.customerName} (${invoice.invoiceNo})", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -346,12 +342,11 @@ fun BillingScreen(viewModel: MainViewModel) {
     // Auto-Generate Monthly Bills Dialog
     if (showGenerateBillsDialog) {
         GenerateBillsDialog(
-            onDismiss = { showGenerateBillsDialog = false },
-            onGenerate = { month, day20Choice ->
-                viewModel.generateBillsForMonth(month)
-                showGenerateBillsDialog = false
-            }
-        )
+            onDismiss = { showGenerateBillsDialog = false }
+        ) { month, _ ->
+            viewModel.generateBillsForMonth(month)
+            showGenerateBillsDialog = false
+        }
     }
 
     // Online bKash & Nagad Payment Gateway Dialog
@@ -381,7 +376,7 @@ fun BillingScreen(viewModel: MainViewModel) {
                     invoice = invoice,
                     amount = amt,
                     method = method,
-                    transactionId = trxId,
+                    trxId = trxId,
                     remarks = notes
                 )
                 selectedInvoiceForPayment = null
@@ -469,7 +464,7 @@ fun InvoiceCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -527,7 +522,7 @@ fun InvoiceCard(
                     .background(Slate100, shape = RoundedCornerShape(10.dp))
                     .padding(10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
                     Text(
@@ -598,7 +593,7 @@ fun InvoiceCard(
                         border = BorderStroke(1.dp, Teal100),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("SMS", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
@@ -666,7 +661,7 @@ fun PayInvoiceDialog(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Current Due Amount:", fontSize = 12.sp, color = Slate600)
                         Text("$currency ${invoice.dueAmount.toInt()}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Teal600)
@@ -781,7 +776,7 @@ fun PrintReceiptDialog(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("POS Bill Receipt Preview", color = Slate900, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Icon(Icons.Default.Print, contentDescription = null, tint = Teal600)
@@ -806,7 +801,7 @@ fun PrintReceiptDialog(
                     Text("Hotline: 01711000000 • Support 24/7", fontSize = 10.sp, color = Slate500)
 
                     Spacer(modifier = Modifier.height(10.dp))
-                    Divider(color = Slate200)
+                    HorizontalDivider(color = Slate200)
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
@@ -826,7 +821,7 @@ fun PrintReceiptDialog(
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
-                    Divider(color = Slate200)
+                    HorizontalDivider(color = Slate200)
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -843,7 +838,7 @@ fun PrintReceiptDialog(
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
-                    Divider(color = Slate200)
+                    HorizontalDivider(color = Slate200)
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

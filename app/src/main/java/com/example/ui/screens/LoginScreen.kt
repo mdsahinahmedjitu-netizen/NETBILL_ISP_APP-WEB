@@ -29,6 +29,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,6 +37,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +62,7 @@ import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.Navy800
 import com.example.ui.theme.Navy900
+import com.example.viewmodel.LoginUiState
 import com.example.viewmodel.MainViewModel
 
 @Composable
@@ -70,7 +74,14 @@ fun LoginScreen(
     var usernameOrMobile by remember { mutableStateOf("admin") }
     var password by remember { mutableStateOf("admin123") }
 
-    val currentLang = viewModel.currentLanguage.value
+    val currentLang by viewModel.currentLanguage.collectAsState()
+    val loginUiState by viewModel.loginUiState.collectAsState()
+
+    LaunchedEffect(loginUiState) {
+        if (loginUiState is LoginUiState.Success) {
+            onLoginSuccess()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -237,13 +248,20 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    if (loginUiState is LoginUiState.Error) {
+                        Text(
+                            text = (loginUiState as LoginUiState.Error).message,
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
                     Button(
                         onClick = {
-                            val ok = viewModel.loginUser(usernameOrMobile, password)
-                            if (ok) {
-                                onLoginSuccess()
-                            }
+                            viewModel.loginUser(usernameOrMobile, password)
                         },
+                        enabled = loginUiState !is LoginUiState.Loading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
@@ -253,11 +271,19 @@ fun LoginScreen(
                             contentColor = Color.White
                         )
                     ) {
-                        Text(
-                            text = AppTranslation("login_btn"),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (loginUiState is LoginUiState.Loading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = AppTranslation("login_btn"),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
