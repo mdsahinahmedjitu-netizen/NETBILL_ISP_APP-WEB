@@ -753,6 +753,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         suspendAllExpiredCustomers()
     }
 
+    fun addMikroTikRouter(router: MikroTikRouterEntity) {
+        viewModelScope.launch {
+            repository.mikrotikDao.insertRouter(router)
+            showToast("Router '${router.routerName}' added successfully!")
+        }
+    }
+
+    fun toggleRouterStatus(routerId: Long, currentStatus: Boolean) {
+        viewModelScope.launch {
+            repository.mikrotikDao.updateRouterStatus(routerId, !currentStatus)
+            val action = if (!currentStatus) "Connected" else "Disconnected"
+            showToast("Router #$routerId $action")
+        }
+    }
+
     fun showToast(msg: String) {
         _toastMessage.value = msg
     }
