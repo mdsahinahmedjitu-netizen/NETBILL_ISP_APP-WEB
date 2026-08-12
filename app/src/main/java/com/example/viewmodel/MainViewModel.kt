@@ -127,12 +127,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats())
 
     init {
+        // Firebase Configuration Diagnostics
+        val firebaseApp = com.google.firebase.FirebaseApp.getInstance()
+        val options = firebaseApp.options
+        android.util.Log.d("FirebaseCheck", "--------------------------------------------------")
+        android.util.Log.d("FirebaseCheck", "Firebase App Name: ${firebaseApp.name}")
+        android.util.Log.d("FirebaseCheck", "Project ID: ${options.projectId}")
+        android.util.Log.d("FirebaseCheck", "Application ID: ${options.applicationId}")
+        android.util.Log.d("FirebaseCheck", "Database URL: ${options.databaseUrl ?: "Default"}")
+        android.util.Log.d("FirebaseCheck", "--------------------------------------------------")
+
         viewModelScope.launch {
             repository.seedDatabaseIfEmpty()
+            val connectionStatus = repository.checkFirestoreConnection()
+            android.util.Log.d("FirebaseCheck", "Firestore Connection Status: $connectionStatus")
         }
         
         // Start sync when a user is logged in
         currentUser.onEach { user ->
+            val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            android.util.Log.d("FirebaseCheck", "Current User Change: ${user?.name} | Firebase UID: ${firebaseUser?.uid ?: "NONE"}")
             if (user != null) {
                 repository.startSync()
             } else {
@@ -192,7 +206,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (anonResult.isSuccess) {
                     showToast("Logged in as ${user.name} (Demo Mode + Cloud Sync)")
                 } else {
-                    showToast("Logged in as ${user.name} (Local Only - No Cloud Auth)")
+                    val error = anonResult.exceptionOrNull()?.message ?: "Unknown Error"
+                    showToast("Cloud Auth Error: $error")
                 }
                 return@launch
             }

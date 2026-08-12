@@ -40,10 +40,13 @@ class AuthManager {
     }
 
     suspend fun signInAnonymously(): Result<Unit> {
+        android.util.Log.d("AuthManager", "Attempting Firebase Anonymous Sign-in...")
         return try {
-            auth.signInAnonymously().await()
+            val result = auth.signInAnonymously().await()
+            android.util.Log.i("AuthManager", "Firebase Anonymous Sign-in SUCCESS: ${result.user?.uid}")
             Result.success(Unit)
         } catch (e: Exception) {
+            android.util.Log.e("AuthManager", "Firebase Anonymous Sign-in FAILED: ${e.message}", e)
             Result.failure(e)
         }
     }

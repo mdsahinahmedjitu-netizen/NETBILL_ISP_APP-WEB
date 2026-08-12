@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "208674105924",
+    "firebase_url": "https://netbill-isp-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "netbill-isp",
     "storage_bucket": "netbill-isp.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.aistudio.netbillisp.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "208674105924-ef4sbcn9fa1psmuj6dgsuuelrfl1fna4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aistudio.netbillisp.app",
+            "certificate_hash": "c2ffff0e5439ff351686ad7884021dd5f3143f3d"
+          }
+        },
+        {
+          "client_id": "208674105924-ea2fontcbsvrnd69hnlv7tpot09qcskv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAbVMsdooGwLAqwPMCdbsTvvEHVIV1qOWE"
@@ -20,7 +34,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "208674105924-ea2fontcbsvrnd69hnlv7tpot09qcskv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -58,7 +58,6 @@ import com.example.service.GatewayConfig
 import com.example.service.GatewayEnvironment
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.CoralWarning
-import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.NagadOrange
 import com.example.ui.theme.SleekBorder
@@ -72,7 +71,7 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settingsState.collectAsState()
     val gatewayConfig by viewModel.gatewayConfig.collectAsState()
-    val currentLang = viewModel.currentLanguage.value
+    val currentLang by viewModel.currentLanguage.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
 

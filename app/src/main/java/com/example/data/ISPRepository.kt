@@ -52,9 +52,14 @@ class ISPRepository(private val db: AppDatabase) {
     private fun <T : Any> syncCollection(collection: String, clazz: Class<T>, onDelete: (String) -> Unit, onSync: (T) -> Unit) {
         val listener = firestore.collection(collection).addSnapshotListener { snapshots, e ->
             if (e != null) {
-                Log.w("ISPRepository", "Listen failed for $collection. Check Security Rules.", e)
+                Log.e("ISPRepository", "Listen FAILED for $collection. Project: ${firestore.app.options.projectId}", e)
                 return@addSnapshotListener
             }
+            
+            val isFromCache = snapshots?.metadata?.isFromCache ?: false
+            val hasPendingWrites = snapshots?.metadata?.hasPendingWrites() ?: false
+            
+            Log.d("ISPRepository", "Sync Event for $collection | FromCache: $isFromCache | PendingWrites: $hasPendingWrites")
             
             val count = snapshots?.documentChanges?.size ?: 0
             if (count > 0) {
@@ -79,24 +84,46 @@ class ISPRepository(private val db: AppDatabase) {
 
     fun startSync() {
         stopSync()
-        syncCollection("customers", CustomerEntity::class.java, { scope.launch { customerDao.deleteCustomerById(it) } }) { scope.launch { customerDao.insertCustomer(it) } }
-        syncCollection("packages", PackageEntity::class.java, { scope.launch { packageDao.deletePackageById(it) } }) { scope.launch { packageDao.insertPackage(it) } }
-        syncCollection("invoices", InvoiceEntity::class.java, { /* handle if needed */ }) { scope.launch { invoiceDao.insertInvoice(it) } }
-        syncCollection("payments", PaymentCollectionEntity::class.java, { /* handle if needed */ }) { scope.launch { paymentDao.insertPayment(it) } }
-        syncCollection("allocations", PaymentAllocationEntity::class.java, { /* handle if needed */ }) { scope.launch { paymentAllocationDao.insertAllocation(it) } }
-        syncCollection("expenses", ExpenseEntity::class.java, { scope.launch { expenseDao.deleteExpenseById(it) } }) { scope.launch { expenseDao.insertExpense(it) } }
-        syncCollection("ledger", LedgerEntryEntity::class.java, { /* handle if needed */ }) { scope.launch { ledgerDao.insertLedgerEntry(it) } }
-        syncCollection("isp_settings", ISPSettingsEntity::class.java, { /* handle if needed */ }) { scope.launch { settingsDao.saveSettings(it) } }
-        syncCollection("staff", StaffEntity::class.java, { /* handle if needed */ }) { scope.launch { staffDao.insertStaff(it) } }
-        syncCollection("staff_salaries", StaffSalaryEntity::class.java, { /* handle if needed */ }) { scope.launch { staffDao.insertSalary(it) } }
-        syncCollection("mikrotik_routers", MikroTikRouterEntity::class.java, { /* handle if needed */ }) { scope.launch { mikrotikDao.insertRouter(it) } }
-        syncCollection("sms_logs", SmsLogEntity::class.java, { scope.launch { smsLogDao.deleteSmsLogById(it) } }) { scope.launch { smsLogDao.insertSmsLog(it) } }
-        syncCollection("sms_templates", SmsTemplateEntity::class.java, { scope.launch { smsTemplateDao.deleteTemplateById(it) } }) { scope.launch { smsTemplateDao.insertTemplate(it) } }
+        scope.launch {
+            // Wait up to 5 seconds for Firebase Auth to settle if needed
+            var retryCount = 0
+            var user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            while (user == null && retryCount < 10) {
+                kotlinx.coroutines.delay(500)
+                user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                retryCount++
+            }
+
+            if (user == null) {
+                Log.w("ISPRepository", "Sync skipped: User is NOT authenticated in Firebase after retries.")
+                return@launch
+            }
+            
+            Log.i("ISPRepository", "Starting Real-time Sync for User: ${user.uid}")
+            
+            syncCollection("customers", CustomerEntity::class.java, { scope.launch { customerDao.deleteCustomerById(it) } }) { scope.launch { customerDao.insertCustomer(it) } }
+            syncCollection("packages", PackageEntity::class.java, { scope.launch { packageDao.deletePackageById(it) } }) { scope.launch { packageDao.insertPackage(it) } }
+            syncCollection("invoices", InvoiceEntity::class.java, { /* handle if needed */ }) { scope.launch { invoiceDao.insertInvoice(it) } }
+            syncCollection("payments", PaymentCollectionEntity::class.java, { /* handle if needed */ }) { scope.launch { paymentDao.insertPayment(it) } }
+            syncCollection("allocations", PaymentAllocationEntity::class.java, { /* handle if needed */ }) { scope.launch { paymentAllocationDao.insertAllocation(it) } }
+            syncCollection("expenses", ExpenseEntity::class.java, { scope.launch { expenseDao.deleteExpenseById(it) } }) { scope.launch { expenseDao.insertExpense(it) } }
+            syncCollection("ledger", LedgerEntryEntity::class.java, { /* handle if needed */ }) { scope.launch { ledgerDao.insertLedgerEntry(it) } }
+            syncCollection("isp_settings", ISPSettingsEntity::class.java, { /* handle if needed */ }) { scope.launch { settingsDao.saveSettings(it) } }
+            syncCollection("staff", StaffEntity::class.java, { /* handle if needed */ }) { scope.launch { staffDao.insertStaff(it) } }
+            syncCollection("staff_salaries", StaffSalaryEntity::class.java, { /* handle if needed */ }) { scope.launch { staffDao.insertSalary(it) } }
+            syncCollection("mikrotik_routers", MikroTikRouterEntity::class.java, { /* handle if needed */ }) { scope.launch { mikrotikDao.insertRouter(it) } }
+            syncCollection("sms_logs", SmsLogEntity::class.java, { scope.launch { smsLogDao.deleteSmsLogById(it) } }) { scope.launch { smsLogDao.insertSmsLog(it) } }
+            syncCollection("sms_templates", SmsTemplateEntity::class.java, { scope.launch { smsTemplateDao.deleteTemplateById(it) } }) { scope.launch { smsTemplateDao.insertTemplate(it) } }
+        }
     }
 
     fun stopSync() {
         listeners.forEach { it.remove() }
         listeners.clear()
+    }
+
+    suspend fun checkFirestoreConnection(): String {
+        return firestoreService.checkConnectivity()
     }
 
     fun getLedgerForCustomer(customerId: String): Flow<List<LedgerEntryEntity>> {
@@ -112,6 +139,7 @@ class ISPRepository(private val db: AppDatabase) {
     }
 
     suspend fun insertLedgerEntry(entry: LedgerEntryEntity) {
+        ledgerDao.insertLedgerEntry(entry)
         firestoreService.saveDocument("ledger", entry.id, entry)
     }
 
@@ -153,13 +181,18 @@ class ISPRepository(private val db: AppDatabase) {
                 currencySymbol = "৳",
                 defaultLanguage = "bn"
             )
-            // Settings ID is already stable ("1")
+            // Local First
+            settingsDao.saveSettings(settings)
             firestoreService.saveSettings(settings)
 
             // Seed packages with stable IDs
             val pkg1 = PackageEntity(id = "pkg_10mbps", name = "10 Mbps Starter", speed = "10 Mbps", monthlyPrice = 500.0, description = "Home starter connection", activeUserCount = 120)
             val pkg2 = PackageEntity(id = "pkg_20mbps", name = "20 Mbps Super", speed = "20 Mbps", monthlyPrice = 800.0, description = "Most popular home package", activeUserCount = 245)
             val pkg3 = PackageEntity(id = "pkg_50mbps", name = "50 Mbps Turbo", speed = "50 Mbps", monthlyPrice = 1500.0, description = "Gamers & heavy streaming", activeUserCount = 89)
+            
+            packageDao.insertPackage(pkg1)
+            packageDao.insertPackage(pkg2)
+            packageDao.insertPackage(pkg3)
             
             firestoreService.savePackage(pkg1)
             firestoreService.savePackage(pkg2)
@@ -177,16 +210,35 @@ class ISPRepository(private val db: AppDatabase) {
                 status = "Active",
                 currentDue = 800.0
             )
+            customerDao.insertCustomer(cust1)
             firestoreService.saveCustomer(cust1)
         }
     }
 
-    suspend fun insertCustomer(customer: CustomerEntity) = firestoreService.saveCustomer(customer)
-    suspend fun updateCustomer(customer: CustomerEntity) = firestoreService.saveCustomer(customer)
-    suspend fun deleteCustomerById(id: String) = firestoreService.deleteCustomer(id)
+    suspend fun insertCustomer(customer: CustomerEntity) {
+        customerDao.insertCustomer(customer)
+        firestoreService.saveCustomer(customer)
+    }
 
-    suspend fun insertPackage(pkg: PackageEntity) = firestoreService.savePackage(pkg)
-    suspend fun deletePackageById(id: String) = firestoreService.deletePackage(id)
+    suspend fun updateCustomer(customer: CustomerEntity) {
+        customerDao.updateCustomer(customer)
+        firestoreService.saveCustomer(customer)
+    }
+
+    suspend fun deleteCustomerById(id: String) {
+        customerDao.deleteCustomerById(id)
+        firestoreService.deleteCustomer(id)
+    }
+
+    suspend fun insertPackage(pkg: PackageEntity) {
+        packageDao.insertPackage(pkg)
+        firestoreService.savePackage(pkg)
+    }
+
+    suspend fun deletePackageById(id: String) {
+        packageDao.deletePackageById(id)
+        firestoreService.deletePackage(id)
+    }
 
     suspend fun generateAutoMonthlyInvoices(
         monthYear: String,
@@ -277,6 +329,12 @@ class ISPRepository(private val db: AppDatabase) {
         }
 
         if (invoicesToSave.isNotEmpty()) {
+            // Local First
+            invoicesToSave.forEach { invoiceDao.insertInvoice(it) }
+            customersToUpdate.forEach { customerDao.updateCustomer(it) }
+            ledgerToSave.forEach { ledgerDao.insertLedgerEntry(it) }
+            
+            // Sync to Firestore
             firestoreService.generateBillingTransaction(invoicesToSave, customersToUpdate, ledgerToSave)
         }
         return generatedCount
@@ -360,6 +418,14 @@ class ISPRepository(private val db: AppDatabase) {
             collector = collectorName, referenceNo = receiptNo, description = "Payment received"
         ))
 
+        // Local First
+        paymentDao.insertPayment(payment)
+        allocations.forEach { paymentAllocationDao.insertAllocation(it) }
+        updatedInvoices.forEach { invoiceDao.updateInvoice(it) }
+        customerDao.updateCustomer(updatedCustomer)
+        ledgerEntries.forEach { ledgerDao.insertLedgerEntry(it) }
+
+        // Sync to Firestore
         firestoreService.recordPaymentTransaction(payment, allocations, updatedInvoices, updatedCustomer, ledgerEntries)
         return payment
     }
@@ -432,30 +498,71 @@ class ISPRepository(private val db: AppDatabase) {
         }
     }
 
-    suspend fun insertStaff(staff: StaffEntity) = firestoreService.saveStaff(staff)
-    suspend fun insertSalary(salary: StaffSalaryEntity) = firestoreService.saveSalary(salary)
+    suspend fun insertStaff(staff: StaffEntity) {
+        staffDao.insertStaff(staff)
+        firestoreService.saveStaff(staff)
+    }
 
-    suspend fun insertRouter(router: MikroTikRouterEntity) = firestoreService.saveRouter(router)
+    suspend fun insertSalary(salary: StaffSalaryEntity) {
+        staffDao.insertSalary(salary)
+        firestoreService.saveSalary(salary)
+    }
+
+    suspend fun insertRouter(router: MikroTikRouterEntity) {
+        mikrotikDao.insertRouter(router)
+        firestoreService.saveRouter(router)
+    }
+
     suspend fun updateRouterStatus(routerId: String, connected: Boolean) {
+        mikrotikDao.updateRouterStatus(routerId, connected)
         val router = mikrotikDao.getAllRouters().firstOrNull()?.find { it.id == routerId } ?: return
         firestoreService.saveRouter(router.copy(isConnected = connected))
     }
 
-    suspend fun insertSmsLog(log: SmsLogEntity) = firestoreService.saveSmsLog(log)
-    suspend fun updateSmsLog(log: SmsLogEntity) = firestoreService.saveSmsLog(log)
-    suspend fun clearAllSmsLogs() {
-        // For clearing, we might need a batch delete or just leave it for now
-        // Firestore doesn't have a direct "clear collection" method
+    suspend fun insertSmsLog(log: SmsLogEntity) {
+        smsLogDao.insertSmsLog(log)
+        firestoreService.saveSmsLog(log)
     }
 
-    suspend fun insertExpense(expense: ExpenseEntity) = firestoreService.saveExpense(expense)
-    suspend fun deleteExpenseById(id: String) = firestoreService.deleteExpense(id)
+    suspend fun updateSmsLog(log: SmsLogEntity) {
+        smsLogDao.updateSmsLog(log)
+        firestoreService.saveSmsLog(log)
+    }
 
-    suspend fun saveSettings(settings: ISPSettingsEntity) = firestoreService.saveSettings(settings)
+    suspend fun clearAllSmsLogs() {
+        smsLogDao.clearAllSmsLogs()
+        // Batch delete in Firestore not implemented yet
+    }
 
-    suspend fun insertSmsTemplate(template: SmsTemplateEntity) = firestoreService.saveSmsTemplate(template)
-    suspend fun updateSmsTemplate(template: SmsTemplateEntity) = firestoreService.saveSmsTemplate(template)
-    suspend fun deleteSmsTemplate(id: String) = firestoreService.deleteSmsTemplate(id)
+    suspend fun insertExpense(expense: ExpenseEntity) {
+        expenseDao.insertExpense(expense)
+        firestoreService.saveExpense(expense)
+    }
+
+    suspend fun deleteExpenseById(id: String) {
+        expenseDao.deleteExpenseById(id)
+        firestoreService.deleteExpense(id)
+    }
+
+    suspend fun saveSettings(settings: ISPSettingsEntity) {
+        settingsDao.saveSettings(settings)
+        firestoreService.saveSettings(settings)
+    }
+
+    suspend fun insertSmsTemplate(template: SmsTemplateEntity) {
+        smsTemplateDao.insertTemplate(template)
+        firestoreService.saveSmsTemplate(template)
+    }
+
+    suspend fun updateSmsTemplate(template: SmsTemplateEntity) {
+        smsTemplateDao.updateTemplate(template)
+        firestoreService.saveSmsTemplate(template)
+    }
+
+    suspend fun deleteSmsTemplate(id: String) {
+        smsTemplateDao.deleteTemplateById(id)
+        firestoreService.deleteSmsTemplate(id)
+    }
 
     suspend fun seedSmsTemplatesIfEmpty() {
         if (smsTemplateDao.getAllTemplates().firstOrNull().isNullOrEmpty()) {
