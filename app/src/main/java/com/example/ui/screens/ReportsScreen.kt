@@ -43,15 +43,20 @@ import com.example.ui.theme.Navy800
 import com.example.ui.theme.Navy900
 import com.example.viewmodel.MainViewModel
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.viewmodel.ReportsViewModel
+
 @Composable
-fun ReportsScreen(viewModel: MainViewModel) {
-    val stats by viewModel.dashboardStats.collectAsState()
-    val customers by viewModel.customersList.collectAsState()
-    val invoices by viewModel.invoicesList.collectAsState()
-    val allocations: List<PaymentAllocationEntity> by viewModel.paymentAllocations.collectAsState()
+fun ReportsScreen(mainViewModel: MainViewModel, reportsViewModel: ReportsViewModel = viewModel()) {
+    val stats by reportsViewModel.reportStats.collectAsState()
+    val customers by reportsViewModel.customers.collectAsState()
+    val allocations: List<PaymentAllocationEntity> by mainViewModel.paymentAllocations.collectAsState()
+    val context = LocalContext.current
     val currency = AppTranslation("currency_symbol")
 
-    // Calculations for Carry Forward Report
+    // Calculations for Carry Forward Report from MainViewModel's invoices
+    val invoices by mainViewModel.invoicesList.collectAsState()
     val dueInvoices = invoices.filter { it.dueAmount > 0 && it.status != "Cancelled" }
     val totalCarryForwardDue = dueInvoices.sumOf { it.previousDue }
     val totalCurrentBillDue = dueInvoices.sumOf { it.billAmount }
@@ -67,7 +72,9 @@ fun ReportsScreen(viewModel: MainViewModel) {
             text = AppTranslation("reports_analytics"),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = Color.White,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -75,25 +82,25 @@ fun ReportsScreen(viewModel: MainViewModel) {
         // Export Actions Bar
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
-                onClick = { viewModel.showToast("Exporting PDF Carry Forward & Due Report...") },
+                onClick = { reportsViewModel.exportCustomersToCsv(context) },
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Export PDF", fontSize = 12.sp)
+                Text("Export Customers", fontSize = 12.sp)
             }
 
             OutlinedButton(
-                onClick = { viewModel.showToast("Generating CSV Payment Allocations Export...") },
+                onClick = { reportsViewModel.exportPaymentsToCsv(context) },
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = CyanAccent),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Export CSV", fontSize = 12.sp)
+                Text("Export Payments", fontSize = 12.sp)
             }
         }
 
@@ -107,13 +114,13 @@ fun ReportsScreen(viewModel: MainViewModel) {
                     colors = CardDefaults.cardColors(containerColor = Navy800)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Carry Forward Due & Outstanding Report", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
+                        Text("Monthly Financial Summary", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        DetailRow("Total Carried Forward Due (Prev Months)", "$currency ${totalCarryForwardDue.toInt()}")
-                        DetailRow("Current Month Bill Due", "$currency ${totalCurrentBillDue.toInt()}")
-                        DetailRow("Net Total Outstanding Balance", "$currency ${totalOutstandingDue.toInt()}")
-                        DetailRow("Customers with Carry Forward Due", "${dueInvoices.distinctBy { it.customerId }.size} Customers")
+                        ReportDetailRow("Total Monthly Income", "$currency ${stats.totalRevenue.toInt()}")
+                        ReportDetailRow("Total Monthly Expense", "$currency ${stats.totalExpense.toInt()}")
+                        ReportDetailRow("Net Profit", "$currency ${stats.netProfit.toInt()}")
+                        ReportDetailRow("Outstanding Due", "$currency ${stats.totalOutstanding.toInt()}")
                     }
                 }
             }
@@ -125,13 +132,52 @@ fun ReportsScreen(viewModel: MainViewModel) {
                     colors = CardDefaults.cardColors(containerColor = Navy800)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("FIFO Payment Allocation History Log", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
+                        Text("Carry Forward Due & Outstanding Report", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        ReportDetailRow("Total Carried Forward Due", "$currency ${totalCarryForwardDue.toInt()}")
+                        ReportDetailRow("Current Month Bill Due", "$currency ${totalCurrentBillDue.toInt()}")
+                        ReportDetailRow("Net Total Outstanding Balance", "$currency ${totalOutstandingDue.toInt()}")
+                        ReportDetailRow("Customers with Carry Forward Due", "${dueInvoices.distinctBy { it.customerId }.size} Customers")
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Navy800)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Zone-wise Subscriber Distribution", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        if (stats.zoneReports.isEmpty()) {
+                            Text("No zone data available.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        } else {
+                            stats.zoneReports.forEach { zone ->
+                                ReportDetailRow(zone.zoneName, "${zone.customerCount} Subscribers ($currency ${zone.monthlyRevenue.toInt()}/mo)")
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Navy800)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Recent FIFO Payment Allocations", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
                         Spacer(modifier = Modifier.height(10.dp))
 
                         if (allocations.isEmpty()) {
                             Text("No payment allocations recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         } else {
-                            allocations.take(5).forEach { alloc ->
+                            allocations.take(10).forEach { alloc ->
                                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -161,42 +207,19 @@ fun ReportsScreen(viewModel: MainViewModel) {
                     }
                 }
             }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Navy800)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Monthly Financial Summary", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        DetailRow("Total Monthly Income", "$currency ${stats.monthlyCollection.toInt()}")
-                        DetailRow("Total Monthly Expense", "$currency ${(stats.todaysExpense * 15).toInt()}")
-                        DetailRow("Estimated Net Profit", "$currency ${(stats.monthlyCollection - stats.todaysExpense * 15).toInt()}")
-                        DetailRow("Outstanding Due", "$currency ${stats.totalDue.toInt()}")
-                    }
-                }
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Navy800)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Zone-wise Subscriber Distribution", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        DetailRow("Uttara Zone", "180 Subscribers (৳1,44,000/mo)")
-                        DetailRow("Mirpur Zone", "145 Subscribers (৳1,16,000/mo)")
-                        DetailRow("Dhanmondi Zone", "110 Subscribers (৳88,000/mo)")
-                        DetailRow("Gulshan Zone", "74 Subscribers (৳59,200/mo)")
-                    }
-                }
-            }
         }
+    }
+}
+
+@Composable
+fun ReportDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, color = Color.LightGray, fontSize = 13.sp)
+        Text(text = value, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
     }
 }

@@ -257,7 +257,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(com.example.ui.theme.SleekBg)
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Customer Expiry Alert Admin Banner
         if (expiringCustomers.isNotEmpty()) {
@@ -436,7 +436,7 @@ fun DashboardScreen(
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Column {
                                 Text(
@@ -1003,12 +1003,12 @@ fun ISPFeatureGridSection(
     onBillSummaryClick: () -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         // Row 1: Collection (Blue/Violet) & Collection Report (Lime Green)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
@@ -1019,7 +1019,7 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFF6200EE), Color(0xFF3700B3), Color(0xFF0052D4))
                 ),
                 onClick = onCollectionClick,
-                iconContent = { CollectionGridIcon(Modifier.size(72.dp)) }
+                iconContent = { CollectionGridIcon(Modifier.size(56.dp)) }
             )
             ISPFeatureCard(
                 label = AppTranslation("grid_collection_report"),
@@ -1029,13 +1029,13 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFF00E65B), Color(0xFF00B33C), Color(0xFF008026))
                 ),
                 onClick = onCollectionReportClick,
-                iconContent = { CollectionReportGridIcon(Modifier.size(72.dp)) }
+                iconContent = { CollectionReportGridIcon(Modifier.size(56.dp)) }
             )
         }
 
         // Row 2: List Report (Magenta/Purple) & Due List (Orange/Red)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
@@ -1046,7 +1046,7 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFFFF007A), Color(0xFFD900FF), Color(0xFF8B00FF))
                 ),
                 onClick = onListReportClick,
-                iconContent = { ListReportGridIcon(Modifier.size(72.dp)) }
+                iconContent = { ListReportGridIcon(Modifier.size(56.dp)) }
             )
             ISPFeatureCard(
                 label = AppTranslation("grid_due_list"),
@@ -1056,13 +1056,13 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFFFF8000), Color(0xFFFF4500), Color(0xFFE52E00))
                 ),
                 onClick = onDueListClick,
-                iconContent = { DueListGridIcon(Modifier.size(72.dp)) }
+                iconContent = { DueListGridIcon(Modifier.size(56.dp)) }
             )
         }
 
         // Row 3: Create New (Cyan/Blue) & Search (Violet/Deep Purple)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
@@ -1073,7 +1073,7 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFF00D2FF), Color(0xFF0080FF), Color(0xFF0052D4))
                 ),
                 onClick = onCreateNewClick,
-                iconContent = { CreateNewGridIcon(Modifier.size(72.dp)) }
+                iconContent = { CreateNewGridIcon(Modifier.size(56.dp)) }
             )
             ISPFeatureCard(
                 label = AppTranslation("grid_search"),
@@ -1083,13 +1083,13 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFF8A00FF), Color(0xFF6200EA), Color(0xFF4A00E0))
                 ),
                 onClick = onSearchClick,
-                iconContent = { SearchGridIcon(Modifier.size(72.dp)) }
+                iconContent = { SearchGridIcon(Modifier.size(56.dp)) }
             )
         }
 
         // Row 4: Complin List (Bright Yellow) & Bill Summary (Pink/Magenta)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
@@ -1100,7 +1100,7 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFFFFE500), Color(0xFFFFB700), Color(0xFFFF8800))
                 ),
                 onClick = onComplinListClick,
-                iconContent = { ComplinListGridIcon(Modifier.size(72.dp)) }
+                iconContent = { ComplinListGridIcon(Modifier.size(56.dp)) }
             )
             ISPFeatureCard(
                 label = AppTranslation("grid_bill_summary"),
@@ -1110,7 +1110,7 @@ fun ISPFeatureGridSection(
                     listOf(Color(0xFFFF007A), Color(0xFFE000FF), Color(0xFF8000FF))
                 ),
                 onClick = onBillSummaryClick,
-                iconContent = { BillSummaryGridIcon(Modifier.size(72.dp)) }
+                iconContent = { BillSummaryGridIcon(Modifier.size(56.dp)) }
             )
         }
     }
@@ -1243,7 +1243,7 @@ fun ISPFeatureCard(
                     if (gradientBrush != null) Modifier.background(gradientBrush)
                     else Modifier.background(backgroundColor)
                 )
-                .padding(vertical = 20.dp, horizontal = 10.dp),
+                .padding(vertical = 12.dp, horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -1251,17 +1251,17 @@ fun ISPFeatureCard(
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
-                    modifier = Modifier.size(76.dp),
+                    modifier = Modifier.size(60.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     iconContent()
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
                     text = label,
-                    fontSize = 16.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor,
                     textAlign = TextAlign.Center,

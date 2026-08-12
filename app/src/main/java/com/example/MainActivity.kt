@@ -236,7 +236,15 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     val isSelected = currentDestination == route
                     NavigationDrawerItem(
                         icon = { Icon(icon, contentDescription = null, tint = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurfaceVariant) },
-                        label = { Text(AppTranslation(labelKey), color = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurface, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        label = { 
+                            Text(
+                                text = AppTranslation(labelKey), 
+                                color = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurface, 
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            ) 
+                        },
                         selected = isSelected,
                         onClick = {
                             scope.launch { drawerState.close() }
@@ -313,7 +321,8 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                                 text = "NetBill ISP",
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 18.sp
+                                fontSize = 18.sp,
+                                maxLines = 1
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -326,7 +335,8 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                                 text = AppTranslation("dashboard_title"),
                                 fontWeight = FontWeight.Bold,
                                 color = Teal600,
-                                fontSize = 16.sp
+                                fontSize = 16.sp,
+                                maxLines = 1
                             )
                         }
                     },
@@ -559,7 +569,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     }
 
                     composable("reports") {
-                        ReportsScreen(viewModel = viewModel)
+                        ReportsScreen(mainViewModel = viewModel)
                     }
 
                     composable("notifications") {
