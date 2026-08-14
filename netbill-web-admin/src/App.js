@@ -7,6 +7,7 @@ import Customers from './components/Customers';
 import Billing from './components/Billing';
 import Payments from './components/Payments';
 import Staff from './components/Staff';
+import SalaryHistory from './components/SalaryHistory';
 import Inventory from './components/Inventory';
 import Packages from './components/Packages';
 import Settings from './components/Settings';
@@ -159,6 +160,7 @@ function App() {
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} t={t} lang={lang} />}
+          {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}
           {activePage === 'packages' && <Packages store={store} t={t} lang={lang} />}
           {activePage === 'settings' && session.role === 'admin' && <Settings store={store} t={t} lang={lang} />}

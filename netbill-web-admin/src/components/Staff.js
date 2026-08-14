@@ -420,51 +420,10 @@ const Staff = ({ store, t }) => {
                   <p className="text-[9px] text-slate-400 mb-2 font-black tracking-widest">ASSIGNED ZONE</p>
                   <p className="text-xl font-black text-slate-800 dark:text-white">{selectedStaff.zone || 'All Zones'}</p>
                </div>
-
-               <div className="space-y-4">
-                 <h5 className="text-[10px] font-black text-slate-400 border-b pb-3 tracking-[5px]">SALARY PAYOUT HISTORY</h5>
-                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {store.staffPayouts
-                      ?.filter(p => p.staffId === selectedStaff.id)
-                      .sort((a, b) => new Date(b.date) - new Date(a.date))
-                      .map(p => (
-                        <div key={p.id} className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
-                           <div className="flex justify-between items-center mb-1">
-                              <p className="text-[10px] font-black text-slate-800 dark:text-white uppercase">{p.month}</p>
-                              <p className="text-sm font-black text-indigo-600">৳{p.totalAmount}</p>
-                           </div>
-                           <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none">Paid on: {p.date}</p>
-                        </div>
-                    ))}
-                    {store.staffPayouts?.filter(p => p.staffId === selectedStaff.id).length === 0 && (
-                      <p className="text-[10px] text-center text-slate-300 py-10">No Payout History</p>
-                    )}
-                 </div>
-               </div>
-
-               <div className="space-y-4">
-                 <h5 className="text-[10px] font-black text-slate-400 border-b pb-3 tracking-[5px]">RECENT COLLECTIONS</h5>
-                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {store.payments
-                      .filter(p => p.collectedBy === selectedStaff.id || p.collectedBy === selectedStaff.name)
-                      .slice(0, 10)
-                      .map(p => (
-                        <div key={p.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                           <div>
-                              <p className="text-[10px] font-black text-slate-800 dark:text-white uppercase">{p.customerName}</p>
-                              <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">{p.paymentDate}</p>
-                           </div>
-                           <p className="text-lg font-black text-emerald-600">৳{p.amount}</p>
-                        </div>
-                    ))}
-                    {store.payments.filter(p => p.collectedBy === selectedStaff.id || p.collectedBy === selectedStaff.name).length === 0 && (
-                      <p className="text-[10px] text-center text-slate-300 py-10">No Collections Found</p>
-                    )}
-                 </div>
-               </div>
             </div>
 
-            <button onClick={() => openEditModal(selectedStaff)} className="w-full bg-slate-800 text-white py-5 rounded-2xl font-black uppercase tracking-[5px] mt-10 hover:bg-slate-700 transition-all">Edit Staff Profile</button>
+            <button onClick={() => { setShowPayModal(true); }} className="w-full bg-[#0D9488] text-white py-5 rounded-2xl font-black uppercase tracking-[5px] mt-6 shadow-xl hover:brightness-110">Manage Payments</button>
+            <button onClick={() => openEditModal(selectedStaff)} className="w-full bg-slate-800 text-white py-5 rounded-2xl font-black uppercase tracking-[5px] mt-4 hover:bg-slate-700 transition-all">Edit Staff Profile</button>
          </div>
       )}
     </div>
