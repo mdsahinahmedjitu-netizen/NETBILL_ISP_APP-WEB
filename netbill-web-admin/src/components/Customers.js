@@ -415,26 +415,26 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   );
 
   return (
-    <div className="w-full px-4 space-y-12 pb-20 uppercase font-black tracking-tighter transition-all">
+    <div className="w-full px-4 space-y-6 pb-10 uppercase font-black tracking-tighter transition-all">
       {/* Header & Stats Row */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white dark:bg-slate-800 p-10 rounded-[48px] shadow-xl border border-slate-100 dark:border-slate-700">
-        <div className="space-y-2">
-          <h3 className="text-6xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.subscribers_crm}</h3>
-          <p className="text-xs text-teal-600 font-bold tracking-[8px] uppercase mt-2">Enterprise Subscriber Management System</p>
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
+        <div className="space-y-1">
+          <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.subscribers_crm}</h3>
+          <p className="text-[10px] text-teal-600 font-bold tracking-[4px] uppercase mt-1">Enterprise Subscriber Management System</p>
         </div>
-        <div className="flex flex-wrap gap-6">
+        <div className="flex flex-wrap gap-3">
            <StatCard label="TOTAL" value={store.customers.length} color="slate" />
            <StatCard label="MARKED" value={selectedIds.length} color="indigo" />
            <StatCard label="ACTIVE" value={store.customers.filter(c=>c.status==='Active').length} color="emerald" />
-           <button onClick={openAddModal} className="bg-[#0D9488] text-white px-12 py-6 rounded-[32px] shadow-2xl font-black uppercase text-base tracking-[3px] transition-all hover:scale-105 active:scale-95 border-b-8 border-teal-900">+ {t.new_enrollment}</button>
+           <button onClick={openAddModal} className="bg-[#0D9488] text-white px-8 py-4 rounded-2xl shadow-2xl font-black uppercase text-sm tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-teal-900">+ {t.new_enrollment}</button>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col xl:flex-row gap-10 items-center">
-          <div className="relative w-full xl:max-w-2xl group">
-            <input type="text" placeholder={t.search_placeholder} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-20 pr-10 py-10 bg-white dark:bg-slate-800 rounded-[48px] border-none shadow-2xl focus:ring-8 focus:ring-teal-500/5 font-black text-3xl transition-all uppercase placeholder:opacity-30" />
-            <i className="fas fa-search absolute left-8 top-10 text-slate-300 text-3xl group-focus-within:text-teal-500 transition-colors"></i>
+      <div className="flex flex-col xl:flex-row gap-4 items-center">
+          <div className="relative w-full xl:max-w-xl group">
+            <input type="text" placeholder={t.search_placeholder} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-12 pr-6 py-4 bg-white dark:bg-slate-800 rounded-3xl border-none shadow-2xl focus:ring-4 focus:ring-teal-500/5 font-black text-xl transition-all uppercase placeholder:opacity-30" />
+            <i className="fas fa-search absolute left-5 top-5 text-slate-300 text-xl group-focus-within:text-teal-500 transition-colors"></i>
           </div>
           <div className="flex flex-wrap gap-3 font-black">
              <ActionButtonLarge label={`${t.download_excel} (${selectedIds.length || 'All'})`} icon="fa-file-excel" onClick={downloadExcel} />
@@ -448,47 +448,47 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
           </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-12 relative">
-        <div id="customer-table-container" className={`flex-1 bg-white dark:bg-slate-800 rounded-[64px] shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden font-black transition-all duration-500`}>
-            <div className="overflow-x-auto custom-scrollbar min-h-[600px]">
+      <div className="flex flex-col xl:flex-row gap-6 relative">
+        <div id="customer-table-container" className={`flex-1 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden font-black transition-all duration-500`}>
+            <div className="overflow-x-auto custom-scrollbar min-h-[500px]">
               <table className="w-full text-center uppercase tracking-tighter whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-700 text-[12px] text-slate-500 tracking-[2px] font-black uppercase">
+                <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-700 text-[10px] text-slate-500 tracking-[1px] font-black uppercase">
                   <tr>
-                    {visibleColumns.cb && <th className="p-10 text-center"><input type="checkbox" checked={selectedIds.length === filteredCustomers.length && filteredCustomers.length > 0} onChange={toggleSelectAll} className="w-8 h-8 rounded-xl border-slate-300 text-teal-600 focus:ring-0 cursor-pointer" /></th>}
-                    {visibleColumns.id && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('customerCode')}>{t.id} <i className={`fas ${getSortIcon('customerCode')} ml-1`}></i></th>}
-                    {visibleColumns.sl && <th className="p-6">{t.sl}</th>}
-                    {visibleColumns.customer && <th className="p-6 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('name')}>{t.customer} <i className={`fas ${getSortIcon('name')} ml-1`}></i></th>}
-                    {visibleColumns.mikrotik && <th className="p-6 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('pppoeUsername')}>{t.mikrotik_user} <i className={`fas ${getSortIcon('pppoeUsername')} ml-1`}></i></th>}
-                    {visibleColumns.zone && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('zone')}>{t.zone} <i className={`fas ${getSortIcon('zone')} ml-1`}></i></th>}
-                    {visibleColumns.plan && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('packageName')}>{t.plan} <i className={`fas ${getSortIcon('packageName')} ml-1`}></i></th>}
-                    {visibleColumns.bill && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('monthlyBill')}>{t.bill} <i className={`fas ${getSortIcon('monthlyBill')} ml-1`}></i></th>}
-                    {visibleColumns.join && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('joinDate')}>JOIN DATE <i className={`fas ${getSortIcon('joinDate')} ml-1`}></i></th>}
-                    {visibleColumns.expire && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('expireDate')}>{t.expire_date} <i className={`fas ${getSortIcon('expireDate')} ml-1`}></i></th>}
-                    {visibleColumns.collector && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('assignedStaffId')}>ASSIGNED COLLECTOR <i className={`fas ${getSortIcon('assignedStaffId')} ml-1`}></i></th>}
-                    {visibleColumns.status && <th className="p-6 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('status')}>{t.status} <i className={`fas ${getSortIcon('status')} ml-1`}></i></th>}
-                    {visibleColumns.online && <th className="p-6">{t.online}</th>}
-                    {visibleColumns.actions && <th className="p-10">{t.actions}</th>}
+                    {visibleColumns.cb && <th className="p-4 text-center"><input type="checkbox" checked={selectedIds.length === filteredCustomers.length && filteredCustomers.length > 0} onChange={toggleSelectAll} className="w-6 h-6 rounded-lg border-slate-300 text-teal-600 focus:ring-0 cursor-pointer" /></th>}
+                    {visibleColumns.id && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('customerCode')}>{t.id} <i className={`fas ${getSortIcon('customerCode')} ml-1`}></i></th>}
+                    {visibleColumns.sl && <th className="p-3">{t.sl}</th>}
+                    {visibleColumns.customer && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('name')}>{t.customer} <i className={`fas ${getSortIcon('name')} ml-1`}></i></th>}
+                    {visibleColumns.mikrotik && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('pppoeUsername')}>{t.mikrotik_user} <i className={`fas ${getSortIcon('pppoeUsername')} ml-1`}></i></th>}
+                    {visibleColumns.zone && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('zone')}>{t.zone} <i className={`fas ${getSortIcon('zone')} ml-1`}></i></th>}
+                    {visibleColumns.plan && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('packageName')}>{t.plan} <i className={`fas ${getSortIcon('packageName')} ml-1`}></i></th>}
+                    {visibleColumns.bill && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('monthlyBill')}>{t.bill} <i className={`fas ${getSortIcon('monthlyBill')} ml-1`}></i></th>}
+                    {visibleColumns.join && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('joinDate')}>JOIN DATE <i className={`fas ${getSortIcon('joinDate')} ml-1`}></i></th>}
+                    {visibleColumns.expire && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('expireDate')}>{t.expire_date} <i className={`fas ${getSortIcon('expireDate')} ml-1`}></i></th>}
+                    {visibleColumns.collector && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('assignedStaffId')}>ASSIGNED COLLECTOR <i className={`fas ${getSortIcon('assignedStaffId')} ml-1`}></i></th>}
+                    {visibleColumns.status && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('status')}>{t.status} <i className={`fas ${getSortIcon('status')} ml-1`}></i></th>}
+                    {visibleColumns.online && <th className="p-3">{t.online}</th>}
+                    {visibleColumns.actions && <th className="p-4">{t.actions}</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-slate-50 dark:divide-slate-700">
                   {sortedCustomers.map((c, idx) => (
                     <tr key={c.id} onClick={() => setSelectedCust(c)} className={`cursor-pointer transition-all hover:bg-teal-50/50 ${selectedCust?.id === c.id ? 'bg-teal-50/70 border-l-8 border-teal-500 shadow-inner' : ''}`}>
-                      {visibleColumns.cb && <td className="p-10 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-8 h-8 rounded-xl border-slate-200 text-teal-600 cursor-pointer" /></td>}
-                      {visibleColumns.id && <td className="p-6 text-slate-600 text-xs font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
-                      {visibleColumns.sl && <td className="p-6 text-slate-400 text-xs">{idx + 1}</td>}
-                      {visibleColumns.customer && <td className="p-6 text-left font-black leading-tight"><p className="text-2xl text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-xl text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-1">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
-                      {visibleColumns.mikrotik && <td className="p-6 text-left text-sm text-slate-700 dark:text-slate-300 font-bold">{c.pppoeUsername || '---'}</td>}
-                      {visibleColumns.zone && <td className="p-6 text-lg text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
-                      {visibleColumns.plan && <td className="p-6 text-2xl text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
-                      {visibleColumns.bill && <td className="p-6 text-center leading-tight min-w-[150px]">{(() => { const currentMonth = new Date().toLocaleDateString('en-CA').substring(0, 7); const paidThisMonth = store.payments.filter(p => p.customerId === c.id && p.paymentDate?.startsWith(currentMonth)).reduce((s, p) => s + (p.amount || 0), 0); return (<><p className="text-[14px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{c.monthlyBill}</p><p className="text-[14px] font-black text-emerald-600 mt-1 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p><p className="text-[18px] font-black text-rose-500 mt-2 uppercase border-t-4 border-slate-100 dark:border-slate-800 pt-2 shadow-sm">DUE: ৳{Math.floor(c.currentDue)}</p>{c.advanceBalance > 0 && <p className="text-[12px] font-black text-teal-600 mt-1 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(c.advanceBalance)}</p>}</>); })()}</td>}
-                      {visibleColumns.join && <td className="p-6 text-sm text-slate-600 font-black">{formatDateDisplay(c.joinDate)}</td>}
-                      {visibleColumns.expire && <td className="p-6 text-center leading-tight"><p className="text-[13px] font-black text-rose-500 uppercase tracking-tighter">{formatDateDisplay(c.expireDate)}</p><p className="text-[10px] font-black text-slate-400 mt-1 uppercase">Req: {formatDateDisplay(c.requestDate)}</p></td>}
-                      {visibleColumns.collector && <td className="p-6 text-center"><span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase border border-indigo-100">{c.assignedStaffId || '---'}</span></td>}
-                      {visibleColumns.status && <td className="p-6"><span className={`px-7 py-3 rounded-full text-xs font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>{c.status}</span></td>}
-                      {visibleColumns.online && <td className="p-6 text-center"><div className={`w-4 h-4 rounded-full mx-auto shadow-lg ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse ring-4 ring-emerald-100 dark:ring-emerald-900/30' : 'bg-slate-300'}`}></div></td>}
+                      {visibleColumns.cb && <td className="p-4 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-6 h-6 rounded-lg border-slate-200 text-teal-600 cursor-pointer" /></td>}
+                      {visibleColumns.id && <td className="p-3 text-slate-600 text-[10px] font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
+                      {visibleColumns.sl && <td className="p-3 text-slate-400 text-[10px]">{idx + 1}</td>}
+                      {visibleColumns.customer && <td className="p-3 text-left font-black leading-tight"><p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-sm text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-0.5">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
+                      {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold">{c.pppoeUsername || '---'}</td>}
+                      {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
+                      {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
+                      {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => { const currentMonth = new Date().toLocaleDateString('en-CA').substring(0, 7); const paidThisMonth = store.payments.filter(p => p.customerId === c.id && p.paymentDate?.startsWith(currentMonth)).reduce((s, p) => s + (p.amount || 0), 0); return (<><p className="text-[11px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{c.monthlyBill}</p><p className="text-[11px] font-black text-emerald-600 mt-0.5 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p><p className="text-[14px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(c.currentDue)}</p>{c.advanceBalance > 0 && <p className="text-[9px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(c.advanceBalance)}</p>}</>); })()}</td>}
+                      {visibleColumns.join && <td className="p-3 text-[10px] text-slate-600 font-black">{formatDateDisplay(c.joinDate)}</td>}
+                      {visibleColumns.expire && <td className="p-3 text-center leading-tight"><p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter">{formatDateDisplay(c.expireDate)}</p><p className="text-[9px] font-black text-slate-400 mt-0.5 uppercase">Req: {formatDateDisplay(c.requestDate)}</p></td>}
+                      {visibleColumns.collector && <td className="p-3 text-center"><span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">{c.assignedStaffId || '---'}</span></td>}
+                      {visibleColumns.status && <td className="p-3"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>{c.status}</span></td>}
+                      {visibleColumns.online && <td className="p-3 text-center"><div className={`w-3 h-3 rounded-full mx-auto shadow-lg ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-100 dark:ring-emerald-900/30' : 'bg-slate-300'}`}></div></td>}
                       {visibleColumns.actions && (
-                        <td className="p-10 relative">
-                           <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-16 h-16 rounded-[24px] bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-2xl"></i></button>
+                        <td className="p-4 relative">
+                           <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
                            {activeMenuId === c.id && (
                              <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
                                 <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => setActivePage('payments')} />
@@ -508,12 +508,12 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         </div>
 
         {selectedCust && (
-          <div className="w-full xl:w-[500px] bg-white dark:bg-slate-800 rounded-[72px] shadow-2xl border border-slate-100 dark:border-slate-700 p-14 space-y-12 h-fit sticky top-10 font-black uppercase animate-slideInRight">
-             <div className="flex justify-between items-center"><h4 className="text-xl font-black text-slate-400 uppercase tracking-[5px]">Subscriber Profile</h4><button onClick={() => setSelectedCust(null)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-lg hover:rotate-90 transition-transform"><i className="fas fa-times"></i></button></div>
-             <div className="text-center space-y-8"><div className="w-40 h-40 bg-teal-50 dark:bg-slate-900 rounded-[56px] flex items-center justify-center mx-auto text-teal-600 text-7xl shadow-inner border-2 border-teal-100"><i className="fas fa-user-tie"></i></div><div><h4 className="text-5xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{selectedCust.name}</h4><p className="text-sm text-teal-600 font-bold mt-4 uppercase tracking-[6px]">{selectedCust.customerCode}</p></div></div>
-             <div className="grid grid-cols-2 gap-8 uppercase"><div className="bg-slate-50 dark:bg-slate-900 p-10 rounded-[48px] text-center shadow-inner border border-slate-100 dark:border-slate-700"><p className="text-[11px] text-slate-400 mb-3 uppercase font-black tracking-widest">DUE</p><p className="text-4xl text-rose-500 font-black tracking-tighter uppercase">৳ {Math.floor(selectedCust.currentDue)}</p></div><div className="bg-slate-50 dark:bg-slate-900 p-10 rounded-[48px] text-center shadow-inner border border-slate-100 dark:border-slate-700"><p className="text-[11px] text-slate-400 mb-3 uppercase font-black tracking-widest">ADVANCE</p><p className="text-4xl text-emerald-600 font-black tracking-tighter uppercase">৳ {Math.floor(selectedCust.advanceBalance || 0)}</p></div></div>
-             <div className="space-y-10"><h5 className="text-[12px] font-black text-slate-400 border-b-2 pb-5 uppercase tracking-[8px] uppercase">{t.statement_ledger}</h5><div className="space-y-6 max-h-[400px] overflow-y-auto pr-4">{ledger.map(entry => (<div key={entry.id} className="flex justify-between items-center bg-slate-50/70 dark:bg-slate-900/70 p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 transition-all hover:scale-105 shadow-md"><div><p className="text-xl font-black text-slate-800 dark:text-slate-200 uppercase tracking-tighter">{entry.type}</p><p className="text-[11px] text-slate-400 font-bold uppercase mt-2 uppercase tracking-widest">{formatDateDisplay(entry.date)}</p></div><p className={`text-2xl font-black ${entry.isDebit ? 'text-rose-500' : 'text-emerald-500'}`}>{entry.isDebit ? '+' : '-'} ৳ {entry.amount}</p></div>))}</div></div>
-             <button className="w-full bg-[#0D9488] text-white py-10 rounded-[56px] font-black uppercase tracking-[8px] shadow-2xl hover:brightness-110 active:scale-95 transition-all border-b-8 border-teal-900">{t.download_pdf}</button>
+          <div className="w-full xl:w-[380px] bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 p-8 space-y-8 h-fit sticky top-6 font-black uppercase animate-slideInRight">
+             <div className="flex justify-between items-center"><h4 className="text-sm font-black text-slate-400 uppercase tracking-[3px]">Subscriber Profile</h4><button onClick={() => setSelectedCust(null)} className="w-8 h-8 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-lg hover:rotate-90 transition-transform"><i className="fas fa-times text-xs"></i></button></div>
+             <div className="text-center space-y-4"><div className="w-24 h-24 bg-teal-50 dark:bg-slate-900 rounded-3xl flex items-center justify-center mx-auto text-teal-600 text-4xl shadow-inner border-2 border-teal-100"><i className="fas fa-user-tie"></i></div><div><h4 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{selectedCust.name}</h4><p className="text-xs text-teal-600 font-bold mt-2 uppercase tracking-[4px]">{selectedCust.customerCode}</p></div></div>
+             <div className="grid grid-cols-2 gap-4 uppercase"><div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl text-center shadow-inner border border-slate-100 dark:border-slate-700"><p className="text-[9px] text-slate-400 mb-2 uppercase font-black tracking-widest">DUE</p><p className="text-2xl text-rose-500 font-black tracking-tighter uppercase">৳ {Math.floor(selectedCust.currentDue)}</p></div><div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl text-center shadow-inner border border-slate-100 dark:border-slate-700"><p className="text-[9px] text-slate-400 mb-2 uppercase font-black tracking-widest">ADVANCE</p><p className="text-2xl text-emerald-600 font-black tracking-tighter uppercase">৳ {Math.floor(selectedCust.advanceBalance || 0)}</p></div></div>
+             <div className="space-y-6"><h5 className="text-[10px] font-black text-slate-400 border-b pb-3 uppercase tracking-[5px] uppercase">{t.statement_ledger}</h5><div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">{ledger.map(entry => (<div key={entry.id} className="flex justify-between items-center bg-slate-50/70 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all hover:scale-105 shadow-md"><div><p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-tighter">{entry.type}</p><p className="text-[9px] text-slate-400 font-bold uppercase mt-1 uppercase tracking-widest">{formatDateDisplay(entry.date)}</p></div><p className={`text-lg font-black ${entry.isDebit ? 'text-rose-500' : 'text-emerald-500'}`}>{entry.isDebit ? '+' : '-'} ৳ {entry.amount}</p></div>))}</div></div>
+             <button className="w-full bg-[#0D9488] text-white py-4 rounded-2xl font-black uppercase tracking-[5px] shadow-2xl hover:brightness-110 active:scale-95 transition-all border-b-4 border-teal-900">{t.download_pdf}</button>
           </div>
         )}
       </div>
@@ -655,8 +655,8 @@ const ActionItem = ({ icon, label, color, onClick }) => (
 );
 
 const ActionButtonLarge = ({ label, icon, onClick }) => (
-  <button onClick={onClick} className="bg-[#20879e] text-white px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-b-2 border-[#16667a] leading-none">
-    <i className={`fas ${icon} text-lg`}></i>
+  <button onClick={onClick} className="bg-[#20879e] text-white px-4 py-2 rounded-xl font-black text-[9px] flex items-center space-x-2 shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-b-2 border-[#16667a] leading-none">
+    <i className={`fas ${icon} text-base`}></i>
     <span>{label}</span>
   </button>
 );
@@ -669,9 +669,9 @@ const StatCard = ({ label, value, color }) => {
         indigo: "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 border-indigo-100 dark:border-indigo-800 shadow-indigo-500/10"
     };
     return (
-        <div className={`${colors[color]} px-10 py-6 rounded-[32px] border flex flex-col items-center justify-center min-w-[140px] shadow-lg`}>
-            <p className="text-[10px] font-black uppercase tracking-[4px] opacity-60 mb-2">{label}</p>
-            <p className="text-4xl font-black tracking-tighter leading-none">{value}</p>
+        <div className={`${colors[color]} px-6 py-3 rounded-2xl border flex flex-col items-center justify-center min-w-[120px] shadow-lg`}>
+            <p className="text-[9px] font-black uppercase tracking-[3px] opacity-60 mb-1">{label}</p>
+            <p className="text-2xl font-black tracking-tighter leading-none">{value}</p>
         </div>
     );
 };
