@@ -10,6 +10,10 @@ const Payments = ({ store, session, t }) => {
   const [billingMonth, setBillingMonth] = useState(new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
   const [isProcessing, setIsProcessing] = useState(false);
   const [customerPayments, setCustomerPayments] = useState([]);
+  const [selectedCollector, setSelectedCollector] = useState({
+    id: session?.data?.id || 'admin',
+    name: session?.data?.name || 'Super Admin'
+  });
 
   // Edit States
   const [editingPayment, setEditingPayment] = useState(null);
@@ -77,8 +81,8 @@ const Payments = ({ store, session, t }) => {
       await addDoc(collection(db, "payments"), {
         customerId: selectedCustomerId, customerName: customer.name, customerCode: customer.customerCode,
         amount: payAmt, paymentMethod: method, paymentDate: todayISO, billingMonth, receiptNo: `REC-${Date.now().toString().slice(-6)}`, remarks: finalRemarks,
-        collectedBy: session?.data?.name || 'Admin',
-        collectedById: session?.data?.id || 'admin'
+        collectedBy: selectedCollector.name,
+        collectedById: selectedCollector.id
       });
 
       await updateDoc(doc(db, "customers", selectedCustomerId), {
@@ -152,6 +156,24 @@ const Payments = ({ store, session, t }) => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
         {/* NEW COLLECTION FORM */}
         <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 font-black">
+           <div className="mb-10 bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[40px] border-2 border-indigo-100 dark:border-indigo-800">
+              <label className="text-[10px] font-black text-indigo-600 uppercase tracking-[4px] ml-4 block mb-3">Active Collector (Session Lock)</label>
+              <select
+                value={selectedCollector.id}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  const name = e.target.options[e.target.selectedIndex].text;
+                  setSelectedCollector({ id, name });
+                }}
+                className="w-full bg-white dark:bg-slate-800 border-none p-4 rounded-2xl font-black text-sm text-slate-800 dark:text-white uppercase shadow-sm outline-none cursor-pointer"
+              >
+                <option value={session?.data?.id || 'admin'}>{session?.data?.name || 'Super Admin'} (YOU)</option>
+                {store.staff?.filter(s => s.id !== session?.data?.id).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+           </div>
+
            <form onSubmit={handlePayment} className="space-y-10 uppercase">
               <div className="space-y-4">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-[4px] ml-4">{t.find_subscriber}</label>
@@ -165,16 +187,24 @@ const Payments = ({ store, session, t }) => {
                   />
                   <select
                     value={selectedCustomerId}
+                    size={searchTerm.length > 0 ? 6 : 1}
                     onChange={(e) => {
                       const id = e.target.value; setSelectedCustomerId(id);
                       const cust = store.customers.find(c => c.id === id);
-                      if (cust) setAmount(Math.floor(cust.currentDue || 0).toString());
+                      if (cust) {
+                        setAmount(Math.floor(cust.currentDue || 0).toString());
+                        setSearchTerm('');
+                      }
                     }}
-                    className="w-full bg-white dark:bg-slate-800 border-4 border-teal-500/10 p-7 rounded-[40px] font-black text-xl text-slate-800 dark:text-white uppercase shadow-xl font-black outline-none cursor-pointer hover:border-teal-500 transition-colors"
+                    className={`w-full bg-white dark:bg-slate-800 border-4 border-teal-500/10 p-7 rounded-[40px] font-black text-xl text-slate-800 dark:text-white uppercase shadow-xl outline-none cursor-pointer hover:border-teal-500 transition-all ${searchTerm.length > 0 ? 'ring-8 ring-teal-500/5 mt-2' : ''}`}
                     required
                   >
-                    <option value="">Choose Targeted Customer</option>
-                    {filteredCustomers.map(c => <option key={c.id} value={c.id}>{c.name} - {c.zone || 'Global'} - DUE: ৳{Math.floor(c.currentDue)}</option>)}
+                    <option value="" className="p-4">-- {filteredCustomers.length} Results Found --</option>
+                    {filteredCustomers.map(c => (
+                      <option key={c.id} value={c.id} className="p-4 border-b border-slate-50 dark:border-slate-700">
+                        {c.name} - {c.zone || 'Global'} - DUE: ৳{Math.floor(c.currentDue)}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
