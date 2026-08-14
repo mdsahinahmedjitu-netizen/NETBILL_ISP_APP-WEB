@@ -20,9 +20,9 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
+                implementation(libs.jb.compose.runtime)
+                implementation(libs.jb.compose.foundation)
+                implementation(libs.jb.compose.material3)
                 implementation(libs.ktor.client.core)
                 implementation(libs.kotlinx.serialization.json)
             }
