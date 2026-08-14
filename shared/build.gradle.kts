@@ -9,7 +9,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.example.shared"
-        compileSdk = 35
+        compileSdk = libs.versions.compileSdk.get().toInt()
         minSdk = 24
 
         compilerOptions {
@@ -18,7 +18,7 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
+        commonMain {
             dependencies {
                 implementation(compose.runtime)
                 implementation(compose.foundation)
@@ -27,7 +27,7 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
             }
         }
-        val androidMain by getting {
+        androidMain {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
             }
