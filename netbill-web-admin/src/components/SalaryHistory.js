@@ -120,9 +120,9 @@ const SalaryHistory = ({ store, session, t }) => {
                         {p.type === 'salary_add' ? '+' : '-'} ৳{p.amount}
                       </td>
                       <td className="p-6">
-                        <div className="bg-slate-100 dark:bg-slate-900/50 px-4 py-2 rounded-xl inline-block border border-slate-200 dark:border-slate-800">
-                           <p className="text-sm font-black text-slate-700 dark:text-slate-300 leading-none">৳{p.newBalance}</p>
-                           <p className="text-[7px] text-slate-400 mt-1 uppercase tracking-widest leading-none">RUNNING BAL</p>
+                        <div className="bg-slate-100 dark:bg-slate-900/50 px-6 py-3 rounded-2xl inline-block border-2 border-slate-200 dark:border-slate-700 shadow-inner">
+                           <p className="text-2xl font-black text-slate-900 dark:text-white leading-none">৳{p.newBalance}</p>
+                           <p className="text-[10px] text-teal-600 font-black mt-1.5 uppercase tracking-[3px] leading-none text-center">RUNNING BAL</p>
                         </div>
                       </td>
                       <td className="p-6 text-xs text-slate-500 font-bold max-w-xs truncate italic">{p.remarks || '---'}</td>
