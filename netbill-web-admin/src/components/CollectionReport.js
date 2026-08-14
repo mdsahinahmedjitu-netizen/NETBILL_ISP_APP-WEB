@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { db } from '../firebaseConfig';
+import { collection, doc, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
 
 const CollectionReport = ({ store, t }) => {
   const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'due', 'revenue'
@@ -7,6 +9,11 @@ const CollectionReport = ({ store, t }) => {
   const [endDate, setDateEnd] = useState(new Date().toLocaleDateString('en-CA'));
   const [selectedStaff, setSelectedStaff] = useState('All Collectors');
   const [selectedMethod, setSelectedMethod] = useState('All Methods');
+
+  // Deletion States
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredPayments = useMemo(() => {
     return store.payments?.filter(p => {
@@ -52,6 +59,48 @@ const CollectionReport = ({ store, t }) => {
   }, [store.customers, store.staff, selectedStaff]);
 
   const totalDueFiltered = filteredDueCustomers.reduce((sum, c) => sum + (parseFloat(c.currentDue) || 0), 0);
+
+  const handleDeleteClick = (payment) => {
+    setPaymentToDelete(payment);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!paymentToDelete) return;
+    setIsDeleting(true);
+
+    try {
+      // 1. Update customer's due balance
+      const customerRef = doc(db, "customers", paymentToDelete.customerId);
+      const customer = store.customers.find(c => c.id === paymentToDelete.customerId);
+      if (customer) {
+        const newDue = (parseFloat(customer.currentDue) || 0) + parseFloat(paymentToDelete.amount);
+        await updateDoc(customerRef, { currentDue: newDue });
+      }
+
+      // 2. Delete the payment record
+      await deleteDoc(doc(db, "payments", paymentToDelete.id));
+
+      // 3. Delete from ledger entries
+      const q = query(collection(db, "ledger_entries"), where("referenceNo", "==", paymentToDelete.receiptNo));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        // Delete all matching entries (if any duplicates)
+        for (const d of snap.docs) {
+           await deleteDoc(doc(db, "ledger_entries", d.id));
+        }
+      }
+
+      setShowDeleteModal(false);
+      setPaymentToDelete(null);
+      alert("Payment record has been permanently removed and due adjusted.");
+    } catch (error) {
+      console.error("Delete Error:", error);
+      alert("Failed to delete record.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handlePrint = () => window.print();
 
@@ -157,7 +206,8 @@ const CollectionReport = ({ store, t }) => {
                           <th className="pb-5 text-center">TRANSACTION DATE</th>
                           <th className="pb-5">COLLECTOR</th>
                           <th className="pb-5 text-right">AMOUNT</th>
-                          <th className="pb-5 text-center">ACTION</th>
+                          <th className="pb-5 text-center">DELETE</th>
+                          <th className="pb-5 text-center">PRINT</th>
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
@@ -178,6 +228,11 @@ const CollectionReport = ({ store, t }) => {
                                <td className="py-6 text-xs text-slate-800 dark:text-slate-300 font-black text-center">{p.paymentDate}</td>
                                <td className="py-6 text-xs text-slate-500 font-black uppercase italic tracking-wider"><span className="bg-slate-100 dark:bg-slate-900 px-3 py-1 rounded-lg">{p.collectedBy || 'Admin'}</span></td>
                                <td className="py-6 text-right"><p className="text-xl font-black text-emerald-600 tracking-tighter">৳{p.amount}</p></td>
+                               <td className="py-6 text-center">
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteClick(p); }} className="text-rose-300 hover:text-rose-600 transition-colors">
+                                     <i className="fas fa-trash-alt"></i>
+                                  </button>
+                               </td>
                                <td className="py-6 text-center"><button className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-300 hover:text-teal-500 hover:text-white transition-all shadow-sm"><i className="fas fa-print"></i></button></td>
                             </tr>
                           );
@@ -277,6 +332,32 @@ const CollectionReport = ({ store, t }) => {
            </div>
         )}
       </div>
+
+      {/* CUSTOM DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[5000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-md p-12 shadow-2xl border-4 border-rose-500/20 text-center space-y-8 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-rose-600"></div>
+             <div className="w-24 h-24 bg-rose-50 dark:bg-rose-900/30 text-rose-500 rounded-[32px] flex items-center justify-center mx-auto text-5xl shadow-inner border-2 border-rose-100">
+                <i className="fas fa-exclamation-triangle"></i>
+             </div>
+             <div className="space-y-2">
+                <h3 className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter">Are you sure?</h3>
+                <p className="text-[10px] text-slate-400 font-bold tracking-[3px]">This will delete the payment record and add ৳{paymentToDelete?.amount} back to {paymentToDelete?.customerName}'s Due.</p>
+             </div>
+             <div className="flex space-x-4">
+                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 py-5 rounded-2xl font-black text-xs tracking-widest text-slate-500 dark:text-slate-300">CANCEL</button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 bg-rose-600 text-white py-5 rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all"
+                >
+                   {isDeleting ? 'DELETING...' : 'YES, DELETE IT'}
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
