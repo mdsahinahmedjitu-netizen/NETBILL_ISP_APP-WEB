@@ -27,7 +27,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [store, setStore] = useState({
     customers: [], tickets: [], payments: [], invoices: [], expenses: [], staff: [],
-    inventory: [], packages: [], settings: {}, paymentRequests: []
+    inventory: [], packages: [], settings: {}, paymentRequests: [], staffPayouts: []
   });
   const [autoOpenAddModal, setAutoOpenAddModal] = useState(false);
 
@@ -63,11 +63,14 @@ function App() {
     const unsubStaff = onSnapshot(collection(db, "staff"), (snap) => {
       setStore(prev => ({ ...prev, staff: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
     });
+    const unsubStaffPayouts = onSnapshot(collection(db, "staff_payouts"), (snap) => {
+      setStore(prev => ({ ...prev, staffPayouts: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    });
     const unsubSettings = onSnapshot(doc(db, "settings", "global"), (snap) => {
       if (snap.exists()) setStore(prev => ({ ...prev, settings: snap.data() }));
     });
 
-    return () => { unsubCust(); unsubTickets(); unsubPayments(); unsubRequests(); unsubInvoices(); unsubExpenses(); unsubStaff(); unsubSettings(); };
+    return () => { unsubCust(); unsubTickets(); unsubPayments(); unsubRequests(); unsubInvoices(); unsubExpenses(); unsubStaff(); unsubStaffPayouts(); unsubSettings(); };
   }, [session]);
 
   const toggleLang = () => {
