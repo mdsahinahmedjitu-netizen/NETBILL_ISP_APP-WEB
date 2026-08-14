@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import Customers from './components/Customers';
 import Billing from './components/Billing';
 import Payments from './components/Payments';
+import CollectionReport from './components/CollectionReport';
 import Staff from './components/Staff';
 import SalaryHistory from './components/SalaryHistory';
 import Inventory from './components/Inventory';
@@ -159,6 +160,7 @@ function App() {
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
+          {activePage === 'reports' && <CollectionReport store={store} t={t} />}
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} t={t} lang={lang} />}
           {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}
