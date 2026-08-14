@@ -360,60 +360,6 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
     return dateStr;
   };
 
-  const StatCard = ({ label, value, color }) => {
-    const colors = {
-        slate: "bg-slate-100 dark:bg-slate-900 text-slate-600 border-slate-200 dark:border-slate-800 shadow-slate-200/50",
-        emerald: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-100 dark:border-emerald-800 shadow-emerald-500/10",
-        rose: "bg-rose-50 dark:bg-rose-900/20 text-rose-500 border-rose-100 dark:border-rose-800 shadow-rose-500/10",
-        indigo: "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 border-indigo-100 dark:border-indigo-800 shadow-indigo-500/10"
-    };
-    return (
-        <div className={`${colors[color]} px-10 py-6 rounded-[32px] border flex flex-col items-center justify-center min-w-[140px] shadow-lg`}>
-            <p className="text-[10px] font-black uppercase tracking-[4px] opacity-60 mb-2">{label}</p>
-            <p className="text-4xl font-black tracking-tighter leading-none">{value}</p>
-        </div>
-    );
-  };
-
-  const ActionButtonLarge = ({ label, icon, onClick }) => (
-    <button onClick={onClick} className="bg-[#20879e] text-white px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-b-2 border-[#16667a] leading-none">
-      <i className={`fas ${icon} text-lg`}></i>
-      <span>{label}</span>
-    </button>
-  );
-
-  const Section = ({ title, color, bgColor, borderColor, shadowColor, children }) => (
-    <div className={`${bgColor} p-10 rounded-[56px] space-y-8 border-2 ${borderColor} shadow-2xl`}>
-      <div className={`bg-${color}-600 text-white p-6 rounded-3xl text-center text-xs font-black uppercase tracking-[5px] shadow-xl ${shadowColor}`}>{title}</div>
-      <div className="space-y-8">{children}</div>
-    </div>
-  );
-
-  const Field = ({ label, value, onChange, placeholder, type = 'text', options = [], disabled = false, color }) => (
-    <div className="space-y-3 uppercase font-black">
-      <label className="text-[12px] text-slate-600 dark:text-slate-300 ml-2 tracking-widest uppercase leading-none">{label}</label>
-      {type === 'select' ? (
-        <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className={`w-full bg-white dark:bg-slate-800 p-6 rounded-[24px] border-2 border-transparent focus:border-teal-500 text-sm font-black shadow-lg outline-none transition-all cursor-pointer`}>
-          {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-        </select>
-      ) : type === 'radio' ? (
-        <div className="flex flex-col space-y-4 bg-white dark:bg-slate-800 p-6 rounded-[24px] shadow-lg border-2 border-transparent">
-           {options.map(opt => (
-             <label key={opt} className="flex items-center space-x-4 cursor-pointer group">
-                <div className={`w-7 h-7 rounded-full border-4 flex items-center justify-center transition-all ${value === opt ? 'border-teal-500 bg-teal-50' : 'border-slate-100 dark:border-slate-700'}`}>
-                  {value === opt && <div className="w-3.5 h-3.5 rounded-full bg-teal-500 shadow-lg"></div>}
-                </div>
-                <input type="radio" className="hidden" checked={value === opt} onChange={() => onChange(opt)} />
-                <span className={`text-[12px] font-black ${value === opt ? 'text-teal-600' : 'text-slate-400'}`}>{opt}</span>
-             </label>
-           ))}
-        </div>
-      ) : (
-        <input type={type} disabled={disabled} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={`w-full bg-white dark:bg-slate-800 p-6 rounded-[24px] border-2 border-transparent focus:border-teal-500 text-lg font-black shadow-lg outline-none transition-all ${disabled ? 'opacity-50' : ''}`} />
-      )}
-    </div>
-  );
-
   return (
     <div className="w-full px-4 space-y-6 pb-10 uppercase font-black tracking-tighter transition-all">
       {/* Header & Stats Row */}

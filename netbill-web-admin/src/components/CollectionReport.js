@@ -10,6 +10,12 @@ const CollectionReport = ({ store, t }) => {
   const [selectedStaff, setSelectedStaff] = useState('All Collectors');
   const [selectedMethod, setSelectedMethod] = useState('All Methods');
 
+  // Printable Columns State
+  const [printableColumns, setPrintableColumns] = useState({
+    sl: true, id: true, customer: true, address: true, method: true, date: true, collector: true, amount: true
+  });
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+
   // Deletion States
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
@@ -102,7 +108,84 @@ const CollectionReport = ({ store, t }) => {
     }
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    const today = new Date().toLocaleDateString();
+
+    const tableRows = filteredPayments.map((p, idx) => {
+      const customer = store.customers.find(c => c.id === p.customerId || c.customerCode === p.customerCode);
+      return `
+        <tr>
+          ${printableColumns.sl ? `<td>${idx + 1}</td>` : ''}
+          ${printableColumns.id ? `<td>${p.customerCode || '---'}</td>` : ''}
+          ${printableColumns.customer ? `<td>${p.customerName}</td>` : ''}
+          ${printableColumns.address ? `<td>${customer?.address || customer?.zone || '---'}</td>` : ''}
+          ${printableColumns.method ? `<td>${p.paymentMethod || 'Cash'}</td>` : ''}
+          ${printableColumns.date ? `<td>${p.paymentDate}</td>` : ''}
+          ${printableColumns.collector ? `<td>${p.collectedBy || 'Admin'}</td>` : ''}
+          ${printableColumns.amount ? `<td style="text-align: right;">৳${p.amount}</td>` : ''}
+        </tr>
+      `;
+    }).join('');
+
+    const printHtml = `
+      <html>
+        <head>
+          <title>Collection Report - ${today}</title>
+          <style>
+            body { font-family: sans-serif; padding: 30px; color: #333; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+            .header h1 { margin: 0; text-transform: uppercase; letter-spacing: 2px; }
+            .stats { display: grid; grid-template-cols: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+            .stat-box { padding: 15px; border: 1px solid #eee; border-radius: 10px; text-align: center; }
+            .stat-label { font-size: 10px; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+            .stat-value { font-size: 18px; font-weight: bold; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #eee; padding: 12px 8px; text-align: left; font-size: 12px; }
+            th { background: #f9f9f9; text-transform: uppercase; color: #666; }
+            .footer { margin-top: 50px; text-align: right; font-size: 10px; color: #aaa; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>NetBill ISP - Collection Report</h1>
+            <p>Date Range: ${startDate} to ${endDate} | Filter: ${selectedStaff} / ${selectedMethod}</p>
+          </div>
+
+          <div class="stats">
+            <div class="stat-box"><div class="stat-label">Total Entries</div><div class="stat-value">${filteredPayments.length}</div></div>
+            <div class="stat-box"><div class="stat-label">Total Collected</div><div class="stat-value">৳${totalAmount.toLocaleString()}</div></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                ${printableColumns.sl ? `<th>#</th>` : ''}
+                ${printableColumns.id ? `<th>CUST. ID</th>` : ''}
+                ${printableColumns.customer ? `<th>CUSTOMER</th>` : ''}
+                ${printableColumns.address ? `<th>ADDRESS / ZONE</th>` : ''}
+                ${printableColumns.method ? `<th>METHOD</th>` : ''}
+                ${printableColumns.date ? `<th>DATE</th>` : ''}
+                ${printableColumns.collector ? `<th>COLLECTOR</th>` : ''}
+                ${printableColumns.amount ? `<th style="text-align: right;">AMOUNT</th>` : ''}
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+
+          <div class="footer">
+            Generated on ${new Date().toLocaleString()}
+          </div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+  };
 
   return (
     <div className="w-full space-y-6 pb-20 font-sans tracking-tight">
@@ -160,6 +243,9 @@ const CollectionReport = ({ store, t }) => {
               </div>
            </div>
            <div className="flex space-x-3">
+              <button onClick={() => setShowColumnSelector(true)} className="px-6 py-3 bg-teal-50 text-teal-600 rounded-2xl border border-teal-100 shadow-sm text-xs font-black flex items-center space-x-2 hover:bg-teal-100 transition-all uppercase">
+                 <i className="fas fa-columns"></i><span>Select Printable Column</span>
+              </button>
               <button onClick={handlePrint} className="px-8 py-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20 text-xs font-black flex items-center space-x-3 hover:scale-105 transition-all"><i className="fas fa-print text-lg"></i><span>PRINT REPORT</span></button>
               <button className="px-8 py-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-500/20 text-xs font-black flex items-center space-x-3 hover:scale-105 transition-all"><i className="fas fa-file-csv text-lg"></i><span>EXPORT CSV</span></button>
            </div>
@@ -332,6 +418,37 @@ const CollectionReport = ({ store, t }) => {
            </div>
         )}
       </div>
+
+      {/* PRINT COLUMN SELECTOR MODAL */}
+      {showColumnSelector && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[6000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-lg p-12 shadow-2xl border-4 border-teal-500/20 space-y-8 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-teal-500"></div>
+             <div className="flex justify-between items-center border-b pb-6">
+                <h3 className="text-3xl font-black uppercase tracking-tighter">Printable Columns</h3>
+                <button onClick={() => setShowColumnSelector(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+             </div>
+
+             <div className="grid grid-cols-1 gap-4">
+                {Object.keys(printableColumns).map(col => (
+                  <label key={col} className={`flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 ${printableColumns[col] ? 'bg-teal-50 border-teal-200 dark:bg-teal-900/20' : 'bg-slate-50 border-transparent opacity-60 dark:bg-slate-900/50'}`}>
+                    <span className={`font-black uppercase tracking-widest text-xs ${printableColumns[col] ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'}`}>{col.replace(/([A-Z])/g, ' $1')}</span>
+                    <input
+                      type="checkbox"
+                      checked={printableColumns[col]}
+                      onChange={() => setPrintableColumns({...printableColumns, [col]: !printableColumns[col]})}
+                      className="w-7 h-7 rounded-xl text-teal-600 focus:ring-0 cursor-pointer"
+                    />
+                  </label>
+                ))}
+             </div>
+
+             <button onClick={() => setShowColumnSelector(false)} className="w-full bg-teal-600 text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
+                SAVE & CLOSE
+             </button>
+          </div>
+        </div>
+      )}
 
       {/* CUSTOM DELETE CONFIRMATION MODAL */}
       {showDeleteModal && (
