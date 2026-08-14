@@ -156,7 +156,7 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-10 scroll-smooth transition-colors font-black">
-          {activePage === 'dashboard' && <Dashboard store={store} setActivePage={setActivePage} navigateToAddCustomer={navigateToAddCustomer} t={t} lang={lang} />}
+          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} navigateToAddCustomer={navigateToAddCustomer} t={t} lang={lang} />}
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}

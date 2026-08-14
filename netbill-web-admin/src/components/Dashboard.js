@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
-const Dashboard = ({ store, setActivePage, navigateToAddCustomer, t }) => {
+const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) => {
   const [activeFilter, setActiveFilter] = useState('today');
   const [customDate, setCustomDate] = useState(new Date().toLocaleDateString('en-CA'));
 
@@ -19,6 +19,12 @@ const Dashboard = ({ store, setActivePage, navigateToAddCustomer, t }) => {
 
   const filteredPayments = store.payments.filter(p => {
     const pDate = p.paymentDate;
+
+    // Staff Isolation: Only show their own collections if role is 'staff'
+    if (session?.role === 'staff') {
+       if (p.collectedById !== session.data.id && p.collectedBy !== session.data.name) return false;
+    }
+
     if (activeFilter === 'today') return pDate === todayStr;
     if (activeFilter === 'yesterday') return pDate === yesterdayStr;
     if (activeFilter === 'last7') return pDate >= last7DaysAgoStr;
