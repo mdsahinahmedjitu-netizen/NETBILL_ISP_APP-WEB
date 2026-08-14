@@ -1,13 +1,17 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    id("com.android.library")
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.jetbrains.compose)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.example.shared"
+        compileSdk = 35
+        minSdk = 24
+
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
         }
@@ -28,13 +32,5 @@ kotlin {
                 implementation(libs.ktor.client.okhttp)
             }
         }
-    }
-}
-
-android {
-    namespace = "com.example.shared"
-    compileSdk = 35
-    defaultConfig {
-        minSdk = 24
     }
 }

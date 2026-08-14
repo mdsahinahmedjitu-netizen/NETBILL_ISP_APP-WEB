@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "NetBill ISP"
 
 include(":app")
+include(":shared")
