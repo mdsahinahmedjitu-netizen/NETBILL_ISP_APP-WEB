@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { db } from '../firebaseConfig';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, orderBy, limit, deleteDoc, getDocs } from 'firebase/firestore';
 
-const Payments = ({ store, t }) => {
+const Payments = ({ store, session, t }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [amount, setAmount] = useState('');
@@ -33,10 +33,9 @@ const Payments = ({ store, t }) => {
   }, []);
 
   useEffect(() => {
-    if (!selectedCustomerId) {
-      setCustomerPayments([]);
-      return;
-    }
+    setCustomerPayments([]);
+    if (!selectedCustomerId) return;
+
     const q = query(collection(db, "payments"), where("customerId", "==", selectedCustomerId), orderBy("paymentDate", "desc"), limit(20));
     const unsub = onSnapshot(q, (snap) => {
       setCustomerPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -47,7 +46,8 @@ const Payments = ({ store, t }) => {
   const filteredCustomers = store.customers.filter(c =>
     c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.customerCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.mobile?.includes(searchTerm)
+    c.mobile?.includes(searchTerm) ||
+    c.pppoeUsername?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handlePayment = async (e) => {
@@ -76,7 +76,9 @@ const Payments = ({ store, t }) => {
 
       await addDoc(collection(db, "payments"), {
         customerId: selectedCustomerId, customerName: customer.name, customerCode: customer.customerCode,
-        amount: payAmt, paymentMethod: method, paymentDate: todayISO, billingMonth, receiptNo: `REC-${Date.now().toString().slice(-6)}`, remarks: finalRemarks
+        amount: payAmt, paymentMethod: method, paymentDate: todayISO, billingMonth, receiptNo: `REC-${Date.now().toString().slice(-6)}`, remarks: finalRemarks,
+        collectedBy: session?.data?.name || 'Admin',
+        collectedById: session?.data?.id || 'admin'
       });
 
       await updateDoc(doc(db, "customers", selectedCustomerId), {
@@ -172,7 +174,7 @@ const Payments = ({ store, t }) => {
                     required
                   >
                     <option value="">Choose Targeted Customer</option>
-                    {filteredCustomers.map(c => <option key={c.id} value={c.id}>{c.name} - DUE: ৳{Math.floor(c.currentDue)}</option>)}
+                    {filteredCustomers.map(c => <option key={c.id} value={c.id}>{c.name} - {c.zone || 'Global'} - DUE: ৳{Math.floor(c.currentDue)}</option>)}
                   </select>
                 </div>
               </div>

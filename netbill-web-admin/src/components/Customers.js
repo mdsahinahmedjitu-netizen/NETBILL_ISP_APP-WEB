@@ -483,7 +483,13 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                       {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => { const currentMonth = new Date().toLocaleDateString('en-CA').substring(0, 7); const paidThisMonth = store.payments.filter(p => p.customerId === c.id && p.paymentDate?.startsWith(currentMonth)).reduce((s, p) => s + (p.amount || 0), 0); return (<><p className="text-[11px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{c.monthlyBill}</p><p className="text-[11px] font-black text-emerald-600 mt-0.5 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p><p className="text-[14px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(c.currentDue)}</p>{c.advanceBalance > 0 && <p className="text-[9px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(c.advanceBalance)}</p>}</>); })()}</td>}
                       {visibleColumns.join && <td className="p-3 text-[10px] text-slate-600 font-black">{formatDateDisplay(c.joinDate)}</td>}
                       {visibleColumns.expire && <td className="p-3 text-center leading-tight"><p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter">{formatDateDisplay(c.expireDate)}</p><p className="text-[9px] font-black text-slate-400 mt-0.5 uppercase">Req: {formatDateDisplay(c.requestDate)}</p></td>}
-                      {visibleColumns.collector && <td className="p-3 text-center"><span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">{c.assignedStaffId || '---'}</span></td>}
+                      {visibleColumns.collector && (
+                        <td className="p-3 text-center">
+                          <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
+                            {store.staff?.find(s => s.id === c.assignedStaffId)?.name || c.assignedStaffId || '---'}
+                          </span>
+                        </td>
+                      )}
                       {visibleColumns.status && <td className="p-3"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>{c.status}</span></td>}
                       {visibleColumns.online && <td className="p-3 text-center"><div className={`w-3 h-3 rounded-full mx-auto shadow-lg ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-100 dark:ring-emerald-900/30' : 'bg-slate-300'}`}></div></td>}
                       {visibleColumns.actions && (

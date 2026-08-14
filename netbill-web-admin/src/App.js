@@ -154,7 +154,7 @@ function App() {
           {activePage === 'dashboard' && <Dashboard store={store} setActivePage={setActivePage} navigateToAddCustomer={navigateToAddCustomer} t={t} lang={lang} />}
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
-          {activePage === 'payments' && <Payments store={store} t={t} lang={lang} />}
+          {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} t={t} lang={lang} />}
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}
           {activePage === 'packages' && <Packages store={store} t={t} lang={lang} />}
