@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0D9488" />
+    <title>NetBill ISP - Web Enterprise Control Panel</title>
+
+    <!-- Tailwind CSS CDN for Instant Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Google Fonts: Plus Jakarta Sans for English, Hind Siliguri & Noto Sans Bengali for Bengali -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Sans+Bengali:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+      // Tailwind Configuration with High-Quality Bengali Font Support
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Hind Siliguri', 'Noto Sans Bengali', 'Plus Jakarta Sans', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
+
+    <style>
+      /* Custom styles that CDN Tailwind can't handle easily */
+      body { transition: background-color 0.3s, color 0.3s; }
+      .sidebar-gradient { background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%); }
+      .active-nav { background: #0D9488 !important; color: white !important; box-shadow: 0 4px 15px rgba(13, 148, 136, 0.4); }
+
+      .grad-collection { background: linear-gradient(135deg, #4F46E5 0%, #2563EB 100%); }
+      .grad-invoices { background: linear-gradient(135deg, #10B981 0%, #059669 100%); }
+      .grad-subscribers { background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%); }
+      .grad-tickets { background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%); }
+      .grad-create { background: linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%); }
+      .grad-search { background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%); }
+      .grad-due { background: linear-gradient(135deg, #F97316 0%, #EA580C 100%); }
+      .grad-summary { background: linear-gradient(135deg, #F43F5E 0%, #9D174D 100%); }
+
+      .card-shadow { box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05); }
+      .dark-mode .card-shadow { box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.4); }
+
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

@@ -48,6 +48,14 @@ import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.EmeraldSuccess
 import com.example.viewmodel.MainViewModel
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.TextButton
+import com.example.ui.theme.Teal600
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 @Composable
 fun InvoiceReceiptDialog(
     payment: PaymentCollectionEntity,
@@ -59,6 +67,8 @@ fun InvoiceReceiptDialog(
     val ispAddress = settings?.address ?: "Uttara, Dhaka-1230"
     val ispHelpline = settings?.supportNumber ?: "01711000000"
     val currency = AppTranslation("currency_symbol")
+
+    var showPrinterSelector by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -201,6 +211,17 @@ fun InvoiceReceiptDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
+                        onClick = { showPrinterSelector = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Bluetooth, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Print BT", fontSize = 11.sp)
+                    }
+
+                    Button(
                         onClick = { viewModel.showToast("Receipt PDF downloaded / sent to printer!") },
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                         shape = RoundedCornerShape(8.dp),
@@ -210,7 +231,14 @@ fun InvoiceReceiptDialog(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Print PDF", fontSize = 11.sp)
                     }
+                }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedButton(
                         onClick = { viewModel.showToast("Receipt link sent via WhatsApp!") },
                         shape = RoundedCornerShape(8.dp),
@@ -233,5 +261,40 @@ fun InvoiceReceiptDialog(
                 }
             }
         }
+    }
+
+    if (showPrinterSelector) {
+        val printers = viewModel.getPairedPrinters()
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showPrinterSelector = false },
+            title = { Text("Select Bluetooth Printer", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    if (printers.isEmpty()) {
+                        Text("No paired printers found. Please pair your thermal printer in Android Settings first.")
+                    } else {
+                        printers.forEach { name ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.printReceipt(name, payment)
+                                        showPrinterSelector = false
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Print, contentDescription = null, tint = Teal600)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(name, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrinterSelector = false }) { Text("Cancel") }
+            }
+        )
     }
 }

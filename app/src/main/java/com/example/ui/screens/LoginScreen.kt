@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +70,7 @@ fun LoginScreen(
     viewModel: MainViewModel,
     onLoginSuccess: () -> Unit
 ) {
+    var isCustomerMode by remember { mutableStateOf(false) }
     var isMobileMode by remember { mutableStateOf(false) }
     var usernameOrMobile by remember { mutableStateOf("admin") }
     var password by remember { mutableStateOf("admin123") }
@@ -125,6 +127,51 @@ fun LoginScreen(
                 .align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Mode Toggle Tab (Moved here for better visibility)
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.9f))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                val staffModeColor = if (!isCustomerMode) com.example.ui.theme.Teal600 else Color.Transparent
+                val customerModeColor = if (isCustomerMode) com.example.ui.theme.Teal600 else Color.Transparent
+                
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(staffModeColor)
+                        .clickable { isCustomerMode = false }
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Admin / Staff", 
+                        color = if (!isCustomerMode) Color.White else com.example.ui.theme.Slate700,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(customerModeColor)
+                        .clickable { isCustomerMode = true }
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Customer Login", 
+                        color = if (isCustomerMode) Color.White else com.example.ui.theme.Slate700,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // App Branding Logo Icon
             Box(
                 modifier = Modifier
@@ -179,7 +226,7 @@ fun LoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = if (isMobileMode) AppTranslation("use_mobile_login") else AppTranslation("use_user_pass_login"),
+                        text = if (isCustomerMode) "Login with PPPoE Credentials" else if (isMobileMode) AppTranslation("use_mobile_login") else AppTranslation("use_user_pass_login"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = com.example.ui.theme.Slate900
@@ -187,7 +234,20 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    if (isMobileMode) {
+                    if (isCustomerMode) {
+                        OutlinedTextField(
+                            value = usernameOrMobile,
+                            onValueChange = { usernameOrMobile = it },
+                            label = { Text("PPPoE Username") },
+                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = com.example.ui.theme.Teal600) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = com.example.ui.theme.Teal600,
+                                unfocusedBorderColor = com.example.ui.theme.Slate200
+                            )
+                        )
+                    } else if (isMobileMode) {
                         OutlinedTextField(
                             value = usernameOrMobile,
                             onValueChange = { usernameOrMobile = it },
@@ -198,11 +258,7 @@ fun LoginScreen(
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = com.example.ui.theme.Teal600,
-                                unfocusedBorderColor = com.example.ui.theme.Slate200,
-                                focusedLabelColor = com.example.ui.theme.Teal600,
-                                unfocusedLabelColor = com.example.ui.theme.Slate500,
-                                focusedTextColor = com.example.ui.theme.Slate900,
-                                unfocusedTextColor = com.example.ui.theme.Slate900
+                                unfocusedBorderColor = com.example.ui.theme.Slate200
                             )
                         )
                     } else {
@@ -215,11 +271,7 @@ fun LoginScreen(
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = com.example.ui.theme.Teal600,
-                                unfocusedBorderColor = com.example.ui.theme.Slate200,
-                                focusedLabelColor = com.example.ui.theme.Teal600,
-                                unfocusedLabelColor = com.example.ui.theme.Slate500,
-                                focusedTextColor = com.example.ui.theme.Slate900,
-                                unfocusedTextColor = com.example.ui.theme.Slate900
+                                unfocusedBorderColor = com.example.ui.theme.Slate200
                             )
                         )
                     }
@@ -229,7 +281,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text(AppTranslation("password")) },
+                        label = { Text(if (isCustomerMode) "PPPoE Password" else AppTranslation("password")) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = com.example.ui.theme.Teal600) },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
@@ -237,11 +289,7 @@ fun LoginScreen(
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = com.example.ui.theme.Teal600,
-                            unfocusedBorderColor = com.example.ui.theme.Slate200,
-                            focusedLabelColor = com.example.ui.theme.Teal600,
-                            unfocusedLabelColor = com.example.ui.theme.Slate500,
-                            focusedTextColor = com.example.ui.theme.Slate900,
-                            unfocusedTextColor = com.example.ui.theme.Slate900
+                            unfocusedBorderColor = com.example.ui.theme.Slate200
                         )
                     )
 
@@ -258,7 +306,11 @@ fun LoginScreen(
 
                     Button(
                         onClick = {
-                            viewModel.loginUser(usernameOrMobile, password)
+                            if (isCustomerMode) {
+                                viewModel.loginCustomer(usernameOrMobile, password)
+                            } else {
+                                viewModel.loginUser(usernameOrMobile, password)
+                            }
                         },
                         enabled = loginUiState !is LoginUiState.Loading,
                         modifier = Modifier
@@ -278,24 +330,25 @@ fun LoginScreen(
                             )
                         } else {
                             Text(
-                                text = AppTranslation("login_btn"),
+                                text = if (isCustomerMode) "Login to My Account" else AppTranslation("login_btn"),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    TextButton(
-                        onClick = { isMobileMode = !isMobileMode }
-                    ) {
-                        Text(
-                            text = if (isMobileMode) AppTranslation("use_user_pass_login") else AppTranslation("use_mobile_login"),
-                            color = com.example.ui.theme.Teal600,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    if (!isCustomerMode) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(
+                            onClick = { isMobileMode = !isMobileMode }
+                        ) {
+                            Text(
+                                text = if (isMobileMode) AppTranslation("use_user_pass_login") else AppTranslation("use_mobile_login"),
+                                color = com.example.ui.theme.Teal600,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }

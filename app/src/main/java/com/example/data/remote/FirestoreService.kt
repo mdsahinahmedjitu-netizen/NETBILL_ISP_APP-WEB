@@ -50,6 +50,16 @@ class FirestoreService {
         }
     }
 
+    suspend fun deleteDocument(collectionPath: String, id: String) {
+        logInfo("DeleteDocument", collectionPath, id)
+        try {
+            db.collection(collectionPath).document(id).delete().await()
+            Log.d(TAG, "DELETE SUCCESS: $collectionPath/$id")
+        } catch (e: Exception) {
+            Log.e(TAG, "DELETE FAILED: $collectionPath/$id", e)
+        }
+    }
+
     // Customer operations
     suspend fun saveCustomer(customer: CustomerEntity) {
         logInfo("SaveCustomer", "customers", customer.id)

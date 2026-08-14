@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import com.example.ui.theme.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,8 +27,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,12 +52,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.StaffEntity
 import com.example.localization.AppTranslation
-import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.Navy800
-import com.example.ui.theme.Navy900
+import com.example.ui.components.ReadonlyDateField
 import com.example.viewmodel.MainViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun StaffScreen(viewModel: MainViewModel) {
@@ -104,55 +107,73 @@ fun StaffScreen(viewModel: MainViewModel) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(staff.name, fontWeight = FontWeight.Bold, color = Slate900, fontSize = 16.sp)
                                 Text("Role: ${staff.role} • Mobile: ${staff.mobile}", color = Slate600, fontSize = 12.sp)
                                 Text("Salary: $currency ${staff.salary.toInt()}/mo", color = Teal600, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                if (staff.receiveAlerts) {
+                                    Text("✅ Receiving Alerts (WhatsApp)", color = EmeraldSuccess, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
 
-                            Button(
-                                onClick = { selectedStaffForSalary = staff },
-                                colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(Icons.Default.AttachMoney, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Text("Pay Salary", fontSize = 11.sp, color = Color.White)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { viewModel.updateStaff(staff.copy(receiveAlerts = !staff.receiveAlerts)) }
+                                ) {
+                                    Icon(
+                                        imageVector = if (staff.receiveAlerts) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                                        contentDescription = "Toggle Alerts",
+                                        tint = if (staff.receiveAlerts) ElectricBlue else Slate400
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { selectedStaffForSalary = staff },
+                                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.AttachMoney, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Text("Pay", fontSize = 11.sp, color = Color.White)
+                                }
                             }
                         }
                     }
                 }
             }
+
+            if (showAddStaffDialog) {
+                AddStaffDialog(
+                    onDismiss = { showAddStaffDialog = false },
+                    onSave = { name, mobile, role, salary, alerts, jDate ->
+                        viewModel.addStaff(name, mobile, role, salary, alerts, jDate)
+                        showAddStaffDialog = false
+                    }
+                )
+            }
+
+            selectedStaffForSalary?.let { staff ->
+                PaySalaryDialog(
+                    staff = staff,
+                    onDismiss = { selectedStaffForSalary = null },
+                    onPay = { month ->
+                        viewModel.payStaffSalary(staff.id, staff.name, staff.salary, month)
+                        selectedStaffForSalary = null
+                    }
+                )
+            }
         }
-    }
-
-    if (showAddStaffDialog) {
-        AddStaffDialog(
-            onDismiss = { showAddStaffDialog = false },
-            onSave = { name, mobile, role, salary ->
-                viewModel.addStaff(name, mobile, role, salary)
-                showAddStaffDialog = false
-            }
-        )
-    }
-
-    selectedStaffForSalary?.let { staff ->
-        PaySalaryDialog(
-            staff = staff,
-            onDismiss = { selectedStaffForSalary = null },
-            onPay = { month ->
-                viewModel.payStaffSalary(staff.id, staff.name, staff.salary, month)
-                selectedStaffForSalary = null
-            }
-        )
     }
 }
 
 @Composable
-fun AddStaffDialog(onDismiss: () -> Unit, onSave: (String, String, String, Double) -> Unit) {
+fun AddStaffDialog(onDismiss: () -> Unit, onSave: (String, String, String, Double, Boolean, String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var mobile by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("Support Staff") }
     var salary by remember { mutableStateOf("15000") }
+    var receiveAlerts by remember { mutableStateOf(false) }
+    var joiningDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -170,10 +191,23 @@ fun AddStaffDialog(onDismiss: () -> Unit, onSave: (String, String, String, Doubl
                 OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile Number") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(value = role, onValueChange = { role = it }, label = { Text("Role / Designation") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.None))
                 OutlinedTextField(value = salary, onValueChange = { salary = it }, label = { Text("Monthly Salary (৳)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                
+                ReadonlyDateField(
+                    value = joiningDate,
+                    label = "যোগদানের তারিখ (Joining Date)",
+                    onDateSelected = { joiningDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { receiveAlerts = !receiveAlerts }) {
+                    androidx.compose.material3.Checkbox(checked = receiveAlerts, onCheckedChange = { receiveAlerts = it })
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Receive WhatsApp Alerts", fontSize = 13.sp, color = Slate800)
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(name, mobile, role, salary.toDoubleOrNull() ?: 15000.0) }, colors = ButtonDefaults.buttonColors(containerColor = Teal600)) {
+            Button(onClick = { onSave(name, mobile, role, salary.toDoubleOrNull() ?: 15000.0, receiveAlerts, joiningDate) }, colors = ButtonDefaults.buttonColors(containerColor = Teal600)) {
                 Text("Save Staff", color = Color.White)
             }
         },

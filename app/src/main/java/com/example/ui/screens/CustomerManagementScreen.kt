@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.localization.AppTranslation
+import com.example.ui.components.ReadonlyDateField
 import java.util.UUID
 import com.example.ui.theme.AmberAlert
 import com.example.ui.theme.CoralWarning
@@ -247,8 +248,8 @@ fun CustomerManagementScreen(
         AddEditCustomerDialog(
             customer = customerToEdit,
             onDismiss = { showAddCustomerDialog = false },
-            onSave = { newCust ->
-                viewModel.addOrUpdateCustomer(newCust)
+            onSave = { newCust, choice ->
+                viewModel.addOrUpdateCustomer(newCust, choice)
                 showAddCustomerDialog = false
             }
         )
@@ -437,7 +438,7 @@ fun CustomerCard(
 fun AddEditCustomerDialog(
     customer: CustomerEntity?,
     onDismiss: () -> Unit,
-    onSave: (CustomerEntity) -> Unit
+    onSave: (CustomerEntity, String) -> Unit
 ) {
     var code by remember { mutableStateOf(customer?.customerCode ?: "NET-${(1000..9999).random()}") }
     var name by remember { mutableStateOf(customer?.name ?: "") }
@@ -458,9 +459,9 @@ fun AddEditCustomerDialog(
     var discount by remember { mutableStateOf(customer?.discount?.toString() ?: "0") }
     var connectionFee by remember { mutableStateOf(customer?.connectionFee?.toString() ?: "1000") }
     var billingType by remember { mutableStateOf(customer?.billingType ?: "Prepaid") }
-    var joinDay by remember { mutableStateOf(customer?.joinDayOfMonth?.toString() ?: "15") }
+    var joinDate by remember { mutableStateOf(customer?.joinDate?.ifEmpty { "2026-08-12" } ?: "2026-08-12") }
     var currentDue by remember { mutableStateOf(customer?.currentDue?.toString() ?: "0") }
-    var expireDate by remember { mutableStateOf(customer?.expireDate?.ifEmpty { "2026-09-01" } ?: "2026-09-01") }
+    var expireDate by remember { mutableStateOf(customer?.expireDate?.ifEmpty { "2026-09-12" } ?: "2026-09-12") }
     var expireTime by remember { mutableStateOf(customer?.expireTime?.ifEmpty { "23:59" } ?: "23:59") }
 
     var connectionType by remember { mutableStateOf(customer?.connectionType ?: "PPPoE") }
@@ -475,7 +476,10 @@ fun AddEditCustomerDialog(
     var refMobile by remember { mutableStateOf(customer?.referenceMobile ?: "") }
     var notes by remember { mutableStateOf(customer?.notes ?: "") }
 
-    val joinDayInt = joinDay.toIntOrNull() ?: 15
+    // New state for 20th day rule billing choice
+    var billChoiceFor21stPlus by remember { mutableStateOf("NextMonth") } // "CurrentMonth" or "NextMonth"
+
+    val joinDayInt = try { joinDate.split("-").last().toInt() } catch(e: Exception) { 15 }
     val show20thDayWarning = joinDayInt > 20
 
     AlertDialog(
@@ -549,12 +553,11 @@ fun AddEditCustomerDialog(
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
                             )
-                            OutlinedTextField(
+                            ReadonlyDateField(
                                 value = dob,
-                                onValueChange = { dob = it },
-                                label = { Text("জন্ম তারিখ (YYYY-MM-DD)") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                label = "জন্ম তারিখ",
+                                onDateSelected = { dob = it },
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
@@ -669,13 +672,11 @@ fun AddEditCustomerDialog(
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                             )
-                            OutlinedTextField(
-                                value = joinDay,
-                                onValueChange = { joinDay = it },
-                                label = { Text("যোগদানের দিন (1-31)") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            ReadonlyDateField(
+                                value = joinDate,
+                                label = "যোগদানের তারিখ",
+                                onDateSelected = { joinDate = it },
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
@@ -707,12 +708,11 @@ fun AddEditCustomerDialog(
                         Text("⏱️ মেয়াদের তারিখ ও সময় (Expiry Date & Time)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 12.sp)
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            ReadonlyDateField(
                                 value = expireDate,
-                                onValueChange = { expireDate = it },
-                                label = { Text("মেয়াদ শেষ তারিখ (YYYY-MM-DD)") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                label = "মেয়াদ শেষ তারিখ",
+                                onDateSelected = { expireDate = it },
+                                modifier = Modifier.weight(1f)
                             )
                             OutlinedTextField(
                                 value = expireTime,
@@ -859,14 +859,37 @@ fun AddEditCustomerDialog(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.padding(top = 8.dp)
                     ) {
-                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = AmberAlert)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "20th Day Rule Active: Joined after 20th day. Current month bill will not auto-generate unless selected in Billing Module.",
-                                fontSize = 11.sp,
-                                color = AmberAlert
-                            )
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = AmberAlert)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "২১ তারিখ বা তার পরে জয়েনিং। বিলিং অপশন সিলেক্ট করুন:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AmberAlert
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = billChoiceFor21stPlus == "CurrentMonth",
+                                    onClick = { billChoiceFor21stPlus = "CurrentMonth" },
+                                    colors = RadioButtonDefaults.colors(selectedColor = Teal600)
+                                )
+                                Text("রানিং মাসের বিল ধরুন", fontSize = 11.sp, color = Slate800)
+                                
+                                Spacer(modifier = Modifier.width(16.dp))
+                                
+                                RadioButton(
+                                    selected = billChoiceFor21stPlus == "NextMonth",
+                                    onClick = { billChoiceFor21stPlus = "NextMonth" },
+                                    colors = RadioButtonDefaults.colors(selectedColor = Teal600)
+                                )
+                                Text("আগামী মাস থেকে বিল শুরু", fontSize = 11.sp, color = Slate800)
+                            }
                         }
                     }
                 }
@@ -908,7 +931,7 @@ fun AddEditCustomerDialog(
                         fiberCoreNo = fiberCore,
                         networkBox = networkBox,
                         connectionType = connectionType,
-                        joinDate = "2026-08-${joinDayInt.toString().padStart(2, '0')}",
+                        joinDate = joinDate,
                         joinDayOfMonth = joinDayInt,
                         expireDate = expireDate,
                         expireTime = expireTime,
@@ -918,7 +941,7 @@ fun AddEditCustomerDialog(
                         currentDue = currentDue.toDoubleOrNull() ?: 0.0,
                         notes = notes
                     )
-                    onSave(entity)
+                    onSave(entity, billChoiceFor21stPlus)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Teal600)
             ) {

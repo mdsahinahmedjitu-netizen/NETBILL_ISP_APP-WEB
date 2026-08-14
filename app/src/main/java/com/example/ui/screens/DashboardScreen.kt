@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Receipt
@@ -64,6 +65,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
@@ -111,7 +113,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
+import com.example.data.entity.SupportTicketEntity
 import com.example.localization.AppTranslation
+import com.example.ui.components.ReadonlyDateField
 import com.example.ui.components.BillSummaryGridIcon
 import com.example.ui.components.CollectionGridIcon
 import com.example.ui.components.CollectionReportGridIcon
@@ -138,22 +142,6 @@ data class ComplainTitleItem(
     val showInPortal: Boolean = true
 )
 
-// Complaint Ticket Model
-data class ComplaintItem(
-    val id: Long,
-    val customerName: String,
-    val customerCode: String,
-    val phone: String,
-    val issueType: String,
-    val details: String,
-    var status: String, // "Pending", "In Progress", "Resolved"
-    val date: String,
-    var requestDate: String = "2026-08-08",
-    var requestTime: String = "10:00 AM",
-    var scheduledDate: String = "2026-08-08",
-    var scheduledTime: String = "03:00 PM"
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -164,15 +152,16 @@ fun DashboardScreen(
     onNavigateToMikroTik: () -> Unit,
     onNavigateToReports: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
+    onNavigateToAlerts: () -> Unit = {},
     onSelectCustomer: (CustomerEntity) -> Unit = {}
 ) {
     val stats by viewModel.dashboardStats.collectAsState()
     val payments by viewModel.paymentsList.collectAsState()
     val customersList by viewModel.customersList.collectAsState()
+    val supportTickets by viewModel.supportTickets.collectAsState()
     val expiringCustomers by viewModel.expiringTomorrowCustomers.collectAsState()
     val currentLang by viewModel.currentLanguage.collectAsState()
     val isBangla = currentLang == com.example.localization.AppLanguage.BANGLA
-    var showExpiryAlertSheet by remember { mutableStateOf(false) }
     val currency = AppTranslation("currency_symbol")
     val msgCollection = AppTranslation("grid_collection")
     val msgCollectionReport = AppTranslation("grid_collection_report")
@@ -201,54 +190,6 @@ fun DashboardScreen(
             payments = payments,
             filter = activeFilter,
             customDateStr = customDateString
-        )
-    }
-
-    // Seed initial complaint items for Complin List feature
-    val complaintsList = remember {
-        mutableStateListOf(
-            ComplaintItem(
-                id = 101,
-                customerName = "Anwar Hossain",
-                customerCode = "NET-1002",
-                phone = "01812345678",
-                issueType = "LOS Red Light (Fiber Cut)",
-                details = "ONU light blinking red since morning. TJ box connection loose.",
-                status = "Pending",
-                date = "2026-08-08 09:30 AM",
-                requestDate = "2026-08-08",
-                requestTime = "09:30 AM",
-                scheduledDate = "2026-08-08",
-                scheduledTime = "02:00 PM"
-            ),
-            ComplaintItem(
-                id = 102,
-                customerName = "Sumon Ahmed",
-                customerCode = "NET-1005",
-                phone = "01512345678",
-                issueType = "Slow Speed / Packet Loss",
-                details = "Speed drops during evening peak hours. Requested port reset.",
-                status = "In Progress",
-                date = "2026-08-07 05:15 PM",
-                requestDate = "2026-08-07",
-                requestTime = "05:15 PM",
-                scheduledDate = "2026-08-08",
-                scheduledTime = "11:00 AM"
-            ),
-            ComplaintItem(
-                id = 103,
-                customerName = "Rahim Uddin",
-                customerCode = "NET-1001",
-                phone = "01712345678",
-                issueType = "Router Reset Issue",
-                details = "Customer replaced router, needs PPPoE setup.",
-                status = "Resolved",
-                date = "2026-08-06 11:00 AM",
-                requestDate = "2026-08-06",
-                requestTime = "11:00 AM",
-                scheduledDate = "2026-08-06",
-                scheduledTime = "01:30 PM"
-            )
         )
     }
 
@@ -312,7 +253,7 @@ fun DashboardScreen(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
-                            onClick = { showExpiryAlertSheet = true },
+                            onClick = onNavigateToAlerts,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
@@ -517,9 +458,7 @@ fun DashboardScreen(
                         subtitle = "Validity Over",
                         icon = Icons.Default.NotificationsActive,
                         accentColor = Color(0xFFE11D48),
-                        onClick = {
-                            showExpiryAlertSheet = true
-                        },
+                        onClick = onNavigateToAlerts,
                         modifier = Modifier.weight(1f)
                     )
                     MetricCard(
@@ -577,7 +516,7 @@ fun DashboardScreen(
 
         // Dedicated Customer Complaints Section (Replaced New Customers section)
         item {
-            val unresolvedComplaints = complaintsList.filter { it.status != "Resolved" }
+            val unresolvedComplaints = supportTickets.filter { it.status != "Resolved" }
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -757,7 +696,7 @@ fun DashboardScreen(
                                                                 }
                                                             }
                                                             Text(
-                                                                text = "📱 ${complaint.phone} • 📅 ${complaint.requestTime}",
+                                                                text = "📱 ${complaint.customerPhone} • 📅 ${complaint.createdAt}",
                                                                 fontSize = 11.sp,
                                                                 color = com.example.ui.theme.Slate600
                                                             )
@@ -807,7 +746,7 @@ fun DashboardScreen(
                                                             color = com.example.ui.theme.CoralWarning
                                                         )
                                                         Text(
-                                                            text = complaint.details,
+                                                            text = complaint.description,
                                                             fontSize = 11.sp,
                                                             color = com.example.ui.theme.Slate700
                                                         )
@@ -824,10 +763,7 @@ fun DashboardScreen(
                                                 ) {
                                                     Button(
                                                         onClick = {
-                                                            val idx = complaintsList.indexOfFirst { it.id == complaint.id }
-                                                            if (idx != -1) {
-                                                                complaintsList[idx] = complaint.copy(status = "Resolved")
-                                                            }
+                                                            viewModel.updateSupportTicket(complaint.copy(status = "Resolved"))
                                                             viewModel.showToast("অভিযোগটি সমাধান হিসেবে সম্পন্ন করা হয়েছে!")
                                                         },
                                                         colors = ButtonDefaults.buttonColors(
@@ -953,19 +889,23 @@ fun DashboardScreen(
     // Interactive Dialog 3: Complaints / Support Ticket List Dialog
     if (showComplaintsDialog) {
         ComplaintsDashboardDialog(
-            complaints = complaintsList,
+            complaints = supportTickets,
+            allCustomers = customersList,
             titlesList = complainTitlesList,
             onOpenSetup = { showComplainSetupDialog = true },
-            onUpdateStatus = { complaint, newStatus ->
-                val idx = complaintsList.indexOfFirst { it.id == complaint.id }
-                if (idx != -1) {
-                    complaintsList[idx] = complaint.copy(status = newStatus)
-                }
-                viewModel.showToast("অভিযোগ আপডেট করা হয়েছে: $newStatus")
+            onUpdateStatus = { ticket, newStatus ->
+                viewModel.updateSupportTicket(ticket.copy(status = newStatus))
             },
-            onAddComplaint = { newComplaint ->
-                complaintsList.add(0, newComplaint)
-                viewModel.showToast("নতুন অভিযোগ নথিবদ্ধ করা হয়েছে!")
+            onAddComplaint = { type, desc, name, phone, sDate, sTime, customer ->
+                viewModel.createSupportTicket(
+                    customer = customer,
+                    type = type,
+                    description = desc,
+                    adminEnteredName = name,
+                    adminEnteredPhone = phone,
+                    scheduledDate = sDate,
+                    scheduledTime = sTime
+                )
             },
             onDismiss = { showComplaintsDialog = false }
         )
@@ -977,15 +917,6 @@ fun DashboardScreen(
             titlesList = complainTitlesList,
             onDismiss = { showComplainSetupDialog = false },
             onToast = { viewModel.showToast(it) }
-        )
-    }
-
-    // Customer Expiry Alert Bottom Sheet
-    if (showExpiryAlertSheet) {
-        ExpiryAlertBottomSheet(
-            viewModel = viewModel,
-            onDismiss = { showExpiryAlertSheet = false },
-            onSelectCustomer = onSelectCustomer
         )
     }
 }
@@ -1281,8 +1212,8 @@ fun CreateCustomerDashboardDialog(
     AddEditCustomerDialog(
         customer = null,
         onDismiss = onDismiss,
-        onSave = { newCustomer ->
-            viewModel.addOrUpdateCustomer(newCustomer)
+        onSave = { newCustomer, choice ->
+            viewModel.addOrUpdateCustomer(newCustomer, choice)
             onDismiss()
         }
     )
@@ -1387,16 +1318,19 @@ fun SearchCustomerDashboardDialog(
 // INTERACTIVE DIALOG 3: COMPLAINTS / SUPPORT TICKETS LIST
 @Composable
 fun ComplaintsDashboardDialog(
-    complaints: List<ComplaintItem>,
+    complaints: List<SupportTicketEntity>,
+    allCustomers: List<CustomerEntity> = emptyList(),
     titlesList: List<ComplainTitleItem> = emptyList(),
     onOpenSetup: () -> Unit = {},
-    onUpdateStatus: (ComplaintItem, String) -> Unit,
-    onAddComplaint: (ComplaintItem) -> Unit,
+    onUpdateStatus: (SupportTicketEntity, String) -> Unit,
+    onAddComplaint: (String, String, String, String, String, String, CustomerEntity?) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf("All") }
     var showNewComplaintForm by remember { mutableStateOf(false) }
 
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCustomer by remember { mutableStateOf<CustomerEntity?>(null) }
     var newCustName by remember { mutableStateOf("") }
     var newPhone by remember { mutableStateOf("") }
     var newIssue by remember { mutableStateOf("LOS Red Light") }
@@ -1406,7 +1340,16 @@ fun ComplaintsDashboardDialog(
     var newSchedDate by remember { mutableStateOf("2026-08-08") }
     var newSchedTime by remember { mutableStateOf("03:00 PM") }
 
-    var editingTicket by remember { mutableStateOf<ComplaintItem?>(null) }
+    var editingTicket by remember { mutableStateOf<SupportTicketEntity?>(null) }
+
+    val filteredCustomers = remember(searchQuery) {
+        if (searchQuery.isBlank()) emptyList()
+        else allCustomers.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+            it.customerCode.contains(searchQuery, ignoreCase = true) ||
+            it.mobile.contains(searchQuery, ignoreCase = true)
+        }.take(3)
+    }
 
     val filteredList = remember(selectedFilter, complaints) {
         if (selectedFilter == "All") complaints else complaints.filter { it.status == selectedFilter }
@@ -1557,7 +1500,7 @@ fun ComplaintsDashboardDialog(
                                             }
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text("Issue: ${ticket.issueType}", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                                            Text(ticket.details, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(ticket.description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(modifier = Modifier.height(6.dp))
 
                                             // Display Request Date & Time and Scheduled Resolution Date & Time
@@ -1571,21 +1514,23 @@ fun ComplaintsDashboardDialog(
                                                         Icon(Icons.Default.Schedule, contentDescription = null, tint = Teal600, modifier = Modifier.size(13.dp))
                                                         Spacer(modifier = Modifier.width(4.dp))
                                                         Text(
-                                                            text = "রিকোয়েস্ট তারিখ ও সময়: ${ticket.requestDate} (${ticket.requestTime})",
+                                                            text = "ক্রিয়েটেড ডেট: ${ticket.createdAt}",
                                                             fontSize = 11.sp,
                                                             fontWeight = FontWeight.Bold,
                                                             color = MaterialTheme.colorScheme.onSurface
                                                         )
                                                     }
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Icon(Icons.Default.Schedule, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(13.dp))
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = "ভিজিট/সমাধান সময়: ${ticket.scheduledDate} (${ticket.scheduledTime})",
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = ElectricBlue
-                                                        )
+                                                    if (ticket.scheduledDate.isNotEmpty()) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(Icons.Default.Schedule, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(13.dp))
+                                                            Spacer(modifier = Modifier.width(4.dp))
+                                                            Text(
+                                                                text = "ভিজিট/সমাধান সময়: ${ticket.scheduledDate} (${ticket.scheduledTime})",
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = ElectricBlue
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1650,11 +1595,73 @@ fun ComplaintsDashboardDialog(
                     ) {
                         Text("Log New Support Ticket / Service Request", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
+                        // Customer Search Section
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Search & Select Customer:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal600)
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text("ID, Name or Phone...", fontSize = 12.sp) },
+                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            
+                            if (filteredCustomers.isNotEmpty()) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column {
+                                        filteredCustomers.forEach { cust ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedCustomer = cust
+                                                        newCustName = cust.name
+                                                        newPhone = cust.mobile
+                                                        searchQuery = ""
+                                                    }
+                                                    .padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = Teal600)
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("${cust.name} (${cust.customerCode})", fontSize = 12.sp)
+                                            }
+                                            if (cust != filteredCustomers.last()) HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = Slate200)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (selectedCustomer != null) {
+                            Surface(
+                                color = EmeraldSuccess.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = EmeraldSuccess, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Selected: ${selectedCustomer?.name}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    TextButton(onClick = { selectedCustomer = null; newCustName = ""; newPhone = "" }) {
+                                        Text("Clear", color = CoralWarning, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+
                         OutlinedTextField(
                             value = newCustName,
                             onValueChange = { newCustName = it },
                             label = { Text("Customer Name") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = selectedCustomer != null
                         )
 
                         OutlinedTextField(
@@ -1662,7 +1669,8 @@ fun ComplaintsDashboardDialog(
                             onValueChange = { newPhone = it },
                             label = { Text("Phone Number") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = selectedCustomer != null
                         )
 
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1714,12 +1722,11 @@ fun ComplaintsDashboardDialog(
 
                         Text("📌 রিকোয়েস্টের তারিখ ও সময় (Request Date & Time)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            ReadonlyDateField(
                                 value = newReqDate,
-                                onValueChange = { newReqDate = it },
-                                label = { Text("আবেদনের তারিখ") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                label = "আবেদনের তারিখ",
+                                onDateSelected = { newReqDate = it },
+                                modifier = Modifier.weight(1f)
                             )
                             OutlinedTextField(
                                 value = newReqTime,
@@ -1732,12 +1739,11 @@ fun ComplaintsDashboardDialog(
 
                         Text("⏱️ টেকনিশিয়ান ভিজিটের নির্ধারিত সময় (Scheduled Visit)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
+                            ReadonlyDateField(
                                 value = newSchedDate,
-                                onValueChange = { newSchedDate = it },
-                                label = { Text("ভিজিটের তারিখ") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                label = "ভিজিটের তারিখ",
+                                onDateSelected = { newSchedDate = it },
+                                modifier = Modifier.weight(1f)
                             )
                             OutlinedTextField(
                                 value = newSchedTime,
@@ -1760,22 +1766,18 @@ fun ComplaintsDashboardDialog(
                                 onClick = {
                                     if (newCustName.isNotBlank()) {
                                         onAddComplaint(
-                                            ComplaintItem(
-                                                id = System.currentTimeMillis(),
-                                                customerName = newCustName,
-                                                customerCode = "NET-${(1000..9999).random()}",
-                                                phone = newPhone,
-                                                issueType = newIssue,
-                                                details = newDetails,
-                                                status = "Pending",
-                                                date = "$newReqDate $newReqTime",
-                                                requestDate = newReqDate,
-                                                requestTime = newReqTime,
-                                                scheduledDate = newSchedDate,
-                                                scheduledTime = newSchedTime
-                                            )
+                                            newIssue,
+                                            newDetails,
+                                            newCustName,
+                                            newPhone,
+                                            newSchedDate,
+                                            newSchedTime,
+                                            selectedCustomer
                                         )
                                         showNewComplaintForm = false
+                                        selectedCustomer = null
+                                        newCustName = ""
+                                        newPhone = ""
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600)
@@ -1792,8 +1794,6 @@ fun ComplaintsDashboardDialog(
 
     // Edit Date/Time Dialog for existing support ticket request
     editingTicket?.let { ticket ->
-        var editReqDate by remember { mutableStateOf(ticket.requestDate) }
-        var editReqTime by remember { mutableStateOf(ticket.requestTime) }
         var editSchedDate by remember { mutableStateOf(ticket.scheduledDate) }
         var editSchedTime by remember { mutableStateOf(ticket.scheduledTime) }
 
@@ -1802,10 +1802,7 @@ fun ComplaintsDashboardDialog(
             confirmButton = {
                 Button(
                     onClick = {
-                        ticket.requestDate = editReqDate
-                        ticket.requestTime = editReqTime
-                        ticket.scheduledDate = editSchedDate
-                        ticket.scheduledTime = editSchedTime
+                        onUpdateStatus(ticket.copy(scheduledDate = editSchedDate, scheduledTime = editSchedTime), ticket.status)
                         editingTicket = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600)
@@ -1819,38 +1816,19 @@ fun ComplaintsDashboardDialog(
                 }
             },
             title = {
-                Text("রিকোয়েস্টের তারিখ ও সময় সংশোধন", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("ভিজিট তারিখ ও সময় সংশোধন", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("গ্রাহক: ${ticket.customerName} (${ticket.customerCode})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
 
-                    Text("রিকোয়েস্ট গ্রহণের তারিখ ও সময়:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = editReqDate,
-                            onValueChange = { editReqDate = it },
-                            label = { Text("তারিখ (YYYY-MM-DD)") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = editReqTime,
-                            onValueChange = { editReqTime = it },
-                            label = { Text("সময় (HH:MM AM/PM)") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                    }
-
                     Text("ভিজিট / সমাধানের তারিখ ও সময়:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
+                        ReadonlyDateField(
                             value = editSchedDate,
-                            onValueChange = { editSchedDate = it },
-                            label = { Text("তারিখ (YYYY-MM-DD)") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
+                            label = "তারিখ",
+                            onDateSelected = { editSchedDate = it },
+                            modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
                             value = editSchedTime,

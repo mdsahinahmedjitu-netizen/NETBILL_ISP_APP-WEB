@@ -4,33 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.data.dao.CustomerDao
-import com.example.data.dao.ExpenseDao
-import com.example.data.dao.ISPSettingsDao
-import com.example.data.dao.InvoiceDao
-import com.example.data.dao.LedgerDao
-import com.example.data.dao.MikroTikDao
-import com.example.data.dao.PackageDao
-import com.example.data.dao.PaymentAllocationDao
-import com.example.data.dao.PaymentCollectionDao
-import com.example.data.dao.SmsLogDao
-import com.example.data.dao.SmsTemplateDao
-import com.example.data.dao.StaffDao
-import com.example.data.dao.UserDao
-import com.example.data.entity.CustomerEntity
-import com.example.data.entity.ExpenseEntity
-import com.example.data.entity.ISPSettingsEntity
-import com.example.data.entity.InvoiceEntity
-import com.example.data.entity.LedgerEntryEntity
-import com.example.data.entity.MikroTikRouterEntity
-import com.example.data.entity.PackageEntity
-import com.example.data.entity.PaymentAllocationEntity
-import com.example.data.entity.PaymentCollectionEntity
-import com.example.data.entity.SmsLogEntity
-import com.example.data.entity.SmsTemplateEntity
-import com.example.data.entity.StaffEntity
-import com.example.data.entity.StaffSalaryEntity
-import com.example.data.entity.UserEntity
+import com.example.data.dao.*
+import com.example.data.entity.*
 
 @Database(
     entities = [
@@ -47,9 +22,11 @@ import com.example.data.entity.UserEntity
         ISPSettingsEntity::class,
         LedgerEntryEntity::class,
         SmsLogEntity::class,
-        SmsTemplateEntity::class
+        SmsTemplateEntity::class,
+        InventoryEntity::class,
+        SupportTicketEntity::class
     ],
-    version = 7,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -67,6 +44,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun ledgerDao(): LedgerDao
     abstract fun smsLogDao(): SmsLogDao
     abstract fun smsTemplateDao(): SmsTemplateDao
+    abstract fun inventoryDao(): InventoryDao
+    abstract fun supportTicketDao(): SupportTicketDao
 
     companion object {
         @Volatile

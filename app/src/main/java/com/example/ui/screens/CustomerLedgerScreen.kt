@@ -75,8 +75,12 @@ import com.example.data.entity.CustomerEntity
 import com.example.data.entity.InvoiceEntity
 import com.example.data.entity.LedgerEntryEntity
 import com.example.data.entity.PaymentCollectionEntity
+import com.example.util.AppUtils
 import com.example.localization.AppTranslation
+import com.example.ui.components.ReadonlyDateField
 import com.example.ui.theme.BkashPink
+import java.text.SimpleDateFormat
+import java.util.*
 import com.example.ui.theme.CoralWarning
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
@@ -547,7 +551,7 @@ fun CustomerLedgerScreen(
         AddLedgerEntryDialog(
             customerName = customer.name,
             onDismiss = { showAddLedgerDialog = false },
-            onSubmit = { type, amount, isDebit, desc, refNo, payMethod ->
+            onSubmit = { type, amount, isDebit, desc, refNo, payMethod, date ->
                 viewModel.addCustomLedgerEntry(
                     customerId = customer.id,
                     type = type,
@@ -555,7 +559,8 @@ fun CustomerLedgerScreen(
                     isDebit = isDebit,
                     description = desc,
                     referenceNo = refNo,
-                    method = payMethod
+                    method = payMethod,
+                    date = date
                 )
                 showAddLedgerDialog = false
             }
@@ -684,7 +689,7 @@ fun LedgerTimelineItemCard(entry: LedgerEntryEntity, currency: String) {
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "${entry.date} at ${entry.time}${if (entry.paymentMethod.isNotBlank()) " • " + entry.paymentMethod else ""}",
+                    text = "${AppUtils.formatDateForDisplay(entry.date)} at ${entry.time}${if (entry.paymentMethod.isNotBlank()) " • " + entry.paymentMethod else ""}",
                     fontSize = 10.sp,
                     color = Slate600
                 )
@@ -769,7 +774,7 @@ fun BillHistoryItemCard(invoice: InvoiceEntity, currency: String) {
                 }
                 Column {
                     Text("Due Date", fontSize = 10.sp, color = Slate600)
-                    Text(invoice.dueDate, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                    Text(AppUtils.formatDateForDisplay(invoice.dueDate), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
                 }
             }
         }
@@ -836,7 +841,7 @@ fun PaymentHistoryItemCard(
                     }
                 }
 
-                Text(payment.paymentDate, fontSize = 11.sp, color = Slate600)
+                Text(AppUtils.formatDateForDisplay(payment.paymentDate), fontSize = 11.sp, color = Slate600)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -870,13 +875,14 @@ fun PaymentHistoryItemCard(
 fun AddLedgerEntryDialog(
     customerName: String,
     onDismiss: () -> Unit,
-    onSubmit: (type: String, amount: Double, isDebit: Boolean, desc: String, refNo: String, payMethod: String) -> Unit
+    onSubmit: (type: String, amount: Double, isDebit: Boolean, desc: String, refNo: String, payMethod: String, date: String) -> Unit
 ) {
     var selectedType by remember { mutableStateOf("Discount") }
     var amountText by remember { mutableStateOf("") }
     var descriptionText by remember { mutableStateOf("") }
     var refNoText by remember { mutableStateOf("") }
     var paymentMethodText by remember { mutableStateOf("Cash") }
+    var entryDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
 
     val entryTypes = listOf(
         "Monthly Bill", "Payment", "Discount", "Advance",
@@ -949,6 +955,13 @@ fun AddLedgerEntryDialog(
                     singleLine = true
                 )
 
+                ReadonlyDateField(
+                    value = entryDate,
+                    label = "লেজার তারিখ (Entry Date)",
+                    onDateSelected = { entryDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 if (selectedType == "Payment" || selectedType == "Refund" || selectedType == "Advance") {
                     OutlinedTextField(
                         value = paymentMethodText,
@@ -966,7 +979,7 @@ fun AddLedgerEntryDialog(
                 onClick = {
                     val amt = amountText.toDoubleOrNull() ?: 0.0
                     if (amt > 0) {
-                        onSubmit(selectedType, amt, isDebit, descriptionText, refNoText, paymentMethodText)
+                        onSubmit(selectedType, amt, isDebit, descriptionText, refNoText, paymentMethodText, entryDate)
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Teal600)

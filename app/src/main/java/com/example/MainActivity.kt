@@ -19,13 +19,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -84,13 +87,16 @@ import androidx.navigation.navArgument
 import com.example.localization.AppLanguage
 import com.example.localization.AppTranslation
 import com.example.localization.LocalAppLanguage
+import com.example.ui.screens.AlertsScreen
 import com.example.ui.screens.BackupScreen
 import com.example.ui.screens.BillingScreen
+import com.example.ui.screens.CustomerDashboardScreen
 import com.example.ui.screens.CustomerDetailScreen
 import com.example.ui.screens.CustomerLedgerScreen
 import com.example.ui.screens.CustomerManagementScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.ExpenseScreen
+import com.example.ui.screens.InventoryScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.MikroTikScreen
 import com.example.ui.screens.NotificationScreen
@@ -101,6 +107,7 @@ import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SmsTemplateManagementScreen
 import com.example.ui.screens.StaffScreen
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.CoralWarning
 import com.example.ui.theme.IspAmberTertiary
 import com.example.ui.theme.Navy800
 import com.example.ui.theme.Slate700
@@ -141,10 +148,12 @@ fun NetBillISPApp(viewModel: MainViewModel) {
     val context = LocalContext.current
 
     val currentUser by viewModel.currentUser.collectAsState()
+    val currentCustomer by viewModel.currentCustomer.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
     val currentLang by viewModel.currentLanguage.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
     val expiringCustomers by viewModel.expiringTomorrowCustomers.collectAsState()
+    val supportTickets by viewModel.supportTickets.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination?.route
@@ -157,15 +166,18 @@ fun NetBillISPApp(viewModel: MainViewModel) {
         }
     }
 
-    if (currentUser == null) {
+    if (currentUser == null && currentCustomer == null) {
         LoginScreen(
             viewModel = viewModel,
             onLoginSuccess = {
-                navController.navigate("dashboard") {
-                    popUpTo("login") { inclusive = true }
-                }
+                // This callback is generic, navigation happens automatically due to state change
             }
         )
+        return
+    }
+
+    if (currentCustomer != null) {
+        CustomerDashboardScreen(viewModel = viewModel)
         return
     }
 
@@ -214,54 +226,108 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     }
                 }
 
-                Spacer(modifier = Modifier.padding(top = 10.dp))
+                // Wrap scrollable items in a weighted column
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                val drawerItems = listOf(
-                    Triple("dashboard", "dashboard_title", Icons.Default.Dashboard),
-                    Triple("customers", "customer_crm", Icons.Default.People),
-                    Triple("mikrotik", "mikrotik_title", Icons.Default.Router),
-                    Triple("billing", "billing_title", Icons.Default.Receipt),
-                    Triple("payments", "payments_title", Icons.Default.AttachMoney),
-                    Triple("expenses", "expense_title", Icons.Default.Receipt),
-                    Triple("staff", "staff_title", Icons.Default.People),
-                    Triple("packages", "packages_title", Icons.Default.Wifi),
-                    Triple("reports", "reports_title", Icons.Default.Receipt),
-                    Triple("notifications", "sms_title", Icons.Default.Receipt),
-                    Triple("sms_templates", "SMS Templates", Icons.Default.Edit),
-                    Triple("backup", "backup_title", Icons.Default.Receipt),
-                    Triple("settings", "settings_title", Icons.Default.Settings)
-                )
-
-                drawerItems.forEach { (route, labelKey, icon) ->
-                    val isSelected = currentDestination == route
-                    NavigationDrawerItem(
-                        icon = { Icon(icon, contentDescription = null, tint = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurfaceVariant) },
-                        label = { 
-                            Text(
-                                text = AppTranslation(labelKey), 
-                                color = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurface, 
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            ) 
-                        },
-                        selected = isSelected,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = if (isDarkMode) Navy800 else Teal50,
-                            unselectedContainerColor = Color.Transparent
-                        ),
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    val drawerItems = listOf(
+                        Triple("dashboard", "dashboard_title", Icons.Default.Dashboard),
+                        Triple("customers", "customer_crm", Icons.Default.People),
+                        Triple("mikrotik", "mikrotik_title", Icons.Default.Router),
+                        Triple("billing", "billing_title", Icons.Default.Receipt),
+                        Triple("payments", "payments_title", Icons.Default.AttachMoney),
+                        Triple("expenses", "expense_title", Icons.Default.Receipt),
+                        Triple("staff", "staff_title", Icons.Default.People),
+                        Triple("inventory", "Inventory & Stock", Icons.Default.Router),
+                        Triple("packages", "packages_title", Icons.Default.Wifi),
+                        Triple("reports", "reports_title", Icons.Default.Receipt),
+                        Triple("notifications", "sms_title", Icons.Default.Receipt),
+                        Triple("sms_templates", "SMS Templates", Icons.Default.Edit),
+                        Triple("backup", "backup_title", Icons.Default.Receipt),
+                        Triple("settings", "settings_title", Icons.Default.Settings)
                     )
+
+                    drawerItems.forEach { (route, labelKey, icon) ->
+                        val isSelected = currentDestination == route
+                        NavigationDrawerItem(
+                            icon = { Icon(icon, contentDescription = null, tint = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurfaceVariant) },
+                            label = { 
+                                Text(
+                                    text = AppTranslation(labelKey), 
+                                    color = if (isSelected) Teal600 else MaterialTheme.colorScheme.onSurface, 
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                ) 
+                            },
+                            selected = isSelected,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = if (isDarkMode) Navy800 else Teal50,
+                                unselectedContainerColor = Color.Transparent
+                            ),
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    // Quick Night Mode Toggle inside Drawer
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.toggleDarkMode() }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isDarkMode) Icons.Default.WbSunny else Icons.Default.DarkMode,
+                                contentDescription = null,
+                                tint = if (isDarkMode) IspAmberTertiary else Teal600,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = if (isDarkMode) "Light Mode / লাইট মোড" else "Night Mode / নাইট মোড",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "ISP Field Dark Vision",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = isDarkMode,
+                            onCheckedChange = { viewModel.setDarkMode(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Teal600
+                            )
+                        )
+                    }
                 }
 
                 HorizontalDivider(
@@ -269,46 +335,28 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
 
-                // Quick Night Mode Toggle inside Drawer
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.toggleDarkMode() }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isDarkMode) Icons.Default.WbSunny else Icons.Default.DarkMode,
-                            contentDescription = null,
-                            tint = if (isDarkMode) IspAmberTertiary else Teal600,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = if (isDarkMode) "Light Mode / লাইট মোড" else "Night Mode / নাইট মোড",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "ISP Field Dark Vision",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    Switch(
-                        checked = isDarkMode,
-                        onCheckedChange = { viewModel.setDarkMode(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Teal600
-                        )
-                    )
-                }
+                // Logout Button at the bottom
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Logout, contentDescription = null, tint = Color(0xFFE11D48)) },
+                    label = { 
+                        Text(
+                            text = "Logout / লগ আউট", 
+                            color = Color(0xFFE11D48), 
+                            fontWeight = FontWeight.Bold 
+                        ) 
+                    },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        viewModel.logout()
+                    },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        unselectedContainerColor = Color.Transparent
+                    ),
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     ) {
@@ -347,6 +395,8 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                     },
                     actions = {
                         val overdueCount = expiringCustomers.size
+                        val unresolvedTicketsCount = supportTickets.count { it.status != "Resolved" }
+                        val totalNotifications = overdueCount + unresolvedTicketsCount
 
                         // Global Quick Theme Toggle Button
                         IconButton(
@@ -362,7 +412,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
 
                         IconButton(
                             onClick = {
-                                navController.navigate("notifications") {
+                                navController.navigate("alerts") {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
@@ -371,21 +421,21 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                                 }
                             }
                         ) {
-                            if (overdueCount > 0) {
+                            if (totalNotifications > 0) {
                                 BadgedBox(
                                     badge = {
                                         Badge(
                                             containerColor = Color(0xFFE11D48),
                                             contentColor = Color.White
                                         ) {
-                                            Text("$overdueCount", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text("$totalNotifications", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 ) {
                                     Icon(
                                         Icons.Default.Notifications,
                                         contentDescription = "Alerts",
-                                        tint = Color(0xFFE11D48)
+                                        tint = if (unresolvedTicketsCount > 0) CoralWarning else Color(0xFFE11D48)
                                     )
                                 }
                             } else {
@@ -493,6 +543,7 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                             onNavigateToMikroTik = { navController.navigate("mikrotik") },
                             onNavigateToReports = { navController.navigate("reports") },
                             onNavigateToNotifications = { navController.navigate("notifications") },
+                            onNavigateToAlerts = { navController.navigate("alerts") },
                             onSelectCustomer = { customer ->
                                 navController.navigate("customer_detail/${customer.id}")
                             }
@@ -568,6 +619,10 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                         PackageScreen(viewModel = viewModel)
                     }
 
+                    composable("inventory") {
+                        InventoryScreen(viewModel = viewModel)
+                    }
+
                     composable("reports") {
                         ReportsScreen(mainViewModel = viewModel)
                     }
@@ -576,6 +631,13 @@ fun NetBillISPApp(viewModel: MainViewModel) {
                         NotificationScreen(
                             viewModel = viewModel,
                             onNavigateToTemplates = { navController.navigate("sms_templates") }
+                        )
+                    }
+
+                    composable("alerts") {
+                        AlertsScreen(
+                            viewModel = viewModel,
+                            onBack = { navController.popBackStack() }
                         )
                     }
 

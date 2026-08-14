@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
@@ -43,11 +44,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.ExpenseEntity
 import com.example.localization.AppTranslation
+import com.example.ui.components.ReadonlyDateField
 import com.example.ui.theme.BkashPink
+import java.text.SimpleDateFormat
+import java.util.*
 import com.example.ui.theme.CoralWarning
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
@@ -126,8 +131,8 @@ fun ExpenseScreen(viewModel: MainViewModel) {
     if (showAddExpenseDialog) {
         AddExpenseDialog(
             onDismiss = { showAddExpenseDialog = false },
-            onSave = { title, category, amount, notes ->
-                viewModel.addExpense(title, category, amount, notes)
+            onSave = { title, category, amount, notes, date ->
+                viewModel.addExpense(title, category, amount, notes, date)
                 showAddExpenseDialog = false
             }
         )
@@ -138,13 +143,14 @@ fun ExpenseScreen(viewModel: MainViewModel) {
 @Composable
 fun AddExpenseDialog(
     onDismiss: () -> Unit,
-    onSave: (String, String, Double, String) -> Unit
+    onSave: (String, String, Double, String, String) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Bandwidth Cost") }
     var expandedCat by remember { mutableStateOf(false) }
     var amount by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    var expenseDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
 
     val categories = listOf(
         "Bandwidth Cost", "Staff Salary", "Electricity Bill", "Equipment Purchase", "Office Rent", "Maintenance", "Transport", "Other Expense"
@@ -176,13 +182,20 @@ fun AddExpenseDialog(
                     }
                 }
 
-                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (৳ BDT)") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (৳ BDT)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes / Vendor") }, modifier = Modifier.fillMaxWidth())
+                
+                ReadonlyDateField(
+                    value = expenseDate,
+                    label = "ব্যয়ের তারিখ (Expense Date)",
+                    onDateSelected = { expenseDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
             Button(
-                onClick = { onSave(title, category, amount.toDoubleOrNull() ?: 0.0, notes) },
+                onClick = { onSave(title, category, amount.toDoubleOrNull() ?: 0.0, notes, expenseDate) },
                 colors = ButtonDefaults.buttonColors(containerColor = BkashPink)
             ) {
                 Text("Save Expense", color = Color.White)

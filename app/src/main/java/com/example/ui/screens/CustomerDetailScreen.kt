@@ -49,9 +49,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
+import com.example.util.AppUtils
 import com.example.localization.AppTranslation
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.CoralWarning
+import com.example.ui.components.CustomerSmsLogsBottomSheet
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.EmeraldSuccess
@@ -69,7 +71,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.filled.Schedule
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.runtime.mutableStateListOf
 import com.example.ui.components.CustomerSmsLogsBottomSheet
+import com.example.ui.theme.CyanAccent
 import androidx.compose.material.icons.filled.Sms
 
 @Composable
@@ -212,6 +218,85 @@ fun CustomerDetailScreen(
                             Icon(Icons.Default.Sms, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("SMS Delivery Logs & Gateway Tracker", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // Live Traffic Graph Card (For PPPoE/Active users)
+            if (customer.status == "Active" && customer.pppoeUsername.isNotBlank()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = SleekCard),
+                        border = BorderStroke(1.dp, CyanAccent.copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Speed, contentDescription = null, tint = CyanAccent)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Live User Traffic Monitor", fontWeight = FontWeight.Bold, color = Slate900, fontSize = 14.sp)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(EmeraldSuccess.copy(alpha = 0.15f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text("LIVE", color = EmeraldSuccess, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                        val rxSamples = remember { mutableStateListOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f) }
+                        var currentRx by remember { mutableStateOf(0.0) }
+                        
+                        androidx.compose.runtime.LaunchedEffect(Unit) {
+                            while(true) {
+                                val stats = viewModel.getCustomerLiveTraffic(customer.id)
+                                currentRx = stats?.first ?: 0.0
+                                
+                                if (rxSamples.size > 15) rxSamples.removeAt(0)
+                                rxSamples.add(currentRx.toFloat())
+                                kotlinx.coroutines.delay(2000)
+                            }
+                        }
+
+                        // Simplified Live Traffic Graph
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                                val width = size.width
+                                val height = size.height
+                                val path = androidx.compose.ui.graphics.Path()
+                                val step = width / (rxSamples.size - 1).coerceAtLeast(1)
+                                
+                                rxSamples.forEachIndexed { i, value ->
+                                    val x = i * step
+                                    val y = height - (value / 50f).coerceIn(0f, 1f) * height // Scaling to 50 Mbps
+                                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                                }
+                                drawPath(path, CyanAccent, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Current Speed: ~${(rxSamples.lastOrNull() ?: 0f).toInt()} Mbps", fontSize = 12.sp, color = Teal600, fontWeight = FontWeight.Bold)
+                            Text("PPPoE: ${customer.pppoeUsername}", fontSize = 11.sp, color = Slate600)
+                        }
                         }
                     }
                 }
@@ -398,7 +483,7 @@ fun CustomerDetailScreen(
                         ) {
                             Column {
                                 Text(text = pymt.receiptNo, fontWeight = FontWeight.Bold, color = Slate900, fontSize = 13.sp)
-                                Text(text = "${pymt.paymentDate} • ${pymt.paymentMethod} (${pymt.transactionId})", color = Slate600, fontSize = 11.sp)
+                                Text(text = "${AppUtils.formatDateForDisplay(pymt.paymentDate)} • ${pymt.paymentMethod} (${pymt.transactionId})", color = Slate600, fontSize = 11.sp)
                             }
                             Text(text = "$currency ${pymt.amount.toInt()}", fontWeight = FontWeight.Bold, color = EmeraldSuccess, fontSize = 15.sp)
                         }

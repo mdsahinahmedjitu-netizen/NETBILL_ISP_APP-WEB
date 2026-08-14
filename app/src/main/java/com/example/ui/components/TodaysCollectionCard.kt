@@ -48,17 +48,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -84,6 +81,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.example.util.AppUtils
 
 enum class CollectionFilterPeriod {
     TODAY,
@@ -447,77 +445,19 @@ fun CustomDatePickerDialog(
     onDismiss: () -> Unit,
     onDateSelected: (String) -> Unit
 ) {
-    var inputDate by remember { mutableStateOf(currentDate) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = AppTranslation("select_date"),
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Enter or select collection date (YYYY-MM-DD):",
-                    fontSize = 12.sp,
-                    color = Slate500
-                )
-
-                OutlinedTextField(
-                    value = inputDate,
-                    onValueChange = { inputDate = it },
-                    label = { Text("Date (YYYY-MM-DD)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Quick presets
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val today = getTodayDateString()
-                    val yesterday = getYesterdayDateString()
-
-                    Button(
-                        onClick = { inputDate = today },
-                        colors = ButtonDefaults.buttonColors(containerColor = Teal50),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Today", color = Teal700, fontSize = 11.sp)
-                    }
-
-                    Button(
-                        onClick = { inputDate = yesterday },
-                        colors = ButtonDefaults.buttonColors(containerColor = Teal50),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Yesterday", color = Teal700, fontSize = 11.sp)
-                    }
-                }
+    val context = LocalContext.current
+    
+    // We launch the native DatePickerDialog directly for better UX as requested
+    LaunchedEffect(Unit) {
+        com.example.util.DatePickerUtils.showDatePicker(
+            context = context,
+            initialDate = currentDate,
+            onDateSelected = { 
+                onDateSelected(it)
+                onDismiss()
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (inputDate.isNotBlank()) {
-                        onDateSelected(inputDate.trim())
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Teal600)
-            ) {
-                Text("Apply", color = Color.White)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Slate500)
-            }
-        }
-    )
+        )
+    }
 }
 
 // Business Logic helper for processing payments
@@ -635,11 +575,11 @@ fun calculateCollectionSummary(
     )
 
     val periodLabelStr = when (filter) {
-        CollectionFilterPeriod.TODAY -> "Today ($todayStr)"
-        CollectionFilterPeriod.YESTERDAY -> "Yesterday ($yesterdayStr)"
+        CollectionFilterPeriod.TODAY -> "Today (${AppUtils.formatDateForDisplay(todayStr)})"
+        CollectionFilterPeriod.YESTERDAY -> "Yesterday (${AppUtils.formatDateForDisplay(yesterdayStr)})"
         CollectionFilterPeriod.LAST_7_DAYS -> "Last 7 Days"
         CollectionFilterPeriod.THIS_MONTH -> "This Month (${getThisMonthName()})"
-        CollectionFilterPeriod.CUSTOM -> "Date ($customDateStr)"
+        CollectionFilterPeriod.CUSTOM -> "Date (${AppUtils.formatDateForDisplay(customDateStr)})"
     }
 
     return CollectionCalculatedSummary(

@@ -5,6 +5,7 @@ import com.example.data.entity.*
 import com.example.data.remote.FirestoreService
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +20,8 @@ class ISPRepository(private val db: AppDatabase) {
 
     private val firestoreService = FirestoreService()
     private val firestore = FirebaseFirestore.getInstance()
+    private val mikroTikApi = com.example.data.remote.MikroTikApiService()
+    private val smsService = com.example.service.SmsService()
     private val scope = CoroutineScope(Dispatchers.IO)
     private val listeners = mutableListOf<ListenerRegistration>()
 
@@ -35,6 +38,8 @@ class ISPRepository(private val db: AppDatabase) {
     val ledgerDao = db.ledgerDao()
     val smsLogDao = db.smsLogDao()
     val smsTemplateDao = db.smsTemplateDao()
+    val inventoryDao = db.inventoryDao()
+    val supportTicketDao = db.supportTicketDao()
 
     val allCustomers: Flow<List<CustomerEntity>> = customerDao.getAllCustomers()
     val allPackages: Flow<List<PackageEntity>> = packageDao.getAllPackages()
@@ -114,6 +119,9 @@ class ISPRepository(private val db: AppDatabase) {
             syncCollection("mikrotik_routers", MikroTikRouterEntity::class.java, { /* handle if needed */ }) { scope.launch { mikrotikDao.insertRouter(it) } }
             syncCollection("sms_logs", SmsLogEntity::class.java, { scope.launch { smsLogDao.deleteSmsLogById(it) } }) { scope.launch { smsLogDao.insertSmsLog(it) } }
             syncCollection("sms_templates", SmsTemplateEntity::class.java, { scope.launch { smsTemplateDao.deleteTemplateById(it) } }) { scope.launch { smsTemplateDao.insertTemplate(it) } }
+            syncCollection("inventory_items", InventoryEntity::class.java, { scope.launch { inventoryDao.deleteItemById(it) } }) { scope.launch { inventoryDao.insertItem(it) } }
+            syncCollection("support_tickets", SupportTicketEntity::class.java, { scope.launch { supportTicketDao.deleteTicketById(it) } }) { scope.launch { supportTicketDao.insertTicket(it) } }
+            syncCollection("users", UserEntity::class.java, { /* handle if needed */ }) { scope.launch { userDao.insertUser(it) } }
         }
     }
 
@@ -159,9 +167,9 @@ class ISPRepository(private val db: AppDatabase) {
                 mobile = "01711000000",
                 role = "Super Admin"
             )
-            userDao.insertUser(admin)
+            insertUser(admin)
 
-            userDao.insertUser(
+            insertUser(
                 UserEntity(
                     id = operatorId,
                     username = "operator",
@@ -336,6 +344,20 @@ class ISPRepository(private val db: AppDatabase) {
             
             // Sync to Firestore
             firestoreService.generateBillingTransaction(invoicesToSave, customersToUpdate, ledgerToSave)
+
+            // Auto SMS
+            val currentSettings = settingsDao.getSettings().firstOrNull()
+            if (currentSettings?.isAutoSmsEnabled == true) {
+                scope.launch {
+                    invoicesToSave.forEach { inv ->
+                        val customer = customersToUpdate.find { it.id == inv.customerId }
+                        if (customer != null) {
+                            val msg = "Dear ${customer.name}, your bill for ${inv.billingMonthYear} is ${inv.billAmount} ৳. Total Due: ${inv.totalPayable} ৳. Pay by 10th. Thank you - ${currentSettings.ispName}"
+                            smsService.sendSms(currentSettings.smsApiUrl, currentSettings.smsApiKey, currentSettings.smsSenderId, customer.mobile, msg)
+                        }
+                    }
+                }
+            }
         }
         return generatedCount
     }
@@ -346,10 +368,11 @@ class ISPRepository(private val db: AppDatabase) {
         paymentMethod: String,
         transactionId: String,
         collectorName: String,
-        remarks: String
+        remarks: String,
+        date: String? = null
     ): PaymentCollectionEntity? {
         val customer = customerDao.getCustomerById(customerId) ?: return null
-        val currentDate = getCurrentDateString()
+        val currentDate = date ?: getCurrentDateString()
         val paymentId = UUID.randomUUID().toString()
         val receiptNo = "REC-${System.currentTimeMillis().toString().takeLast(6)}"
 
@@ -427,6 +450,15 @@ class ISPRepository(private val db: AppDatabase) {
 
         // Sync to Firestore
         firestoreService.recordPaymentTransaction(payment, allocations, updatedInvoices, updatedCustomer, ledgerEntries)
+
+        // Auto SMS Receipt
+        val currentSettings = settingsDao.getSettings().firstOrNull()
+        if (currentSettings?.isAutoSmsEnabled == true) {
+            scope.launch {
+                val msg = "Payment Received: ${payment.amount} ৳ from ${customer.name}. Receipt: ${payment.receiptNo}. Current Due: ${updatedCustomer.currentDue} ৳. Thank you."
+                smsService.sendSms(currentSettings.smsApiUrl, currentSettings.smsApiKey, currentSettings.smsSenderId, customer.mobile, msg)
+            }
+        }
         return payment
     }
 
@@ -449,6 +481,20 @@ class ISPRepository(private val db: AppDatabase) {
     }
 
     val paymentGatewayService = com.example.service.PaymentGatewayService()
+
+    fun updateGatewayConfig(settings: ISPSettingsEntity) {
+        paymentGatewayService.config = com.example.service.GatewayConfig(
+            environment = if (settings.apiMode == "Production") 
+                com.example.service.GatewayEnvironment.PRODUCTION else com.example.service.GatewayEnvironment.SANDBOX,
+            bkashAppKey = settings.bkashAppKey,
+            bkashAppSecret = settings.bkashAppSecret,
+            bkashUsername = settings.bkashUsername,
+            bkashPassword = settings.bkashPassword,
+            nagadMerchantId = settings.nagadMerchantId,
+            nagadMerchantNumber = settings.nagadMobile
+        )
+        Log.d("ISPRepository", "Gateway Config Updated: Mode=${settings.apiMode}")
+    }
 
     suspend fun processAutomatedGatewayPayment(
         customerId: String,
@@ -498,7 +544,22 @@ class ISPRepository(private val db: AppDatabase) {
         }
     }
 
+    suspend fun insertUser(user: UserEntity) {
+        userDao.insertUser(user)
+        firestoreService.saveDocument("users", user.id, user)
+    }
+
+    suspend fun deleteUser(id: String) {
+        userDao.deleteUserById(id)
+        firestoreService.deleteDocument("users", id)
+    }
+
     suspend fun insertStaff(staff: StaffEntity) {
+        staffDao.insertStaff(staff)
+        firestoreService.saveStaff(staff)
+    }
+
+    suspend fun updateStaff(staff: StaffEntity) {
         staffDao.insertStaff(staff)
         firestoreService.saveStaff(staff)
     }
@@ -506,6 +567,11 @@ class ISPRepository(private val db: AppDatabase) {
     suspend fun insertSalary(salary: StaffSalaryEntity) {
         staffDao.insertSalary(salary)
         firestoreService.saveSalary(salary)
+    }
+
+    suspend fun deleteStaff(id: String) {
+        staffDao.deleteStaffById(id)
+        firestoreService.deleteDocument("staff", id)
     }
 
     suspend fun insertRouter(router: MikroTikRouterEntity) {
@@ -517,6 +583,11 @@ class ISPRepository(private val db: AppDatabase) {
         mikrotikDao.updateRouterStatus(routerId, connected)
         val router = mikrotikDao.getAllRouters().firstOrNull()?.find { it.id == routerId } ?: return
         firestoreService.saveRouter(router.copy(isConnected = connected))
+    }
+
+    suspend fun deleteRouter(id: String) {
+        mikrotikDao.deleteRouterById(id)
+        firestoreService.deleteDocument("mikrotik_routers", id)
     }
 
     suspend fun insertSmsLog(log: SmsLogEntity) {
@@ -549,6 +620,71 @@ class ISPRepository(private val db: AppDatabase) {
         firestoreService.saveSettings(settings)
     }
 
+    suspend fun setCustomerInternetStatus(customerId: String, enable: Boolean): Boolean {
+        val customer = customerDao.getCustomerById(customerId) ?: return false
+        val routers = mikrotikDao.getAllRouters().firstOrNull() ?: emptyList()
+        
+        val router = routers.firstOrNull { it.isConnected } ?: return false
+        if (customer.pppoeUsername.isBlank()) return false
+
+        val success = mikroTikApi.setPppoeUserStatus(router, customer.pppoeUsername, enable)
+        
+        if (success) {
+            val nextStatus = if (enable) "Active" else "Suspended"
+            updateCustomer(customer.copy(status = nextStatus))
+        }
+        return success
+    }
+
+    /**
+     * Syncs customer speed, MAC, and IP to MikroTik.
+     */
+    suspend fun syncCustomerToMikroTik(customerId: String): Boolean {
+        val customer = customerDao.getCustomerById(customerId) ?: return false
+        val routers = mikrotikDao.getAllRouters().firstOrNull() ?: emptyList()
+        val router = routers.firstOrNull { it.isConnected } ?: return false
+        
+        if (customer.pppoeUsername.isBlank()) return false
+
+        return mikroTikApi.updatePppoeUser(
+            router = router,
+            pppoeUser = customer.pppoeUsername,
+            profile = customer.packageName, // Using package name as profile name
+            macAddress = customer.macAddress,
+            staticIp = customer.ipAddress
+        )
+    }
+
+    suspend fun getCustomerLiveTraffic(customerId: String): Pair<Double, Double>? {
+        val customer = customerDao.getCustomerById(customerId) ?: return null
+        val routers = mikrotikDao.getAllRouters().firstOrNull() ?: emptyList()
+        val router = routers.firstOrNull { it.isConnected } ?: return null
+        
+        if (customer.pppoeUsername.isBlank()) return null
+        return mikroTikApi.getPppoeUserTraffic(router, customer.pppoeUsername)
+    }
+
+    suspend fun findCustomerByPppoeInCloud(user: String, pass: String): CustomerEntity? {
+        return try {
+            val snapshot = firestore.collection("customers")
+                .whereEqualTo("pppoeUsername", user.trim())
+                .whereEqualTo("pppoePassword", pass.trim())
+                .limit(1)
+                .get()
+                .await()
+            
+            val customer = snapshot.documents.firstOrNull()?.toObject(CustomerEntity::class.java)
+            if (customer != null) {
+                // Save to local for future use
+                customerDao.insertCustomer(customer)
+            }
+            customer
+        } catch (e: Exception) {
+            Log.e("ISPRepository", "Cloud customer search failed", e)
+            null
+        }
+    }
+
     suspend fun insertSmsTemplate(template: SmsTemplateEntity) {
         smsTemplateDao.insertTemplate(template)
         firestoreService.saveSmsTemplate(template)
@@ -564,11 +700,67 @@ class ISPRepository(private val db: AppDatabase) {
         firestoreService.deleteSmsTemplate(id)
     }
 
+    suspend fun insertInventoryItem(item: InventoryEntity) {
+        inventoryDao.insertItem(item)
+        firestoreService.saveDocument("inventory_items", item.id, item)
+    }
+
+    suspend fun updateInventoryItem(item: InventoryEntity) {
+        inventoryDao.updateItem(item)
+        firestoreService.saveDocument("inventory_items", item.id, item)
+    }
+
+    suspend fun deleteInventoryItem(id: String) {
+        inventoryDao.deleteItemById(id)
+        firestoreService.deleteDocument("inventory_items", id)
+    }
+
+    suspend fun assignItemToCustomer(itemId: String, customerId: String) {
+        val item = inventoryDao.getAllInventory().firstOrNull()?.find { it.id == itemId } ?: return
+        val updated = item.copy(assignedToCustomerId = customerId, status = "Assigned")
+        updateInventoryItem(updated)
+    }
+
+    suspend fun insertSupportTicket(ticket: SupportTicketEntity) {
+        supportTicketDao.insertTicket(ticket)
+        firestoreService.saveDocument("support_tickets", ticket.id, ticket)
+    }
+
+    suspend fun updateSupportTicket(ticket: SupportTicketEntity) {
+        supportTicketDao.updateTicket(ticket)
+        firestoreService.saveDocument("support_tickets", ticket.id, ticket)
+    }
+
+    suspend fun deleteSupportTicket(id: String) {
+        supportTicketDao.deleteTicketById(id)
+        firestoreService.deleteDocument("support_tickets", id)
+    }
+
     suspend fun seedSmsTemplatesIfEmpty() {
         if (smsTemplateDao.getAllTemplates().firstOrNull().isNullOrEmpty()) {
             val template = SmsTemplateEntity(id = UUID.randomUUID().toString(), title = "Bill Reminder", category = "Billing Alert", messageContent = "Due bill alert", lastUpdated = getCurrentDateString())
             firestoreService.saveSmsTemplate(template)
         }
+    }
+
+    suspend fun checkAndSuspendExpiredCustomers(): Int {
+        val today = getCurrentDateString()
+        val customersList = customerDao.getAllCustomers().firstOrNull() ?: emptyList()
+        var suspendedCount = 0
+
+        for (cust in customersList) {
+            // Logic: If active, has due, and expireDate is today or past
+            if (cust.status == "Active" && cust.currentDue > 0 && cust.expireDate.isNotBlank()) {
+                if (cust.expireDate <= today) {
+                    val success = setCustomerInternetStatus(cust.id, false)
+                    if (success) {
+                        suspendedCount++
+                        Log.i("ISPRepository", "Auto-Suspended Customer: ${cust.name} (${cust.customerCode})")
+                    }
+                }
+            }
+        }
+        return suspendedCount
     }
 
     private fun getCurrentDateString() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())

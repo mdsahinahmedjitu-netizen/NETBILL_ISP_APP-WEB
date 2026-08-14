@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetBill ISP - Web Enterprise Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #F8FAFC; color: #1E293B; transition: all 0.3s ease; }
+        .sidebar-gradient { background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%); }
+        .active-nav { background: #0D9488 !important; color: white !important; box-shadow: 0 4px 15px rgba(13, 148, 136, 0.4); }
+
+        /* 8-Card Feature Grid Styles */
+        .feature-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 44px; height: 160px; display: flex; flex-direction: column; justify-content: center; padding: 32px; position: relative; overflow: hidden; }
+        .feature-card:hover { transform: translateY(-10px) scale(1.02); filter: brightness(1.1); box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2); }
+        .feature-card i { font-size: 40px; margin-bottom: 12px; opacity: 0.9; }
+        .feature-card span { font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; }
+
+        /* Specific Gradients from Image */
+        .grad-collection { background: linear-gradient(135deg, #4F46E5 0%, #2563EB 100%); }
+        .grad-invoices { background: linear-gradient(135deg, #10B981 0%, #059669 100%); }
+        .grad-subscribers { background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%); }
+        .grad-tickets { background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%); }
+        .grad-create { background: linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%); }
+        .grad-search { background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%); }
+        .grad-due { background: linear-gradient(135deg, #F97316 0%, #EA580C 100%); }
+        .grad-summary { background: linear-gradient(135deg, #F43F5E 0%, #9D174D 100%); }
+
+        /* Dark Mode Overrides */
+        body.dark-mode { background-color: #0F172A; color: #F1F5F9; }
+        .dark-mode .bg-white { background-color: #1E293B !important; color: #F1F5F9 !important; border-color: #334155 !important; }
+        .dark-mode .text-slate-800, .dark-mode .text-slate-900, .dark-mode .text-slate-700 { color: #F1F5F9 !important; }
+        .dark-mode .bg-slate-50, .dark-mode .bg-slate-50\/50, .dark-mode .bg-slate-50\/40 { background-color: #0F172A !important; }
+        .dark-mode header { background-color: #1E293B !important; border-bottom-color: #334155 !important; }
+
+        .btn-tab { padding: 12px 28px; border-radius: 99px; font-weight: 700; font-size: 14px; transition: 0.3s; background: #F1F5F9; color: #64748B; }
+        .btn-tab.active { background: #0D9488; color: white; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2); }
+
+        .progress-bar { height: 10px; border-radius: 99px; background: #F1F5F9; overflow: hidden; position: relative; }
+        .dark-mode .progress-bar { background: #0F172A !important; }
+        .progress-fill { height: 100%; border-radius: 99px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .metric-card { background: white; border-radius: 36px; padding: 32px; border: 1px solid #F1F5F9; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04); transition: 0.3s; }
+        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        .modal { z-index: 1000; }
+        input, select { border: 1px solid #E2E8F0; border-radius: 20px; padding: 14px 20px; font-weight: 600; width: 100%; }
+        .dark-mode input, .dark-mode select { background: #0F172A; border-color: #334155; color: white; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="fixed inset-0 sidebar-gradient z-[2000] flex items-center justify-center p-6">
+        <div class="bg-white rounded-[56px] w-full max-w-md p-12 shadow-2xl space-y-10 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-3 bg-teal-500 shadow-lg"></div>
+            <div class="w-24 h-24 bg-teal-50 text-teal-600 rounded-[32px] flex items-center justify-center mx-auto shadow-inner"><i class="fas fa-bolt text-5xl"></i></div>
+            <div><h2 class="text-3xl font-black text-slate-900 tracking-tight uppercase">NetBill Admin</h2><p class="text-xs font-black text-slate-400 uppercase tracking-widest mt-2 tracking-[3px]">Enterprise Access</p></div>
+            <div class="space-y-4">
+                <input type="email" id="login-email" placeholder="admin@isp.com" value="admin@isp.com">
+                <input type="password" id="login-pass" placeholder="Password" value="123456">
+                <button onclick="handleLogin()" class="w-full bg-[#0D9488] text-white py-5 rounded-[24px] font-black uppercase tracking-[4px] shadow-xl shadow-teal-600/20 hover:bg-teal-700 transition-all">Secure Access</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-72 sidebar-gradient text-white flex flex-col p-6 space-y-4 shrink-0 shadow-2xl z-20 font-black uppercase tracking-widest">
+        <div class="flex items-center space-x-3 mb-10 px-2">
+            <div class="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center shadow-lg"><i class="fas fa-bolt text-xl"></i></div>
+            <h1 class="text-2xl font-black tracking-tight">NetBill <span class="text-teal-400">ISP</span></h1>
+        </div>
+        <nav class="flex-1 space-y-2 overflow-y-auto pr-2 text-xs">
+            <div onclick="switchPage('dashboard')" id="nav-dashboard" class="nav-item active-nav p-4 rounded-2xl flex items-center space-x-3 cursor-pointer transition-all"><i class="fas fa-th-large"></i> <span>Dashboard</span></div>
+            <div onclick="switchPage('customers')" id="nav-customers" class="nav-item p-4 rounded-2xl flex items-center space-x-3 text-slate-400 cursor-pointer hover:bg-slate-800 transition-all"><i class="fas fa-users"></i> <span>Customers</span></div>
+            <div onclick="switchPage('billing')" id="nav-billing" class="nav-item p-4 rounded-2xl flex items-center space-x-3 text-slate-400 cursor-pointer hover:bg-slate-800 transition-all"><i class="fas fa-receipt"></i> <span>Invoices</span></div>
+            <div onclick="switchPage('payments')" id="nav-payments" class="nav-item p-4 rounded-2xl flex items-center space-x-3 text-slate-400 cursor-pointer hover:bg-slate-800 transition-all"><i class="fas fa-money-check-dollar"></i> <span>Payments</span></div>
+            <div onclick="switchPage('expenses')" id="nav-expenses" class="nav-item p-4 rounded-2xl flex items-center space-x-3 text-slate-400 cursor-pointer hover:bg-slate-800 transition-all"><i class="fas fa-file-invoice-dollar"></i> <span>Expenses</span></div>
+        </nav>
+        <div class="pt-4 border-t border-slate-700"><button onclick="handleLogout()" class="w-full bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white p-4 rounded-2xl font-black transition-all">Logout</button></div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="h-20 bg-white border-b px-8 flex justify-between items-center shadow-sm shrink-0 z-10 font-black">
+            <div class="flex items-center space-x-4"><i class="fas fa-bars text-slate-400 text-xl cursor-pointer"></i><h2 class="text-xl font-black text-slate-800 uppercase tracking-tighter uppercase">NetBill ISP | <span id="header-page-name" class="text-teal-600 font-extrabold tracking-tighter uppercase">Dashboard</span></h2></div>
+            <div class="flex items-center space-x-8">
+                <button class="bg-teal-50 text-teal-600 px-5 py-2.5 rounded-full font-black text-[10px] border border-teal-100 hover:bg-teal-100 transition-all">বাংলা</button>
+                <i id="theme-toggle" onclick="toggleDarkMode()" class="fas fa-moon text-teal-600 text-2xl cursor-pointer hover:scale-110 transition-transform"></i>
+                <div class="relative cursor-pointer hover:scale-110 transition-all"><i class="fas fa-bell text-rose-500 text-2xl"></i><span id="alert-badge" class="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 border-2 border-white rounded-full text-[10px] flex items-center justify-center text-white font-black animate-bounce">0</span></div>
+                <div class="h-10 w-px bg-slate-100"></div>
+                <div class="flex items-center space-x-3 bg-slate-50 p-1.5 pr-4 rounded-2xl border"><img src="https://ui-avatars.com/api/?name=Admin&background=0D9488&color=fff&bold=true" class="w-10 h-10 rounded-xl" alt="Admin"><div class="text-left leading-none uppercase font-black"><p class="text-xs text-slate-900 leading-none">Super Admin</p><p class="text-[9px] text-teal-600 mt-1 tracking-widest italic leading-none">Online Sync Active</p></div></div>
+            </div>
+        </header>
+
+        <main id="content-area" class="flex-1 overflow-y-auto p-8 space-y-12 bg-slate-50/50 scroll-smooth transition-all">
+
+            <!-- DASHBOARD PAGE (HBUHU APP STYLE) -->
+            <div id="page-dashboard" class="max-w-7xl mx-auto space-y-12 pb-20">
+
+                <!-- 1. 8-CARD FEATURE GRID (SBAR UPORE) -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-7 uppercase font-black tracking-widest">
+                    <div onclick="openModal('modal-payment')" class="feature-card grad-collection text-white shadow-xl"><i class="fas fa-hand-holding-dollar"></i><span>Collection</span></div>
+                    <div onclick="switchPage('billing')" class="feature-card grad-invoices text-white shadow-xl"><i class="fas fa-file-invoice-dollar"></i><span>Invoices</span></div>
+                    <div onclick="switchPage('customers')" class="feature-card grad-subscribers text-white shadow-xl"><i class="fas fa-users-viewfinder"></i><span>Subscribers</span></div>
+                    <div onclick="switchPage('dashboard')" class="feature-card grad-tickets text-white shadow-xl"><i class="fas fa-ticket"></i><span>Tickets</span></div>
+                    <div onclick="openModal('modal-customer')" class="feature-card grad-create text-white shadow-xl"><i class="fas fa-user-plus"></i><span>Add New</span></div>
+                    <div onclick="switchPage('customers')" class="feature-card grad-search text-white shadow-xl"><i class="fas fa-search-dollar"></i><span>Search CRM</span></div>
+                    <div onclick="switchPage('customers')" class="feature-card grad-due text-white shadow-xl"><i class="fas fa-hourglass-half"></i><span>Due List</span></div>
+                    <div class="feature-card grad-summary text-white shadow-xl"><i class="fas fa-chart-pie"></i><span>Summary</span></div>
+                </div>
+
+                <!-- 2. COLLECTION BREAKDOWN (EXACT SCREENSHOT STYLE) -->
+                <div class="bg-white p-12 rounded-[56px] card-shadow border border-slate-100 space-y-12 relative overflow-hidden font-black">
+                    <div class="flex justify-between items-start relative z-10">
+                        <div class="space-y-3 uppercase tracking-widest">
+                            <div class="flex items-center space-x-4"><div class="w-4 h-4 bg-emerald-500 rounded-full animate-pulse shadow-emerald-500/50 shadow-lg"></div><h3 class="text-3xl font-black text-slate-900 tracking-tight tracking-widest">Today's Live Collection</h3></div>
+                            <p id="current-date-label" class="text-xs font-bold text-slate-400 uppercase tracking-[4px]"></p>
+                        </div>
+                        <div class="bg-teal-50 text-teal-600 px-6 py-2.5 rounded-full text-[11px] font-black uppercase border border-teal-100 shadow-sm flex items-center tracking-widest"><i class="far fa-clock mr-2 text-sm"></i> LIVE AUTO UPDATE</div>
+                    </div>
+                    <div class="flex flex-wrap gap-4 uppercase font-black"><button onclick="setCollectionFilter('today')" class="btn-tab active" id="tab-today">Today</button><button onclick="setCollectionFilter('yesterday')" class="btn-tab" id="tab-yesterday">Yesterday</button><button onclick="setCollectionFilter('month')" class="btn-tab" id="tab-month">Month Breakdown</button></div>
+                    <div id="breakdown-list" class="space-y-10 relative z-10 mt-10"></div>
+                </div>
+
+                <!-- 3. GREEN SUMMARY CARD (HBUHU SCREENSHOT) -->
+                <div class="bg-[#0D9488] p-12 rounded-[64px] text-white card-shadow relative overflow-hidden group shadow-2xl shadow-teal-900/40 font-black">
+                    <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-white/5 rounded-full -mr-48 -mt-48 duration-1000 group-hover:scale-110"></div>
+                    <div class="flex justify-between items-start relative z-10 font-black uppercase">
+                        <div class="space-y-12 w-full tracking-widest leading-none"><p class="text-sm font-black opacity-90 tracking-[5px]">আজকের সংগ্রহ (Today's Total)</p><h2 id="summary-total" class="text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ 0</h2><div class="flex space-x-24 pt-10 uppercase tracking-widest font-black"><div><p class="text-[11px] font-bold opacity-70 mb-4 tracking-[3px]">Monthly Target</p><p class="text-3xl">৳ 25,000</p></div><div class="w-px h-24 bg-white/20"></div><div><p class="text-[11px] font-bold opacity-70 mb-4 tracking-[3px] text-amber-300 uppercase">Total Outstanding</p><p id="summary-due" class="text-3xl text-amber-300">৳ 0</p></div></div></div>
+                        <div class="w-24 h-24 bg-white/10 rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12"><i class="fas fa-chart-line text-4xl"></i></div>
+                    </div>
+                </div>
+
+                <!-- 4. 7-BUSINESS HEALTH METRICS (SCREENSHOT 2) -->
+                <div class="space-y-8 uppercase font-black">
+                    <div class="flex items-center space-x-3 ml-2">
+                        <div class="w-2 h-7 bg-blue-600 rounded-full shadow-lg shadow-blue-500/50"></div>
+                        <h3 class="text-sm font-black text-slate-800 tracking-widest uppercase">Business Health Monitor</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 font-black uppercase">
+                        <div class="metric-card group transition-all hover:bg-blue-50"><div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-sm"><i class="fas fa-users-viewfinder text-2xl"></i></div><h4 id="metric-total-cust" class="text-5xl font-black text-slate-900 tracking-tighter uppercase">0</h4><p class="text-xs font-black text-slate-400 mt-4 tracking-widest uppercase">Total Customers</p><p class="text-[10px] font-bold text-blue-500 mt-2 uppercase">Goal: 509 Active</p></div>
+                        <div class="metric-card group transition-all hover:bg-emerald-50"><div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-sm"><i class="fas fa-check-double text-2xl"></i></div><h4 id="metric-active-cust" class="text-5xl font-black text-emerald-600 tracking-tighter uppercase">0</h4><p class="text-xs font-black text-slate-400 mt-4 tracking-widest uppercase">Active Customers</p><p class="text-[10px] font-bold text-emerald-500 mt-2 uppercase tracking-tighter">Online Status</p></div>
+                        <div class="metric-card group transition-all hover:bg-rose-50"><div class="w-14 h-14 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-sm"><i class="fas fa-bell text-2xl"></i></div><h4 id="metric-expired-cust" class="text-5xl font-black text-rose-500 tracking-tighter leading-none uppercase">0</h4><p class="text-xs font-black text-slate-400 mt-4 tracking-widest uppercase tracking-tight leading-none">Expired Customers</p><p class="text-[10px] font-bold text-rose-500 mt-2 uppercase leading-none">Validity Over</p></div>
+                        <div class="metric-card group transition-all hover:bg-slate-100"><div class="w-14 h-14 bg-slate-200 text-slate-600 rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-sm"><i class="fas fa-user-slash text-2xl"></i></div><h4 id="metric-inactive-cust" class="text-5xl font-black text-slate-400 tracking-tighter leading-none uppercase">0</h4><p class="text-xs font-black text-slate-400 mt-4 tracking-widest uppercase tracking-tight uppercase leading-none">Inactive / Offline</p></div>
+                        <div class="metric-card group transition-all hover:bg-rose-50"><div class="w-14 h-14 bg-rose-100 text-rose-400 rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-sm"><i class="fas fa-arrow-up text-2xl"></i></div><h4 id="metric-expense" class="text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase">৳ 0</h4><p class="text-xs font-black text-slate-400 mt-4 tracking-widest uppercase">Month Expense</p></div>
+                        <div class="metric-card group transition-all hover:bg-blue-50"><div class="w-14 h-14 bg-blue-100 text-blue-400 rounded-3xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all shadow-sm"><i class="fas fa-user-plus text-2xl"></i></div><h4 id="metric-new-cust" class="text-5xl font-black text-blue-600 tracking-tighter leading-none uppercase">0</h4><p class="text-xs font-black text-slate-400 mt-4 tracking-widest uppercase leading-none uppercase">New Subscribers</p></div>
+                        <div class="metric-card col-span-1 md:col-span-2 lg:col-span-3 flex items-center justify-between group transition-all hover:bg-cyan-50"><div class="space-y-1"><h4 class="text-7xl font-black text-cyan-600 tracking-tighter leading-none uppercase tracking-widest">1161.2 Mbps</h4><p class="text-sm font-black text-slate-800 tracking-[8px] uppercase mt-4 leading-none uppercase tracking-widest">Bandwidth Usage (LIVE IIG TRAFFIC)</p></div><div class="text-slate-100 opacity-20 group-hover:opacity-40 transition-all"><i class="fas fa-wave-square text-9xl"></i></div></div>
+                    </div>
+                </div>
+
+                <!-- 5. SUPPORT TICKETS QUEUE -->
+                <div class="bg-white rounded-[56px] card-shadow border border-slate-100 overflow-hidden font-black uppercase">
+                    <div class="p-12 border-b flex justify-between items-center bg-slate-50/40 tracking-widest">
+                        <h3 class="text-2xl text-slate-800 uppercase tracking-tighter font-black">Support Complaint Queue</h3>
+                        <button onclick="switchPage('dashboard')" class="text-xs text-teal-600 hover:underline tracking-widest uppercase font-black">Manage Tickets Hub</button>
+                    </div>
+                    <div id="dash-tickets" class="divide-y divide-slate-50"></div>
+                </div>
+            </div>
+
+            <!-- Page: Customers CRM -->
+            <div id="page-customers" class="hidden max-w-7xl mx-auto space-y-10 pb-20 uppercase font-black">
+                <div class="flex justify-between items-center"><div class="space-y-2"><h3 class="text-5xl tracking-tighter font-black uppercase">Subscriber CRM Hub</h3><p class="text-xs text-slate-400 tracking-widest font-black uppercase tracking-widest uppercase">Master Database & Financial Ledger</p></div><button onclick="openModal('modal-customer')" class="bg-[#0D9488] text-white px-10 py-5 rounded-[32px] shadow-2xl tracking-[3px] uppercase">+ New Onboarding</button></div>
+                <div class="bg-white rounded-[64px] card-shadow border border-slate-100 overflow-hidden"><table class="w-full text-center uppercase tracking-tighter font-black"><thead class="bg-slate-50/50 border-b text-[11px] text-slate-400 tracking-[3px] uppercase font-black"><th class="px-12 py-10 uppercase">Code</th><th class="p-6 uppercase">Subscriber Identity</th><th class="p-6 uppercase">Subscription Plan</th><th class="p-6 text-rose-500 uppercase font-black uppercase">Outstanding (৳)</th><th class="p-6 uppercase">Active Status</th><th class="px-12 py-10 text-right uppercase">Actions</th></thead><tbody id="cust-table" class="divide-y divide-slate-50 font-black uppercase tracking-tighter"></tbody></table></div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Firebase Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // CONFIG FROM USER (Turn 11)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB1AOvGwyDHsKQr78FTzouOjyeIpSwPZlM",
+            authDomain: "netbill-isp.firebaseapp.com",
+            databaseURL: "https://netbill-isp-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "netbill-isp",
+            storageBucket: "netbill-isp.firebasestorage.app",
+            messagingSenderId: "208674105924",
+            appId: "1:208674105924:web:8891b343538b3f7eb02a11",
+            measurementId: "G-EME2LJS0HW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let store = { customers: [], tickets: [], payments: [], expenses: [] };
+        let activeFilter = 'today';
+
+        // DARK MODE
+        window.toggleDarkMode = () => { document.body.classList.toggle('dark-mode'); localStorage.setItem('dark_mode', document.body.classList.contains('dark-mode')); };
+        if(localStorage.getItem('dark_mode')==='true') document.body.classList.add('dark-mode');
+
+        // LOGIN
+        window.handleLogin = () => { if(document.getElementById('login-email').value==='admin@isp.com' && document.getElementById('login-pass').value==='123456'){document.getElementById('login-screen').classList.add('hidden'); localStorage.setItem('isp_logged_in', 'true');}};
+        window.handleLogout = () => { localStorage.removeItem('isp_logged_in'); location.reload(); };
+        if(localStorage.getItem('isp_logged_in')==='true') document.getElementById('login-screen').classList.add('hidden');
+
+        // SYNC REAL-TIME (LOCAL DATE)
+        onSnapshot(collection(db,"customers"),snap=>{store.customers=snap.docs.map(d=>({id:d.id,...d.data()}));render();renderCustomers();});
+        onSnapshot(collection(db,"payments"),snap=>{store.payments=snap.docs.map(d=>({id:d.id,...d.data()}));render();});
+        onSnapshot(collection(db,"expenses"),snap=>{store.expenses=snap.docs.map(d=>({id:d.id,...d.data()}));render();});
+        onSnapshot(collection(db,"support_tickets"),snap=>{store.tickets=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));render();});
+
+        function render() {
+            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+            const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
+
+            const dueTotal = store.customers.reduce((s,c)=>s+(parseFloat(c.currentDue)||0),0);
+            const activeCount = store.customers.filter(c=>c.status==='Active').length;
+            const collectedToday = store.payments.filter(p=>p.paymentDate===today).reduce((s,p)=>s+p.amount,0);
+
+            document.getElementById('stat-collected').innerText='৳ '+Math.floor(collectedToday).toLocaleString();
+            document.getElementById('stat-due').innerText='৳ '+Math.floor(dueTotal).toLocaleString();
+            document.getElementById('summary-total').innerText='৳ '+Math.floor(collectedToday).toLocaleString();
+            document.getElementById('summary-due').innerText='৳ '+Math.floor(dueTotal).toLocaleString();
+            document.getElementById('alert-badge').innerText=store.tickets.filter(t=>t.status!=='Resolved').length;
+
+            document.getElementById('metric-total-cust').innerText=store.customers.length;
+            document.getElementById('metric-active-cust').innerText=activeCount;
+            document.getElementById('metric-expired-cust').innerText=store.customers.filter(c=>c.status!=='Active').length;
+            document.getElementById('metric-inactive-cust').innerText=store.customers.filter(c=>c.status==='Inactive').length;
+            document.getElementById('metric-expense').innerText='৳ '+store.expenses.reduce((s,e)=>s+e.amount,0).toLocaleString();
+            document.getElementById('metric-new-cust').innerText=store.customers.filter(c=>c.joinDate&&c.joinDate.startsWith(today.substring(0,7))).length;
+
+            // BREAKDOWN (HBUHU APP UI)
+            let fPayments = store.payments;
+            if (activeFilter === 'today') fPayments = store.payments.filter(p => p.paymentDate === today);
+            else if (activeFilter === 'yesterday') fPayments = store.payments.filter(p => p.paymentDate === yesterday);
+
+            const t={Cash:0,bKash:0,Nagad:0,Rocket:0,Other:0};
+            fPayments.forEach(p=>{if(t.hasOwnProperty(p.paymentMethod))t[p.paymentMethod]+=p.amount;else t.Other+=p.amount;});
+            const total = Object.values(t).reduce((a,b)=>a+b, 0);
+
+            const methods={Cash:'#10B981',bKash:'#D0006F',Nagad:'#F58220',Rocket:'#8B14A5',Other:'#94A3B8'};
+            const icons={Cash:'fa-wallet',bKash:'fa-mobile-screen-button',Nagad:'fa-credit-card',Rocket:'fa-rocket',Other:'fa-ellipsis'};
+            const lights={Cash:'#E6F9F1',bKash:'#FDE6F1',Nagad:'#FFF2E6',Rocket:'#F4E6F7',Other:'#F1F5F9'};
+
+            document.getElementById('breakdown-list').innerHTML=Object.entries(t).map(([m,a])=>{
+                const p = total > 0 ? Math.floor((a/total)*100) : 0;
+                return `
+                    <div class="flex items-center space-x-8 group uppercase font-black tracking-widest transition-all">
+                        <div class="w-20 h-20 rounded-[32px] flex items-center justify-center transition-all group-hover:scale-110 shadow-sm" style="background:${lights[m]}; color:${methods[m]}">
+                            <i class="fas ${icons[m]} text-4xl"></i>
+                        </div>
+                        <div class="flex-1 space-y-4 font-black">
+                            <div class="flex justify-between items-end uppercase font-black text-[14px] tracking-[2px]">
+                                <span class="text-slate-800 text-xl tracking-tighter uppercase font-black">${m}</span>
+                                <div class="flex items-center space-x-8 uppercase font-black">
+                                    <span class="text-slate-400 text-lg">${p}%</span>
+                                    <span class="text-slate-900 text-3xl font-black">৳ ${Math.floor(a).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill shadow-lg" style="width:${p}%; background:${methods[m]}"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // TICKETS
+            document.getElementById('dash-tickets').innerHTML=store.tickets.slice(0,4).map(t=>`<div class="p-10 flex justify-between items-center group cursor-pointer hover:bg-slate-50 transition-all font-black uppercase tracking-widest leading-none"><div class="flex items-center space-x-8"><div class="w-16 h-16 rounded-[32px] flex items-center justify-center ${t.status==='Resolved'?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'} group-hover:rotate-12 transition-transform shadow-sm"><i class="fas ${t.status==='Resolved'?'fa-check-double':'fa-triangle-exclamation'} text-3xl"></i></div><div><p class="text-2xl font-black text-slate-800 tracking-tighter">${t.customerName}</p><p class="text-[11px] text-slate-400 font-bold mt-2 uppercase tracking-[2px] font-black">${t.issueType}</p></div></div><div class="text-right font-black"><span class="text-[11px] px-6 py-2.5 rounded-full uppercase ${t.status==='Resolved'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'}">${t.status}</span><p class="text-[11px] text-slate-300 font-bold mt-4 uppercase font-black">${t.createdAt.split(' ')[0]}</p></div></div>`).join('');
+        }
+
+        function renderCustomers() { document.getElementById('cust-table').innerHTML = store.customers.map(c => `<tr class="hover:bg-teal-50/20 font-black"><td class="px-12 py-10 uppercase"><span class="bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-[11px] border border-slate-200 uppercase font-black">${c.customerCode}</span></td><td class="p-6 text-xl text-slate-800 uppercase font-black uppercase font-black">${c.name}</td><td class="p-6 text-sm text-slate-600 uppercase font-black">${c.packageName}</td><td class="p-6 text-3xl tracking-tighter ${c.currentDue>0?'text-rose-500':'text-emerald-500'} font-black uppercase font-black uppercase font-black">৳ ${Math.floor(c.currentDue)}</td><td class="p-6"><span class="px-6 py-2.5 rounded-full text-[11px] uppercase font-black ${c.status==='Active'?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'} uppercase font-black uppercase">${c.status}</span></td><td class="px-12 py-10 text-right uppercase"><button class="w-14 h-14 rounded-3xl bg-slate-100 text-slate-400 hover:bg-teal-600 hover:text-white transition-all shadow-sm"><i class="fas fa-edit text-xl"></i></button></td></tr>`).join(''); }
+
+        window.setCollectionFilter = (f) => { activeFilter = f; document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active')); document.getElementById('tab-'+f).classList.add('active'); render(); };
+        window.switchPage = (id) => { document.querySelectorAll('main > div').forEach(d=>d.classList.add('hidden')); document.getElementById('page-'+id).classList.remove('hidden'); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active-nav')); document.getElementById('nav-'+id).classList.add('active-nav'); document.getElementById('header-page-name').innerText=id.toUpperCase(); window.scrollTo({top:0,behavior: 'smooth'}); };
+        document.getElementById('current-date-label').innerText=`LIVE SYNC: ${new Date().toLocaleDateString('en-GB')}`;
+    </script>
+</body>
+</html>

@@ -142,6 +142,7 @@ data class StaffEntity(
     val salary: Double = 0.0, // ৳ BDT
     val joiningDate: String = "",
     val active: Boolean = true,
+    val receiveAlerts: Boolean = false, // If true, receives WhatsApp/SMS alerts
 )
 
 @Entity(tableName = "staff_salaries")
@@ -183,6 +184,31 @@ data class ISPSettingsEntity(
     val defaultLanguage: String = "bn", // "bn" or "en"
     val autoInvoiceDayOfMonth: Int = 1,
     val lateFeeAmount: Double = 50.0,
+    
+    // SMS & WhatsApp Gateway Configuration
+    val smsApiUrl: String = "",
+    val smsApiKey: String = "",
+    val smsSenderId: String = "",
+    val isAutoSmsEnabled: Boolean = false,
+    val whatsappApiUrl: String = "",
+    val whatsappInstanceId: String = "",
+    val whatsappToken: String = "",
+    val adminWhatsappNumber: String = "",
+    val isWhatsappAlertEnabled: Boolean = false,
+
+    // NEW: Payment Gateway & Logic Controls (Synced with Web Admin)
+    val apiMode: String = "Sandbox", // "Sandbox" or "Production"
+    val bkashAppKey: String = "",
+    val bkashAppSecret: String = "",
+    val bkashUsername: String = "",
+    val bkashPassword: String = "",
+    val nagadMerchantId: String = "",
+    val nagadMobile: String = "",
+    val personalBkashNo: String = "",
+    val personalNagadNo: String = "",
+    val monthlyTarget: Double = 0.0,
+    val billingDay: Int = 1,
+    val autoDisableDays: Int = 10
 )
 
 @Entity(tableName = "ledger_entries")
@@ -227,4 +253,37 @@ data class SmsTemplateEntity(
     val isDefault: Boolean = false,
     val isActive: Boolean = true,
     val lastUpdated: String = ""
+)
+
+@Entity(tableName = "support_tickets")
+data class SupportTicketEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val customerId: String = "",
+    val customerName: String = "",
+    val customerCode: String = "",
+    val customerPhone: String = "",
+    val issueType: String = "",
+    val description: String = "",
+    val status: String = "Pending", // Pending, In Progress, Resolved
+    val priority: String = "Normal",
+    val createdAt: String = "",
+    val lastUpdated: String = "",
+    val scheduledDate: String = "",
+    val scheduledTime: String = ""
+)
+
+@Entity(tableName = "inventory_items")
+data class InventoryEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val itemName: String = "", // ONU, Router, Fiber Cable, etc.
+    val category: String = "", // Active, Passive, Customer-End
+    val serialNumber: String = "", // For ONU/Router
+    val brand: String = "",
+    val quantity: Int = 0,
+    val unit: String = "Pcs", // Pcs, Meter
+    val costPrice: Double = 0.0,
+    val supplier: String = "",
+    val purchaseDate: String = "",
+    val assignedToCustomerId: String? = null,
+    val status: String = "In Stock" // In Stock, Assigned, Damaged
 )

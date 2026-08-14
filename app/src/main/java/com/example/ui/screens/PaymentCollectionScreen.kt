@@ -56,8 +56,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.PaymentCollectionEntity
+import com.example.util.AppUtils
 import com.example.localization.AppTranslation
+import com.example.ui.components.ReadonlyDateField
 import com.example.ui.theme.BkashPink
+import java.text.SimpleDateFormat
+import java.util.*
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.EmeraldSuccess
@@ -168,8 +172,8 @@ fun PaymentCollectionScreen(viewModel: MainViewModel) {
         RecordPaymentDialog(
             customers = customers,
             onDismiss = { showAddPaymentDialog = false },
-            onSave = { customerId, amount, method, txnId, remarks ->
-                viewModel.collectPayment(customerId, amount, method, txnId, remarks)
+            onSave = { customerId, amount, method, txnId, remarks, date ->
+                viewModel.collectPayment(customerId, amount, method, txnId, remarks, date)
                 showAddPaymentDialog = false
             }
         )
@@ -243,7 +247,7 @@ fun PaymentCard(payment: PaymentCollectionEntity, currency: String, onClick: () 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(payment.customerName, fontWeight = FontWeight.Bold, color = Slate900, fontSize = 16.sp)
-                Text("Txn: ${payment.transactionId.ifEmpty { "Cash Ref" }} • ${payment.paymentDate}", color = Slate600, fontSize = 11.sp)
+                Text("Txn: ${payment.transactionId.ifEmpty { "Cash Ref" }} • ${AppUtils.formatDateForDisplay(payment.paymentDate)}", color = Slate600, fontSize = 11.sp)
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -270,7 +274,7 @@ fun PaymentCard(payment: PaymentCollectionEntity, currency: String, onClick: () 
 fun RecordPaymentDialog(
     customers: List<CustomerEntity>,
     onDismiss: () -> Unit,
-    onSave: (String, Double, String, String, String) -> Unit
+    onSave: (String, Double, String, String, String, String) -> Unit
 ) {
     var selectedCustomer by remember { mutableStateOf(customers.firstOrNull()) }
     var expandedCustomerDropdown by remember { mutableStateOf(false) }
@@ -279,6 +283,7 @@ fun RecordPaymentDialog(
     var method by remember { mutableStateOf("bKash") }
     var txnId by remember { mutableStateOf("BK${(100000..999999).random()}X") }
     var remarks by remember { mutableStateOf("Monthly internet bill") }
+    var paymentDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -324,6 +329,13 @@ fun RecordPaymentDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                ReadonlyDateField(
+                    value = paymentDate,
+                    label = "পেমেন্টের তারিখ (Payment Date)",
+                    onDateSelected = { paymentDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 // Method Selector Chips
                 Text("Payment Method Bangladesh:", fontSize = 12.sp, color = Slate700, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -360,7 +372,7 @@ fun RecordPaymentDialog(
             Button(
                 onClick = {
                     selectedCustomer?.let { cust ->
-                        onSave(cust.id, amount.toDoubleOrNull() ?: 0.0, method, txnId, remarks)
+                        onSave(cust.id, amount.toDoubleOrNull() ?: 0.0, method, txnId, remarks, paymentDate)
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = BkashPink)

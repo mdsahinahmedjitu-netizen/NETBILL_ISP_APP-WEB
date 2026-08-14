@@ -31,6 +31,9 @@ interface UserDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: UserEntity)
+
+    @Query("DELETE FROM users WHERE id = :id")
+    suspend fun deleteUserById(id: String)
 }
 
 @Dao
@@ -40,6 +43,9 @@ interface CustomerDao {
 
     @Query("SELECT * FROM customers WHERE id = :id LIMIT 1")
     suspend fun getCustomerById(id: String): CustomerEntity?
+
+    @Query("SELECT * FROM customers WHERE pppoeUsername = :user AND pppoePassword = :pass LIMIT 1")
+    suspend fun getCustomerByPppoe(user: String, pass: String): CustomerEntity?
 
     @Query(
         """
@@ -180,6 +186,9 @@ interface StaffDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSalary(salary: StaffSalaryEntity)
 
+    @Query("DELETE FROM staff WHERE id = :id")
+    suspend fun deleteStaffById(id: String)
+
     @Query("SELECT * FROM staff_salaries ORDER BY id DESC")
     fun getAllSalaries(): Flow<List<StaffSalaryEntity>>
 }
@@ -191,6 +200,9 @@ interface MikroTikDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRouter(router: MikroTikRouterEntity)
+
+    @Query("DELETE FROM mikrotik_routers WHERE id = :id")
+    suspend fun deleteRouterById(id: String)
 
     @Query("UPDATE mikrotik_routers SET isConnected = :connected WHERE id = :routerId")
     suspend fun updateRouterStatus(routerId: String, connected: Boolean)
@@ -257,4 +269,40 @@ interface SmsTemplateDao {
 
     @Query("DELETE FROM sms_templates WHERE id = :id")
     suspend fun deleteTemplateById(id: String)
+}
+
+@Dao
+interface InventoryDao {
+    @Query("SELECT * FROM inventory_items ORDER BY purchaseDate DESC")
+    fun getAllInventory(): Flow<List<com.example.data.entity.InventoryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertItem(item: com.example.data.entity.InventoryEntity)
+
+    @Update
+    suspend fun updateItem(item: com.example.data.entity.InventoryEntity)
+
+    @Query("DELETE FROM inventory_items WHERE id = :id")
+    suspend fun deleteItemById(id: String)
+
+    @Query("SELECT * FROM inventory_items WHERE assignedToCustomerId = :customerId")
+    fun getItemsForCustomer(customerId: String): Flow<List<com.example.data.entity.InventoryEntity>>
+}
+
+@Dao
+interface SupportTicketDao {
+    @Query("SELECT * FROM support_tickets ORDER BY createdAt DESC")
+    fun getAllTickets(): Flow<List<com.example.data.entity.SupportTicketEntity>>
+
+    @Query("SELECT * FROM support_tickets WHERE customerId = :customerId ORDER BY createdAt DESC")
+    fun getTicketsByCustomer(customerId: String): Flow<List<com.example.data.entity.SupportTicketEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTicket(ticket: com.example.data.entity.SupportTicketEntity)
+
+    @Update
+    suspend fun updateTicket(ticket: com.example.data.entity.SupportTicketEntity)
+
+    @Query("DELETE FROM support_tickets WHERE id = :id")
+    suspend fun deleteTicketById(id: String)
 }

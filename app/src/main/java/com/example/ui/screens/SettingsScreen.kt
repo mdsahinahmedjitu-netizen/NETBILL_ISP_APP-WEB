@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Save
@@ -79,6 +80,19 @@ fun SettingsScreen(
     var address by remember(settings) { mutableStateOf(settings?.address ?: "Uttara, Dhaka-1230, Bangladesh") }
     var mobile by remember(settings) { mutableStateOf(settings?.mobileNumber ?: "01711000000") }
     var helpline by remember(settings) { mutableStateOf(settings?.supportNumber ?: "01711000000") }
+
+    // SMS Gateway Local State
+    var smsApiUrl by remember(settings) { mutableStateOf(settings?.smsApiUrl ?: "https://api.greenweb.com.bd/api.php?json&apikey={API_KEY}&to={MOBILE}&senderid={SENDER_ID}&message={MESSAGE}") }
+    var smsApiKey by remember(settings) { mutableStateOf(settings?.smsApiKey ?: "") }
+    var smsSenderId by remember(settings) { mutableStateOf(settings?.smsSenderId ?: "") }
+    var isAutoSmsEnabled by remember(settings) { mutableStateOf(settings?.isAutoSmsEnabled ?: false) }
+
+    // WhatsApp Configuration State
+    var adminWhatsapp by remember(settings) { mutableStateOf(settings?.adminWhatsappNumber ?: "") }
+    var waUrl by remember(settings) { mutableStateOf(settings?.whatsappApiUrl ?: "") }
+    var waInstance by remember(settings) { mutableStateOf(settings?.whatsappInstanceId ?: "") }
+    var waToken by remember(settings) { mutableStateOf(settings?.whatsappToken ?: "") }
+    var isWaEnabled by remember(settings) { mutableStateOf(settings?.isWhatsappAlertEnabled ?: false) }
 
     // Gateway Config Local State
     var gwMode by remember(gatewayConfig) { mutableStateOf(gatewayConfig.environment) }
@@ -203,6 +217,119 @@ fun SettingsScreen(
                         Icon(Icons.Default.Lock, contentDescription = null, tint = com.example.ui.theme.Teal600, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Locked Currency: Bangladeshi Taka (৳ BDT)", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        // SMS Gateway Configuration Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.OpenInNew, contentDescription = null, tint = com.example.ui.theme.Teal600, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Automatic SMS Gateway (Billing Alerts)", fontWeight = FontWeight.Bold, color = com.example.ui.theme.Teal600, fontSize = 14.sp)
+                        }
+                        Switch(
+                            checked = isAutoSmsEnabled,
+                            onCheckedChange = { isAutoSmsEnabled = it },
+                            colors = SwitchDefaults.colors(checkedTrackColor = com.example.ui.theme.Teal600)
+                        )
+                    }
+
+                    Text("Configure your HTTP SMS API to send automated bill alerts and payment receipts.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    OutlinedTextField(value = smsApiUrl, onValueChange = { smsApiUrl = it }, label = { Text("Gateway URL (with placeholders)") }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("https://api.gateway.com/send?key={API_KEY}&to={MOBILE}&msg={MESSAGE}") })
+                    OutlinedTextField(value = smsApiKey, onValueChange = { smsApiKey = it }, label = { Text("SMS API Key") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = smsSenderId, onValueChange = { smsSenderId = it }, label = { Text("Sender ID / Masking") }, modifier = Modifier.fillMaxWidth())
+
+                    Button(
+                        onClick = { viewModel.saveISPSettings(ispName, address, mobile, helpline, smsApiUrl, smsApiKey, smsSenderId, isAutoSmsEnabled) },
+                        colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save SMS Configuration")
+                    }
+                }
+            }
+        }
+
+        // WhatsApp Alert Configuration Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = com.example.ui.theme.Teal600, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("WhatsApp Expiry Alerts", fontWeight = FontWeight.Bold, color = com.example.ui.theme.Teal600, fontSize = 14.sp)
+                        }
+                        Switch(
+                            checked = isWaEnabled,
+                            onCheckedChange = { isWaEnabled = it },
+                            colors = SwitchDefaults.colors(checkedTrackColor = com.example.ui.theme.Teal600)
+                        )
+                    }
+
+                    Text("Send automated expiry alerts to Admin and selected Staff members via WhatsApp.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    OutlinedTextField(value = adminWhatsapp, onValueChange = { adminWhatsapp = it }, label = { Text("Admin WhatsApp Number") }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("যেমন: 017XXXXXXXX") })
+                    OutlinedTextField(value = waUrl, onValueChange = { waUrl = it }, label = { Text("WhatsApp API URL") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = waToken, onValueChange = { waToken = it }, label = { Text("API Token / Key") }, modifier = Modifier.fillMaxWidth())
+
+                    Button(
+                        onClick = { 
+                            viewModel.saveISPSettings(
+                                ispName = ispName, 
+                                address = address, 
+                                mobile = mobile, 
+                                support = helpline,
+                                waAlerts = isWaEnabled,
+                                adminWa = adminWhatsapp,
+                                waUrl = waUrl,
+                                waToken = waToken,
+                                smsUrl = smsApiUrl,
+                                smsKey = smsApiKey,
+                                smsSender = smsSenderId,
+                                autoSms = isAutoSmsEnabled
+                            ) 
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save WhatsApp Config")
                     }
                 }
             }
