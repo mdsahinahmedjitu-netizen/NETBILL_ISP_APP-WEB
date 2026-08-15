@@ -160,7 +160,7 @@ function App() {
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
-          {activePage === 'reports' && <CollectionReport store={store} t={t} />}
+          {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} />}
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} t={t} lang={lang} />}
           {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}

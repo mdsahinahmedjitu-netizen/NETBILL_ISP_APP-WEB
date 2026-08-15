@@ -15,7 +15,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
 
   return (
     <aside
-      className={`bg-[#0F172A] text-white flex flex-col shrink-0 shadow-2xl z-20 uppercase font-black tracking-widest transition-all duration-300 ease-in-out ${
+      className={`${role === 'admin' ? 'bg-[#0F172A]' : 'bg-[#1e1b4b]'} text-white flex flex-col shrink-0 shadow-2xl z-20 uppercase font-black tracking-widest transition-all duration-300 ease-in-out ${
         isSidebarOpen ? 'w-72 p-6' : 'w-0 p-0 overflow-hidden'
       }`}
     >

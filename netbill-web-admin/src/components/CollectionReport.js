@@ -2,12 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { db } from '../firebaseConfig';
 import { collection, doc, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
 
-const CollectionReport = ({ store, t }) => {
+const CollectionReport = ({ store, session, t }) => {
   const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'due', 'revenue'
   const [search, setSearch] = useState('');
   const [startDate, setDateStart] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'));
   const [endDate, setDateEnd] = useState(new Date().toLocaleDateString('en-CA'));
-  const [selectedStaff, setSelectedStaff] = useState('All Collectors');
+
+  const isStaff = session?.role === 'staff';
+  const [selectedStaff, setSelectedStaff] = useState(isStaff ? session.data.name : 'All Collectors');
   const [selectedMethod, setSelectedMethod] = useState('All Methods');
 
   // Printable Columns State
@@ -25,7 +27,15 @@ const CollectionReport = ({ store, t }) => {
     return store.payments?.filter(p => {
       const pDate = p.paymentDate;
       const dateMatch = pDate >= startDate && pDate <= endDate;
-      const staffMatch = selectedStaff === 'All Collectors' || p.collectedBy === selectedStaff || p.collectedById === selectedStaff;
+
+      // Strict filtering for staff
+      let staffMatch = false;
+      if (isStaff) {
+        staffMatch = p.collectedBy === session.data.name || p.collectedById === session.data.id;
+      } else {
+        staffMatch = selectedStaff === 'All Collectors' || p.collectedBy === selectedStaff || p.collectedById === selectedStaff;
+      }
+
       const methodMatch = selectedMethod === 'All Methods' || p.paymentMethod?.includes(selectedMethod);
 
       const customer = store.customers.find(c => c.id === p.customerId || c.customerCode === p.customerCode);
@@ -37,7 +47,7 @@ const CollectionReport = ({ store, t }) => {
 
       return dateMatch && staffMatch && methodMatch && searchMatch;
     }).sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
-  }, [store.payments, store.customers, startDate, endDate, selectedStaff, selectedMethod, search]);
+  }, [store.payments, store.customers, startDate, endDate, selectedStaff, selectedMethod, search, isStaff, session?.data]);
 
   const totalAmount = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const totalDue = store.customers.reduce((sum, c) => sum + (parseFloat(c.currentDue) || 0), 0);
@@ -57,12 +67,17 @@ const CollectionReport = ({ store, t }) => {
   const filteredDueCustomers = useMemo(() => {
     return store.customers?.filter(c => {
       const hasDue = parseFloat(c.currentDue) > 0;
-      const staffMatch = selectedStaff === 'All Collectors' ||
-                         c.assignedStaffId === selectedStaff ||
-                         store.staff?.find(s => s.name === selectedStaff)?.id === c.assignedStaffId;
+      let staffMatch = false;
+      if (isStaff) {
+        staffMatch = c.assignedStaffId === session.data.id || c.assignedStaffId === session.data.name;
+      } else {
+        staffMatch = selectedStaff === 'All Collectors' ||
+                     c.assignedStaffId === selectedStaff ||
+                     store.staff?.find(s => s.name === selectedStaff)?.id === c.assignedStaffId;
+      }
       return hasDue && staffMatch;
     }).sort((a,b) => b.currentDue - a.currentDue);
-  }, [store.customers, store.staff, selectedStaff]);
+  }, [store.customers, store.staff, selectedStaff, isStaff, session?.data]);
 
   const totalDueFiltered = filteredDueCustomers.reduce((sum, c) => sum + (parseFloat(c.currentDue) || 0), 0);
 
@@ -207,10 +222,21 @@ const CollectionReport = ({ store, t }) => {
            <span className="text-slate-300 font-bold">/</span>
            <input type="date" value={endDate} onChange={e => setDateEnd(e.target.value)} className="bg-transparent border-none text-xs font-black outline-none cursor-pointer" />
         </div>
-        <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)} className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 px-5 py-3 rounded-2xl border-2 border-indigo-100 dark:border-indigo-800 text-xs font-black outline-none cursor-pointer hover:bg-indigo-100 transition-colors">
-          <option>All Collectors</option>
-          <option>Admin / Direct</option>
-          {store.staff?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+        <select
+          value={selectedStaff}
+          onChange={e => setSelectedStaff(e.target.value)}
+          disabled={isStaff}
+          className={`bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 px-5 py-3 rounded-2xl border-2 border-indigo-100 dark:border-indigo-800 text-xs font-black outline-none cursor-pointer hover:bg-indigo-100 transition-colors ${isStaff ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {isStaff ? (
+            <option value={session.data.name}>{session.data.name}</option>
+          ) : (
+            <>
+              <option>All Collectors</option>
+              <option>Admin / Direct</option>
+              {store.staff?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+            </>
+          )}
         </select>
         <button className="bg-teal-600 text-white px-8 py-3 rounded-2xl text-xs font-black flex items-center space-x-2 shadow-lg shadow-teal-500/20 hover:scale-105 active:scale-95 transition-all">
            <i className="fas fa-filter"></i><span>Apply Filter</span>
