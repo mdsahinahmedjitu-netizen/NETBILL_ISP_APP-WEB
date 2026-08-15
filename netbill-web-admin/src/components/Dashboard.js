@@ -112,7 +112,7 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-7 font-black uppercase tracking-widest leading-none">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-7 font-black uppercase tracking-widest leading-none">
         <FeatureCard title={t.payment_center} icon="fa-hand-holding-dollar" grad="grad-collection" onClick={() => setActivePage('payments')} />
         <FeatureCard title="Collection Report" icon="fa-chart-column" grad="grad-invoices" onClick={() => setActivePage('reports')} />
         <FeatureCard title={t.subscribers_crm} icon="fa-users-viewfinder" grad="grad-subscribers" onClick={() => setActivePage('customers')} />
@@ -124,28 +124,28 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
       </div>
 
       {/* Collection Breakdown Card */}
-      <div className="bg-white dark:bg-slate-800 p-10 rounded-[48px] card-shadow border border-slate-100 dark:border-slate-700 space-y-10 relative overflow-hidden">
-        <div className="flex justify-between items-start">
+      <div className="bg-white dark:bg-slate-800 p-6 md:p-10 rounded-[32px] md:rounded-[48px] card-shadow border border-slate-100 dark:border-slate-700 space-y-8 md:space-y-10 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
            <div className="space-y-2 uppercase">
               <div className="flex items-center space-x-3">
                  <div className="w-3.5 h-3.5 bg-emerald-500 rounded-full animate-pulse shadow-emerald-500/50 shadow-lg"></div>
-                 <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-widest uppercase">{t.todays_collection}</h3>
+                 <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-widest uppercase">{t.todays_collection}</h3>
               </div>
-              <p className="text-xs font-bold text-slate-400 tracking-[4px]">{activeFilter} Overview</p>
+              <p className="text-[10px] md:text-xs font-bold text-slate-400 tracking-[4px]">{activeFilter} Overview</p>
            </div>
-           <div className="bg-teal-50 text-teal-600 px-6 py-2.5 rounded-full text-[11px] font-black border border-teal-100 shadow-sm flex items-center tracking-widest"><i className="far fa-clock mr-2"></i> LIVE AUTO</div>
+           <div className="bg-teal-50 text-teal-600 px-6 py-2.5 rounded-full text-[10px] font-black border border-teal-100 shadow-sm flex items-center tracking-widest"><i className="far fa-clock mr-2"></i> LIVE AUTO</div>
         </div>
 
-        <div className="flex flex-wrap gap-4 items-center uppercase font-black">
-          <button onClick={() => setActiveFilter('today')} className={`btn-tab ${activeFilter === 'today' ? 'active shadow-lg shadow-teal-500/20 scale-105' : ''}`}>{t.today}</button>
-          <button onClick={() => setActiveFilter('yesterday')} className={`btn-tab ${activeFilter === 'yesterday' ? 'active shadow-lg shadow-teal-500/20 scale-105' : ''}`}>{t.yesterday}</button>
-          <button onClick={() => setActiveFilter('last7')} className={`btn-tab ${activeFilter === 'last7' ? 'active shadow-lg shadow-teal-500/20 scale-105' : ''}`}>{t.last_7_days}</button>
-          <button onClick={() => setActiveFilter('month')} className={`btn-tab ${activeFilter === 'month' ? 'active shadow-lg shadow-teal-500/20 scale-105' : ''}`}>{t.this_month}</button>
+        <div className="flex flex-wrap gap-2 md:gap-4 items-center uppercase font-black">
+          <button onClick={() => setActiveFilter('today')} className={`px-4 py-2 md:px-8 md:py-3 rounded-2xl text-[10px] md:text-xs font-black transition-all ${activeFilter === 'today' ? 'bg-[#0D9488] text-white shadow-lg shadow-teal-500/20 scale-105' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>{t.today}</button>
+          <button onClick={() => setActiveFilter('yesterday')} className={`px-4 py-2 md:px-8 md:py-3 rounded-2xl text-[10px] md:text-xs font-black transition-all ${activeFilter === 'yesterday' ? 'bg-[#0D9488] text-white shadow-lg shadow-teal-500/20 scale-105' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>{t.yesterday}</button>
+          <button onClick={() => setActiveFilter('last7')} className={`px-4 py-2 md:px-8 md:py-3 rounded-2xl text-[10px] md:text-xs font-black transition-all ${activeFilter === 'last7' ? 'bg-[#0D9488] text-white shadow-lg shadow-teal-500/20 scale-105' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>{t.last_7_days}</button>
+          <button onClick={() => setActiveFilter('month')} className={`px-4 py-2 md:px-8 md:py-3 rounded-2xl text-[10px] md:text-xs font-black transition-all ${activeFilter === 'month' ? 'bg-[#0D9488] text-white shadow-lg shadow-teal-500/20 scale-105' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>{t.this_month}</button>
         </div>
 
-        <div className="space-y-10 pt-4">
-           <p className="text-[11px] font-black text-slate-400 uppercase tracking-[4px] border-b pb-4">{t.breakdown_by_sector}</p>
-           <div className="space-y-8 font-black uppercase">
+        <div className="space-y-6 md:space-y-10 pt-4">
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[4px] border-b pb-4">{t.breakdown_by_sector}</p>
+           <div className="space-y-6 md:space-y-8 font-black uppercase">
               <BreakdownRow method="Cash" amount={filteredPayments.filter(p=>p.paymentMethod==='Cash').reduce((s,p)=>s+p.amount,0)} color="#10B981" icon="fa-wallet" total={selectedTotal} />
               <BreakdownRow method="bKash" amount={filteredPayments.filter(p=>p.paymentMethod.includes('bKash')).reduce((s,p)=>s+p.amount,0)} color="#D0006F" icon="fa-mobile-screen-button" total={selectedTotal} />
               <BreakdownRow method="Nagad" amount={filteredPayments.filter(p=>p.paymentMethod.includes('Nagad')).reduce((s,p)=>s+p.amount,0)} color="#F58220" icon="fa-credit-card" total={selectedTotal} />
@@ -155,19 +155,19 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
       </div>
 
       {/* Main Stats Summary */}
-      <div className="bg-[#0D9488] p-12 rounded-[64px] text-white shadow-2xl relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/5 rounded-full -mr-48 -mt-48 duration-1000 group-hover:scale-110"></div>
-        <div className="flex justify-between items-start relative z-10 font-black tracking-widest leading-none uppercase">
-          <div className="space-y-12 w-full leading-none">
-            <p className="text-sm font-black opacity-90 tracking-[5px] uppercase">{t.financial_total}</p>
-            <h2 className="text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString()}</h2>
-            <div className="flex space-x-24 pt-10 font-black tracking-widest uppercase">
-               <div><p className="text-[11px] font-bold opacity-70 mb-4 tracking-[3px]">{t.target_plan}</p><p className="text-3xl font-black">৳ {targetPlan.toLocaleString()}</p></div>
-               <div className="w-px h-20 bg-white/20"></div>
-               <div><p className="text-[11px] font-bold opacity-70 mb-4 tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString()}</p></div>
+      <div className="bg-[#0D9488] p-6 md:p-12 rounded-[32px] md:rounded-[64px] text-white shadow-2xl relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-white/5 rounded-full -mr-24 md:-mr-48 -mt-24 md:-mt-48 duration-1000 group-hover:scale-110"></div>
+        <div className="flex flex-col md:flex-row justify-between items-start relative z-10 font-black tracking-widest leading-none uppercase gap-8">
+          <div className="space-y-6 md:space-y-12 w-full leading-none">
+            <p className="text-[10px] md:text-sm font-black opacity-90 tracking-[5px] uppercase">{t.financial_total}</p>
+            <h2 className="text-5xl md:text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString()}</h2>
+            <div className="flex flex-col md:flex-row md:space-x-24 gap-8 md:gap-0 pt-6 md:pt-10 font-black tracking-widest uppercase">
+               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px]">{t.target_plan}</p><p className="text-xl md:text-3xl font-black">৳ {targetPlan.toLocaleString()}</p></div>
+               <div className="hidden md:block w-px h-20 bg-white/20"></div>
+               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-xl md:text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString()}</p></div>
             </div>
           </div>
-          <div className="w-24 h-24 bg-white/10 rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12"><i className="fas fa-chart-line text-4xl text-white"></i></div>
+          <div className="w-16 h-16 md:w-24 md:h-24 bg-white/10 rounded-2xl md:rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12"><i className="fas fa-chart-line text-2xl md:text-4xl text-white"></i></div>
         </div>
       </div>
 

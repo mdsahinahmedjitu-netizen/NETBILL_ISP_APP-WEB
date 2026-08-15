@@ -22,6 +22,7 @@ const CollectionReport = ({ store, session, t }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const filteredPayments = useMemo(() => {
     return store.payments?.filter(p => {
@@ -50,8 +51,16 @@ const CollectionReport = ({ store, session, t }) => {
   }, [store.payments, store.customers, startDate, endDate, selectedStaff, selectedMethod, search, isStaff, session?.data]);
 
   const totalAmount = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const totalDue = store.customers.reduce((sum, c) => sum + (parseFloat(c.currentDue) || 0), 0);
-  const totalBill = store.customers.reduce((sum, c) => sum + (parseFloat(c.monthlyBill) || 0), 0);
+
+  const accessibleCustomers = useMemo(() => {
+    if (isStaff) {
+      return store.customers.filter(c => c.assignedStaffId === session.data.id || c.assignedStaffId === session.data.name);
+    }
+    return store.customers;
+  }, [store.customers, isStaff, session?.data]);
+
+  const totalDue = accessibleCustomers.reduce((sum, c) => sum + (parseFloat(c.currentDue) || 0), 0);
+  const totalBill = accessibleCustomers.reduce((sum, c) => sum + (parseFloat(c.monthlyBill) || 0), 0);
 
   const staffStats = useMemo(() => {
     const stats = {};
@@ -121,6 +130,28 @@ const CollectionReport = ({ store, session, t }) => {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleSaveAsImage = () => {
+    const element = document.getElementById('report-container');
+    if (!element) return;
+    setIsExporting(true);
+
+    window.html2canvas(element, {
+      backgroundColor: isStaff ? '#1e1b4b' : '#ffffff',
+      scale: 2,
+      logging: false,
+      useCORS: true
+    }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = `Collection_Report_${new Date().toLocaleDateString()}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.9);
+      link.click();
+      setIsExporting(false);
+    }).catch(err => {
+      console.error("Export Error:", err);
+      setIsExporting(false);
+    });
   };
 
   const handlePrint = () => {
@@ -204,29 +235,29 @@ const CollectionReport = ({ store, session, t }) => {
 
   return (
     <div className="w-full space-y-6 pb-20 font-sans tracking-tight">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCardSmall label="Total Customers" value={store.customers.length} icon="fa-users" color="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-900/20" borderColor="border-indigo-100" />
         <StatCardSmall label="Collected" value={`৳${totalAmount.toLocaleString()}`} icon="fa-money-bill-trend-up" color="text-emerald-600" bgColor="bg-emerald-50 dark:bg-emerald-900/20" borderColor="border-emerald-100" />
         <StatCardSmall label="Due" value={`৳${Math.floor(totalDue).toLocaleString()}`} icon="fa-triangle-exclamation" color="text-rose-500" bgColor="bg-rose-50 dark:bg-rose-900/20" borderColor="border-rose-100" />
         <StatCardSmall label="Total Bill" value={`৳${Math.floor(totalBill).toLocaleString()}`} icon="fa-receipt" color="text-blue-600" bgColor="bg-blue-50 dark:bg-blue-900/20" borderColor="border-blue-100" />
       </div>
 
-      <div className="bg-white dark:bg-slate-800 p-5 rounded-[32px] shadow-lg border border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-4">
+      <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-[24px] md:rounded-[32px] shadow-lg border border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-3 md:gap-4">
         <div className="relative flex-1 min-w-[200px]">
-          <input type="text" placeholder="Search customer, ID or TrxID..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border-2 border-transparent focus:border-teal-500/30 text-sm outline-none transition-all shadow-inner" />
-          <i className="fas fa-search absolute left-5 top-4 text-slate-300 text-sm"></i>
+          <input type="text" placeholder="Search customer, ID or TrxID..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 md:pl-12 pr-4 py-2.5 md:py-3 bg-slate-50 dark:bg-slate-900 rounded-xl md:rounded-2xl border-2 border-transparent focus:border-teal-500/30 text-xs md:text-sm outline-none transition-all shadow-inner" />
+          <i className="fas fa-search absolute left-4 md:left-5 top-3.5 md:top-4 text-slate-300 text-xs md:text-sm"></i>
         </div>
-        <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-900 px-5 py-2.5 rounded-2xl border-2 border-slate-100 dark:border-slate-700 shadow-sm">
-           <i className="fas fa-calendar-alt text-teal-600 text-sm"></i>
-           <input type="date" value={startDate} onChange={e => setDateStart(e.target.value)} className="bg-transparent border-none text-xs font-black outline-none cursor-pointer" />
+        <div className="flex items-center space-x-2 md:space-x-3 bg-slate-50 dark:bg-slate-900 px-3 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-100 dark:border-slate-700 shadow-sm">
+           <i className="fas fa-calendar-alt text-teal-600 text-xs md:text-sm"></i>
+           <input type="date" value={startDate} onChange={e => setDateStart(e.target.value)} className="bg-transparent border-none text-[10px] md:text-xs font-black outline-none cursor-pointer" />
            <span className="text-slate-300 font-bold">/</span>
-           <input type="date" value={endDate} onChange={e => setDateEnd(e.target.value)} className="bg-transparent border-none text-xs font-black outline-none cursor-pointer" />
+           <input type="date" value={endDate} onChange={e => setDateEnd(e.target.value)} className="bg-transparent border-none text-[10px] md:text-xs font-black outline-none cursor-pointer" />
         </div>
         <select
           value={selectedStaff}
           onChange={e => setSelectedStaff(e.target.value)}
           disabled={isStaff}
-          className={`bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 px-5 py-3 rounded-2xl border-2 border-indigo-100 dark:border-indigo-800 text-xs font-black outline-none cursor-pointer hover:bg-indigo-100 transition-colors ${isStaff ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 px-3 md:px-5 py-2.5 md:py-3 rounded-xl md:rounded-2xl border-2 border-indigo-100 dark:border-indigo-800 text-[10px] md:text-xs font-black outline-none cursor-pointer hover:bg-indigo-100 transition-colors ${isStaff ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {isStaff ? (
             <option value={session.data.name}>{session.data.name}</option>
@@ -238,42 +269,46 @@ const CollectionReport = ({ store, session, t }) => {
             </>
           )}
         </select>
-        <button className="bg-teal-600 text-white px-8 py-3 rounded-2xl text-xs font-black flex items-center space-x-2 shadow-lg shadow-teal-500/20 hover:scale-105 active:scale-95 transition-all">
-           <i className="fas fa-filter"></i><span>Apply Filter</span>
+        <button className="bg-teal-600 text-white px-6 md:px-8 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black flex items-center space-x-2 shadow-lg shadow-teal-500/20 hover:scale-105 active:scale-95 transition-all">
+           <i className="fas fa-filter"></i><span>Apply</span>
         </button>
       </div>
 
-      <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[24px] w-fit shadow-inner">
-         <button onClick={() => setActiveTab('collection')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md flex items-center space-x-2 transition-all ${activeTab === 'collection' ? 'bg-white dark:bg-slate-800 text-teal-600 border border-teal-50' : 'text-slate-400 hover:text-slate-600'}`}>
+      <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[20px] md:rounded-[24px] w-fit shadow-inner overflow-x-auto max-w-full">
+         <button onClick={() => setActiveTab('collection')} className={`px-4 md:px-8 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black shadow-md flex items-center space-x-2 transition-all shrink-0 ${activeTab === 'collection' ? 'bg-white dark:bg-slate-800 text-teal-600 border border-teal-50' : 'text-slate-400 hover:text-slate-600'}`}>
             <i className="fas fa-money-bill-transfer"></i><span>COLLECTION</span>
          </button>
-         <button onClick={() => setActiveTab('due')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md flex items-center space-x-2 transition-all ${activeTab === 'due' ? 'bg-white dark:bg-slate-800 text-rose-500 border border-rose-50' : 'text-slate-400 hover:text-slate-600'}`}>
+         <button onClick={() => setActiveTab('due')} className={`px-4 md:px-8 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black shadow-md flex items-center space-x-2 transition-all shrink-0 ${activeTab === 'due' ? 'bg-white dark:bg-slate-800 text-rose-500 border border-rose-50' : 'text-slate-400 hover:text-slate-600'}`}>
             <i className="fas fa-triangle-exclamation"></i><span>DUE LIST</span>
          </button>
-         <button onClick={() => setActiveTab('revenue')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md flex items-center space-x-2 transition-all ${activeTab === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600 border border-blue-50' : 'text-slate-400 hover:text-slate-600'}`}>
+         <button onClick={() => setActiveTab('revenue')} className={`px-4 md:px-8 py-2 md:py-2.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black shadow-md flex items-center space-x-2 transition-all shrink-0 ${activeTab === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600 border border-blue-50' : 'text-slate-400 hover:text-slate-600'}`}>
             <i className="fas fa-chart-line"></i><span>REVENUE</span>
          </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-700 p-10 space-y-8 min-h-[600px] relative overflow-hidden">
+      <div id="report-container" className="bg-white dark:bg-slate-800 rounded-[32px] md:rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-700 p-6 md:p-10 space-y-6 md:space-y-8 min-h-[600px] relative overflow-hidden">
         <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${activeTab === 'collection' ? 'from-teal-500 via-indigo-500 to-rose-500' : activeTab === 'due' ? 'from-rose-500 to-orange-500' : 'from-blue-500 to-indigo-500'}`}></div>
 
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
            <div className="flex items-center space-x-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${activeTab === 'collection' ? 'bg-gradient-to-br from-teal-400 to-teal-600' : activeTab === 'due' ? 'bg-gradient-to-br from-rose-400 to-rose-600' : 'bg-gradient-to-br from-blue-400 to-blue-600'}`}>
-                 <i className={`fas ${activeTab === 'collection' ? 'fa-receipt' : activeTab === 'due' ? 'fa-user-clock' : 'fa-chart-pie'} text-xl`}></i>
+              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-lg ${activeTab === 'collection' ? 'bg-gradient-to-br from-teal-400 to-teal-600' : activeTab === 'due' ? 'bg-gradient-to-br from-rose-400 to-rose-600' : 'bg-gradient-to-br from-blue-400 to-blue-600'}`}>
+                 <i className={`fas ${activeTab === 'collection' ? 'fa-receipt' : activeTab === 'due' ? 'fa-user-clock' : 'fa-chart-pie'} text-lg md:text-xl`}></i>
               </div>
               <div>
-                <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">{activeTab === 'collection' ? 'Collection Analysis' : activeTab === 'due' ? 'Subscriber Due List' : 'Revenue Summary'}</h3>
-                <p className="text-[10px] text-slate-400 font-bold tracking-[3px]">{activeTab === 'collection' ? 'Verified Transaction Records' : activeTab === 'due' ? 'Outstanding Balances Report' : 'Financial Earnings Overview'}</p>
+                <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">{activeTab === 'collection' ? 'Collection Analysis' : activeTab === 'due' ? 'Subscriber Due List' : 'Revenue Summary'}</h3>
+                <p className="text-[8px] md:text-[10px] text-slate-400 font-bold tracking-[2px] md:tracking-[3px]">{activeTab === 'collection' ? 'Verified Transaction Records' : activeTab === 'due' ? 'Outstanding Balances Report' : 'Financial Earnings Overview'}</p>
               </div>
            </div>
-           <div className="flex space-x-3">
-              <button onClick={() => setShowColumnSelector(true)} className="px-6 py-3 bg-teal-50 text-teal-600 rounded-2xl border border-teal-100 shadow-sm text-xs font-black flex items-center space-x-2 hover:bg-teal-100 transition-all uppercase">
-                 <i className="fas fa-columns"></i><span>Select Printable Column</span>
+           <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
+              <button onClick={() => setShowColumnSelector(true)} className="flex-1 md:flex-none px-4 md:px-6 py-2 md:py-3 bg-teal-50 text-teal-600 rounded-xl md:rounded-2xl border border-teal-100 shadow-sm text-[9px] md:text-xs font-black flex items-center justify-center space-x-2 hover:bg-teal-100 transition-all uppercase">
+                 <i className="fas fa-columns"></i><span className="hidden sm:inline">Columns</span>
               </button>
-              <button onClick={handlePrint} className="px-8 py-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20 text-xs font-black flex items-center space-x-3 hover:scale-105 transition-all"><i className="fas fa-print text-lg"></i><span>PRINT REPORT</span></button>
-              <button className="px-8 py-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-500/20 text-xs font-black flex items-center space-x-3 hover:scale-105 transition-all"><i className="fas fa-file-csv text-lg"></i><span>EXPORT CSV</span></button>
+              <button onClick={handleSaveAsImage} disabled={isExporting} className="flex-1 md:flex-none px-4 md:px-6 py-2 md:py-3 bg-rose-600 text-white rounded-xl md:rounded-2xl shadow-lg shadow-rose-500/20 text-[9px] md:text-xs font-black flex items-center justify-center space-x-2 hover:scale-105 transition-all uppercase">
+                 <i className={`fas ${isExporting ? 'fa-spinner fa-spin' : 'fa-image'}`}></i><span>{isExporting ? 'Saving...' : 'Save JPG'}</span>
+              </button>
+              <button onClick={handlePrint} className="flex-1 md:flex-none px-4 md:px-8 py-2 md:py-3 bg-indigo-600 text-white rounded-xl md:rounded-2xl shadow-lg shadow-indigo-500/20 text-[9px] md:text-xs font-black flex items-center justify-center space-x-2 hover:scale-105 transition-all uppercase">
+                 <i className="fas fa-print"></i><span>Print</span>
+              </button>
            </div>
         </div>
 
@@ -415,8 +450,8 @@ const CollectionReport = ({ store, session, t }) => {
                  <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-3xl border border-slate-100">
                     <h4 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest">Monthly Collection Overview</h4>
                     <div className="space-y-4">
-                       {[...new Set(store.payments?.map(p => p.billingMonth))].filter(Boolean).map(month => {
-                          const amt = store.payments.filter(p => p.billingMonth === month).reduce((s,p)=>s+p.amount,0);
+                       {[...new Set(filteredPayments.map(p => p.billingMonth))].filter(Boolean).map(month => {
+                          const amt = filteredPayments.filter(p => p.billingMonth === month).reduce((s,p)=>s+p.amount,0);
                           return (
                             <div key={month} className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100">
                                <span className="font-black text-slate-700 dark:text-slate-200">{month}</span>
@@ -430,7 +465,7 @@ const CollectionReport = ({ store, session, t }) => {
                     <h4 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest">Collection by Payment Method</h4>
                     <div className="space-y-4">
                        {['Cash', 'bKash', 'Nagad', 'Bank'].map(method => {
-                          const amt = store.payments.filter(p => p.paymentMethod?.includes(method)).reduce((s,p)=>s+p.amount,0);
+                          const amt = filteredPayments.filter(p => p.paymentMethod?.includes(method)).reduce((s,p)=>s+p.amount,0);
                           return (
                             <div key={method} className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100">
                                <span className="font-black text-slate-700 dark:text-slate-200">{method}</span>
@@ -448,14 +483,13 @@ const CollectionReport = ({ store, session, t }) => {
       {/* PRINT COLUMN SELECTOR MODAL */}
       {showColumnSelector && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[6000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
-          <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-lg p-12 shadow-2xl border-4 border-teal-500/20 space-y-8 relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-full h-3 bg-teal-500"></div>
-             <div className="flex justify-between items-center border-b pb-6">
+          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-lg p-12 shadow-2xl border-2 border-slate-100">
+             <div className="flex justify-between items-center border-b pb-8">
                 <h3 className="text-3xl font-black uppercase tracking-tighter">Printable Columns</h3>
                 <button onClick={() => setShowColumnSelector(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
              </div>
 
-             <div className="grid grid-cols-1 gap-4">
+             <div className="grid grid-cols-1 gap-4 pt-6">
                 {Object.keys(printableColumns).map(col => (
                   <label key={col} className={`flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 ${printableColumns[col] ? 'bg-teal-50 border-teal-200 dark:bg-teal-900/20' : 'bg-slate-50 border-transparent opacity-60 dark:bg-slate-900/50'}`}>
                     <span className={`font-black uppercase tracking-widest text-xs ${printableColumns[col] ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'}`}>{col.replace(/([A-Z])/g, ' $1')}</span>
@@ -469,8 +503,8 @@ const CollectionReport = ({ store, session, t }) => {
                 ))}
              </div>
 
-             <button onClick={() => setShowColumnSelector(false)} className="w-full bg-teal-600 text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
-                SAVE & CLOSE
+             <button onClick={() => setShowColumnSelector(false)} className="w-full bg-[#0D9488] text-white py-7 rounded-[32px] font-black uppercase tracking-[5px] shadow-2xl mt-8">
+                SAVE SETTINGS
              </button>
           </div>
         </div>

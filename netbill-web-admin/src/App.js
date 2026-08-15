@@ -29,7 +29,16 @@ function App() {
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('dark_mode') === 'true');
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'bn');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 1024) setIsSidebarOpen(false);
+      else setIsSidebarOpen(true);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [store, setStore] = useState({
     customers: [], tickets: [], payments: [], invoices: [], expenses: [], staff: [],
     inventory: [], packages: [], settings: {}, paymentRequests: [], staffPayouts: [],
