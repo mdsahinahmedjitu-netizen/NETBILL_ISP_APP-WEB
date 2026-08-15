@@ -8,11 +8,24 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    return `${day}-${month}-${year}`;
+    if (dateStr.includes('-')) {
+       const [year, month, day] = dateStr.split('-');
+       return `${day}-${month}-${year}`;
+    }
+    return dateStr;
   };
 
   const todayStr = new Date().toLocaleDateString('en-CA');
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
+
+  // Expiry Alert Logic: Only customers expiring TOMORROW
+  const expiringTomorrow = store.customers.filter(c => {
+    if (!c.expireDate || c.status !== 'Active') return false;
+    return c.expireDate === tomorrowStr;
+  });
+
   const yesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
   const last7DaysAgoStr = new Date(Date.now() - 7 * 86400000).toLocaleDateString('en-CA');
   const currentMonthStr = todayStr.substring(0, 7);
@@ -82,7 +95,29 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-widest transition-all">
+    <div className="max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-widest transition-all relative">
+
+      {/* TOP NOTIFICATION BAR - APP STYLE */}
+      {expiringTomorrow.length > 0 && (
+        <div
+          onClick={() => window.openExpiryModal()}
+          className="bg-rose-600 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all animate-pulse border-b-4 border-rose-900"
+        >
+           <div className="flex items-center space-x-5">
+              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl relative">
+                 <i className="fas fa-bell"></i>
+                 <span className="absolute -top-1 -right-1 bg-white text-rose-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-rose-600 shadow-sm">{expiringTomorrow.length}</span>
+              </div>
+              <div>
+                 <h4 className="text-xl font-black uppercase tracking-tighter leading-none">Attention: Expiry Alert</h4>
+                 <p className="text-[10px] font-bold opacity-80 mt-1 uppercase tracking-widest">{expiringTomorrow.length} Customers will expire tomorrow. Click to see list.</p>
+              </div>
+           </div>
+           <div className="w-12 h-12 bg-white text-rose-600 rounded-full flex items-center justify-center text-xl font-black">
+              <i className="fas fa-chevron-right"></i>
+           </div>
+        </div>
+      )}
 
       {/* PENDING VERIFICATION ALERTS */}
       {pendingRequests.length > 0 && (
@@ -198,7 +233,7 @@ const BreakdownRow = ({ method, amount, color, icon, total }) => {
               </div>
           </div>
           <div className="h-2.5 w-full bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden shadow-inner uppercase font-black">
-             <div className="h-full rounded-full shadow-lg transition-all duration-1000" style={{ width: `${p}%`, background: color }}></div>
+             <div className="h-full rounded-full shadow-lg duration-1000" style={{ width: `${p}%`, background: color }}></div>
           </div>
       </div>
     </div>

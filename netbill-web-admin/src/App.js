@@ -45,8 +45,29 @@ function App() {
     zones: [], subZones: [], boxes: []
   });
   const [autoOpenAddModal, setAutoOpenAddModal] = useState(false);
+  const [showExpiryModal, setShowExpiryModal] = useState(false);
+
+  // Expose modal control globally for Dashboard
+  window.openExpiryModal = () => setShowExpiryModal(true);
 
   const t = translations[lang];
+
+  // Global Expiry Logic
+  const expiringTomorrow = React.useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
+    return store.customers.filter(c => c.expireDate === tomorrowStr && c.status === 'Active');
+  }, [store.customers]);
+
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('-')) {
+       const [year, month, day] = dateStr.split('-');
+       return `${day}-${month}-${year}`;
+    }
+    return dateStr;
+  };
 
   useEffect(() => {
     if (isDarkMode) document.body.classList.add('dark-mode');
@@ -192,6 +213,72 @@ function App() {
           {activePage === 'settings' && session.role === 'admin' && <Settings store={store} t={t} lang={lang} />}
         </main>
       </div>
+
+      {/* GLOBAL FLOATING EXPIRY ICON */}
+      {expiringTomorrow.length > 0 && (
+        <div className="fixed bottom-10 right-10 z-[1000] animate-bounce">
+           <button
+             onClick={() => setShowExpiryModal(true)}
+             className="w-16 h-16 md:w-20 md:h-20 bg-rose-600 text-white rounded-full shadow-2xl flex items-center justify-center text-2xl md:text-3xl relative border-4 border-white dark:border-slate-800 transition-transform hover:scale-110 active:scale-95"
+           >
+              <i className="fas fa-bell"></i>
+              <span className="absolute -top-2 -right-2 bg-white text-rose-600 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-black border-2 border-rose-600 shadow-lg">{expiringTomorrow.length}</span>
+           </button>
+        </div>
+      )}
+
+      {/* GLOBAL EXPIRY ALERT MODAL */}
+      {showExpiryModal && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[10000] flex items-center justify-center p-4 md:p-6 animate-fadeIn font-black uppercase">
+           <div className="bg-white dark:bg-slate-800 rounded-[48px] md:rounded-[56px] w-full max-w-2xl p-8 md:p-12 shadow-2xl border-4 border-rose-500/20 space-y-6 md:space-y-8 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-3 md:h-4 bg-rose-600"></div>
+
+              <div className="flex justify-between items-center border-b-2 border-slate-50 dark:border-slate-700 pb-6">
+                 <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-rose-600 text-white rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-lg animate-pulse"><i className="fas fa-bell"></i></div>
+                    <div>
+                       <h3 className="text-2xl md:text-4xl font-black uppercase tracking-tighter leading-none text-slate-800 dark:text-white">Expiry Alert</h3>
+                       <p className="text-[9px] md:text-[10px] text-rose-500 font-bold tracking-[2px] mt-1">Customers Expiring Tomorrow</p>
+                    </div>
+                 </div>
+                 <button onClick={() => setShowExpiryModal(false)} className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 dark:bg-slate-900 text-slate-400 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-inner"><i className="fas fa-times text-xl"></i></button>
+              </div>
+
+              <div className="max-h-[400px] md:max-h-[500px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                 {expiringTomorrow.map(c => (
+                   <div key={c.id} className="bg-slate-50 dark:bg-slate-900/50 p-5 md:p-6 rounded-[32px] flex justify-between items-center border-2 border-slate-100 dark:border-slate-800 hover:border-rose-500/30 transition-all group shadow-sm">
+                      <div className="flex items-center space-x-4 md:space-x-5">
+                         <div className="w-12 h-12 md:w-14 md:h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-xl md:text-2xl text-slate-300 group-hover:text-rose-500 transition-colors shadow-inner border border-slate-50 dark:border-slate-700">
+                            <i className="fas fa-user"></i>
+                         </div>
+                         <div className="space-y-1">
+                            <p className="text-lg md:text-xl font-black text-slate-800 dark:text-white uppercase leading-none tracking-tighter">{c.name}</p>
+                            <div className="flex flex-wrap gap-2 items-center">
+                               <span className="text-[9px] font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-2 py-0.5 rounded-lg tracking-widest">#{c.customerCode}</span>
+                               <span className="text-[9px] font-black text-slate-400 tracking-widest">{c.pppoeUsername}</span>
+                            </div>
+                         </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                         <p className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">EXPIRES</p>
+                         <p className="text-sm md:text-lg font-black text-rose-600 bg-rose-50 dark:bg-rose-900/20 px-4 py-1.5 rounded-xl border border-rose-100 dark:border-rose-800 leading-none">{formatDateDisplay(c.expireDate)}</p>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+
+              <div className="pt-4 flex gap-4">
+                 <button onClick={() => setShowExpiryModal(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 py-6 rounded-[28px] font-black uppercase tracking-[4px] text-xs shadow-xl active:scale-95 transition-all">CLOSE</button>
+                 <button
+                   onClick={() => { setShowExpiryModal(false); setActivePage('customers'); }}
+                   className="flex-[2] bg-rose-600 text-white py-6 rounded-[28px] font-black uppercase tracking-[6px] text-xs shadow-2xl shadow-rose-500/30 hover:scale-[1.02] active:scale-95 transition-all border-b-4 border-rose-900"
+                 >
+                    MANAGE CRM
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 }
