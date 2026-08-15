@@ -119,6 +119,7 @@ data class PaymentCollectionEntity(
     val paymentDate: String = "",
     val collectorName: String = "",
     val remarks: String = "",
+    val billingMonth: String = "" // Added to match Web
 )
 
 @Entity(tableName = "expenses")

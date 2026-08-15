@@ -171,9 +171,19 @@ fun PaymentCollectionScreen(viewModel: MainViewModel) {
     if (showAddPaymentDialog) {
         RecordPaymentDialog(
             customers = customers,
+            viewModel = viewModel,
             onDismiss = { showAddPaymentDialog = false },
-            onSave = { customerId, amount, method, txnId, remarks, date ->
-                viewModel.collectPayment(customerId, amount, method, txnId, remarks, date)
+            onSave = { customerId, amount, method, txnId, remarks, date, collector, month ->
+                viewModel.collectPayment(
+                    customerId = customerId,
+                    amount = amount,
+                    method = method,
+                    trxId = txnId,
+                    remarks = remarks,
+                    date = date,
+                    collectorName = collector,
+                    billingMonth = month
+                )
                 showAddPaymentDialog = false
             }
         )
@@ -246,8 +256,14 @@ fun PaymentCard(payment: PaymentCollectionEntity, currency: String, onClick: () 
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Text(payment.customerName, fontWeight = FontWeight.Bold, color = Slate900, fontSize = 16.sp)
-                Text("Txn: ${payment.transactionId.ifEmpty { "Cash Ref" }} • ${AppUtils.formatDateForDisplay(payment.paymentDate)}", color = Slate600, fontSize = 11.sp)
+                Text(payment.customerName, fontWeight = FontWeight.ExtraBold, color = Slate900, fontSize = 18.sp)
+                Text(
+                    text = "Month: ${payment.billingMonth} • ${AppUtils.formatDateForDisplay(payment.paymentDate)}", 
+                    color = Slate600, 
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text("Txn: ${payment.transactionId.ifEmpty { "CASH-ENTRY" }} • Col: ${payment.collectorName}", color = Teal600, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -273,116 +289,239 @@ fun PaymentCard(payment: PaymentCollectionEntity, currency: String, onClick: () 
 @Composable
 fun RecordPaymentDialog(
     customers: List<CustomerEntity>,
+    viewModel: MainViewModel,
     onDismiss: () -> Unit,
-    onSave: (String, Double, String, String, String, String) -> Unit
+    onSave: (String, Double, String, String, String, String, String, String) -> Unit
 ) {
-    var selectedCustomer by remember { mutableStateOf(customers.firstOrNull()) }
+    val currentUser by viewModel.currentUser.collectAsState()
+    val staffList by viewModel.staffList.collectAsState()
+    
+    var selectedCustomer by remember { mutableStateOf<CustomerEntity?>(null) }
+    var customerSearchQuery by remember { mutableStateOf("") }
     var expandedCustomerDropdown by remember { mutableStateOf(false) }
 
-    var amount by remember { mutableStateOf(selectedCustomer?.monthlyBill?.toString() ?: "800") }
-    var method by remember { mutableStateOf("bKash") }
-    var txnId by remember { mutableStateOf("BK${(100000..999999).random()}X") }
-    var remarks by remember { mutableStateOf("Monthly internet bill") }
+    val filteredList = remember(customerSearchQuery, customers) {
+        if (customerSearchQuery.isEmpty()) emptyList()
+        else customers.filter { 
+            it.name.contains(customerSearchQuery, ignoreCase = true) || 
+            it.customerCode.contains(customerSearchQuery, ignoreCase = true) ||
+            it.pppoeUsername.contains(customerSearchQuery, ignoreCase = true)
+        }.take(10)
+    }
+
+    var amount by remember { mutableStateOf("") }
+    var method by remember { mutableStateOf("Cash") }
+    var txnId by remember { mutableStateOf("") }
+    var remarks by remember { mutableStateOf("") }
     var paymentDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
+    
+    val currentMonth = SimpleDateFormat("MMMM yyyy", Locale.US).format(Date())
+    var billingMonth by remember { mutableStateOf(currentMonth) }
+    var expandedMonthDropdown by remember { mutableStateOf(false) }
+    
+    val months = remember {
+        val list = mutableListOf<String>()
+        val cal = Calendar.getInstance()
+        repeat(6) {
+            list.add(SimpleDateFormat("MMMM yyyy", Locale.US).format(cal.time))
+            cal.add(Calendar.MONTH, -1)
+        }
+        list
+    }
+
+    var selectedCollector by remember { 
+        mutableStateOf(currentUser?.name ?: "Admin") 
+    }
+    var expandedCollectorDropdown by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Record Payment Collection", color = Slate900, fontWeight = FontWeight.Bold) },
+        title = { Text("New Collection (Web Style)", color = Slate900, fontWeight = FontWeight.ExtraBold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Customer Selector
-                ExposedDropdownMenuBox(
-                    expanded = expandedCustomerDropdown,
-                    onExpandedChange = { expandedCustomerDropdown = !expandedCustomerDropdown }
-                ) {
-                    OutlinedTextField(
-                        value = selectedCustomer?.let { "${it.name} (${it.customerCode})" } ?: "Select Customer",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCustomerDropdown) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expandedCustomerDropdown,
-                        onDismissRequest = { expandedCustomerDropdown = false }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.height(550.dp) // Large box like web
+            ) {
+                // Collector Selector (Session Lock for Staff)
+                val isAdmin = currentUser?.role?.contains("Admin", ignoreCase = true) == true
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Collected By:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Teal600)
+                    ExposedDropdownMenuBox(
+                        expanded = expandedCollectorDropdown && isAdmin,
+                        onExpandedChange = { if (isAdmin) expandedCollectorDropdown = it }
                     ) {
-                        customers.forEach { cust ->
-                            DropdownMenuItem(
-                                text = { Text("${cust.name} (${cust.customerCode}) - Due: ৳${cust.currentDue.toInt()}") },
-                                onClick = {
-                                    selectedCustomer = cust
-                                    amount = if (cust.currentDue > 0) cust.currentDue.toString() else cust.monthlyBill.toString()
-                                    expandedCustomerDropdown = false
+                        OutlinedTextField(
+                            value = selectedCollector,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = isAdmin,
+                            trailingIcon = { if (isAdmin) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCollectorDropdown) },
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        if (isAdmin) {
+                            ExposedDropdownMenu(
+                                expanded = expandedCollectorDropdown,
+                                onDismissRequest = { expandedCollectorDropdown = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(currentUser?.name ?: "Admin") },
+                                    onClick = { selectedCollector = currentUser?.name ?: "Admin"; expandedCollectorDropdown = false }
+                                )
+                                staffList.forEach { staff ->
+                                    DropdownMenuItem(
+                                        text = { Text(staff.name) },
+                                        onClick = { selectedCollector = staff.name; expandedCollectorDropdown = false }
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                 }
 
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount (৳ BDT)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Searchable Customer Selector
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Find Subscriber:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate600)
+                    ExposedDropdownMenuBox(
+                        expanded = expandedCustomerDropdown,
+                        onExpandedChange = { expandedCustomerDropdown = it }
+                    ) {
+                        OutlinedTextField(
+                            value = if (selectedCustomer != null && !expandedCustomerDropdown) "${selectedCustomer?.name} (${selectedCustomer?.customerCode})" else customerSearchQuery,
+                            onValueChange = { 
+                                customerSearchQuery = it
+                                expandedCustomerDropdown = true 
+                            },
+                            placeholder = { Text("Search Name/ID/PPPoE") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCustomerDropdown) },
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
 
-                ReadonlyDateField(
-                    value = paymentDate,
-                    label = "পেমেন্টের তারিখ (Payment Date)",
-                    onDateSelected = { paymentDate = it },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                        if (filteredList.isNotEmpty()) {
+                            ExposedDropdownMenu(
+                                expanded = expandedCustomerDropdown,
+                                onDismissRequest = { expandedCustomerDropdown = false }
+                            ) {
+                                filteredList.forEach { cust ->
+                                    DropdownMenuItem(
+                                        text = { 
+                                            Column {
+                                                Text(cust.name, fontWeight = FontWeight.Bold)
+                                                Text("ID: ${cust.customerCode} • Due: ৳${cust.currentDue.toInt()}", fontSize = 11.sp)
+                                            }
+                                        },
+                                        onClick = {
+                                            selectedCustomer = cust
+                                            amount = Math.floor(cust.currentDue).toInt().toString()
+                                            customerSearchQuery = ""
+                                            expandedCustomerDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
-                // Method Selector Chips
-                Text("Payment Method Bangladesh:", fontSize = 12.sp, color = Slate700, fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("bKash", "Nagad", "Rocket", "Cash").forEach { m ->
-                        val isSelected = method == m
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) ElectricBlue else Slate100)
-                                .clickable { method = m }
-                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Billing Month
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Billing Month:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate600)
+                        ExposedDropdownMenuBox(
+                            expanded = expandedMonthDropdown,
+                            onExpandedChange = { expandedMonthDropdown = it }
                         ) {
-                            Text(m, color = if (isSelected) Color.White else Slate700, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            OutlinedTextField(
+                                value = billingMonth,
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMonthDropdown) },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedMonthDropdown,
+                                onDismissRequest = { expandedMonthDropdown = false }
+                            ) {
+                                months.forEach { m ->
+                                    DropdownMenuItem(text = { Text(m) }, onClick = { billingMonth = m; expandedMonthDropdown = false })
+                                }
+                            }
+                        }
+                    }
+                    // Method
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Method:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate600)
+                        var expandedMethod by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = expandedMethod,
+                            onExpandedChange = { expandedMethod = it }
+                        ) {
+                            OutlinedTextField(
+                                value = method,
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMethod) },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedMethod,
+                                onDismissRequest = { expandedMethod = false }
+                            ) {
+                                listOf("Cash", "bKash", "Nagad", "Rocket", "Bank").forEach { m ->
+                                    DropdownMenuItem(text = { Text(m) }, onClick = { method = m; expandedMethod = false })
+                                }
+                            }
                         }
                     }
                 }
 
-                OutlinedTextField(
-                    value = txnId,
-                    onValueChange = { txnId = it },
-                    label = { Text("Transaction ID / Ref") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = remarks,
-                    onValueChange = { remarks = it },
-                    label = { Text("Remarks") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Amount (BIG LIKE WEB)
+                Column(
+                    modifier = Modifier.fillMaxWidth().background(Slate100, RoundedCornerShape(24.dp)).padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("ENTER COLLECTION AMOUNT (৳)", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Slate600)
+                    OutlinedTextField(
+                        value = amount,
+                        onValueChange = { amount = it },
+                        textStyle = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.ExtraBold, 
+                            color = Teal600,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        ),
+                        placeholder = { Text("0.00") },
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = Color.Transparent
+                        )
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     selectedCustomer?.let { cust ->
-                        onSave(cust.id, amount.toDoubleOrNull() ?: 0.0, method, txnId, remarks, paymentDate)
+                        onSave(cust.id, amount.toDoubleOrNull() ?: 0.0, method, txnId, remarks, paymentDate, selectedCollector, billingMonth)
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = BkashPink)
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Teal600)
             ) {
-                Text("Save & Print Receipt", color = Color.White)
+                Text("COMMIT PAYMENT (SYNC)", fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = Slate600) }
+            TextButton(onClick = onDismiss) { Text("CANCEL", fontWeight = FontWeight.Bold, color = Slate400) }
         },
-        containerColor = SleekCard
+        containerColor = Color.White,
+        shape = RoundedCornerShape(40.dp)
     )
 }

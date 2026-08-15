@@ -27,6 +27,11 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
             }
         }
+        commonTest {
+            dependencies {
+                implementation(libs.junit)
+            }
+        }
         androidMain {
             dependencies {
                 implementation(libs.ktor.client.okhttp)

@@ -354,10 +354,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun recordPayment(customerId: String, amount: Double, method: String, trxId: String, remarks: String, date: String? = null) {
+    fun recordPayment(
+        customerId: String,
+        amount: Double,
+        method: String,
+        trxId: String,
+        remarks: String,
+        date: String? = null,
+        collectorName: String? = null,
+        billingMonth: String? = null
+    ) {
         viewModelScope.launch {
-            val collector = currentUser.value?.name ?: "Admin"
-            val payment = repository.recordPayment(customerId, amount, method, trxId, collector, remarks, date)
+            val finalCollector = collectorName ?: currentUser.value?.name ?: "Admin"
+            val payment = repository.recordPayment(customerId, amount, method, trxId, finalCollector, remarks, date, billingMonth)
             if (payment != null) {
                 _selectedReceipt.value = payment
                 showToast("Payment recorded.")
@@ -365,8 +374,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun collectPayment(customerId: String, amount: Double, method: String, trxId: String, remarks: String, date: String? = null) =
-        recordPayment(customerId, amount, method, trxId, remarks, date)
+    fun collectPayment(
+        customerId: String,
+        amount: Double,
+        method: String,
+        trxId: String,
+        remarks: String,
+        date: String? = null,
+        collectorName: String? = null,
+        billingMonth: String? = null
+    ) = recordPayment(customerId, amount, method, trxId, remarks, date, collectorName, billingMonth)
 
     fun payInvoice(invoice: InvoiceEntity, amount: Double, method: String, trxId: String, remarks: String) {
         viewModelScope.launch {

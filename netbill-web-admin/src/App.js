@@ -7,6 +7,7 @@ import Customers from './components/Customers';
 import Billing from './components/Billing';
 import Payments from './components/Payments';
 import CollectionReport from './components/CollectionReport';
+import Expenses from './components/Expenses';
 import Staff from './components/Staff';
 import SalaryHistory from './components/SalaryHistory';
 import Inventory from './components/Inventory';
@@ -42,7 +43,7 @@ function App() {
   const [store, setStore] = useState({
     customers: [], tickets: [], payments: [], invoices: [], expenses: [], staff: [],
     inventory: [], packages: [], settings: {}, paymentRequests: [], staffPayouts: [],
-    zones: [], subZones: [], boxes: []
+    zones: [], subZones: [], boxes: [], expenseCategories: []
   });
   const [autoOpenAddModal, setAutoOpenAddModal] = useState(false);
   const [showExpiryModal, setShowExpiryModal] = useState(false);
@@ -116,11 +117,14 @@ function App() {
     const unsubBoxes = onSnapshot(collection(db, "boxes"), (snap) => {
       setStore(prev => ({ ...prev, boxes: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
     });
+    const unsubExpCat = onSnapshot(collection(db, "expense_categories"), (snap) => {
+      setStore(prev => ({ ...prev, expenseCategories: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    });
     const unsubSettings = onSnapshot(doc(db, "settings", "global"), (snap) => {
       if (snap.exists()) setStore(prev => ({ ...prev, settings: snap.data() }));
     });
 
-    return () => { unsubCust(); unsubTickets(); unsubPayments(); unsubRequests(); unsubInvoices(); unsubExpenses(); unsubStaff(); unsubStaffPayouts(); unsubZones(); unsubSubZones(); unsubBoxes(); unsubSettings(); };
+    return () => { unsubCust(); unsubTickets(); unsubPayments(); unsubRequests(); unsubInvoices(); unsubExpenses(); unsubStaff(); unsubStaffPayouts(); unsubZones(); unsubSubZones(); unsubBoxes(); unsubExpCat(); unsubSettings(); };
   }, [session]);
 
   const toggleLang = () => {
@@ -221,6 +225,7 @@ function App() {
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
           {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} />}
+          {activePage === 'expenses' && <Expenses store={store} session={session} t={t} />}
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} t={t} lang={lang} />}
           {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}

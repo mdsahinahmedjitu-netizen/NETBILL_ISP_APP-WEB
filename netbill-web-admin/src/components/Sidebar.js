@@ -6,6 +6,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
     { id: 'customers', icon: 'fa-users', label: t.subscribers_crm },
     { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center },
     { id: 'reports', icon: 'fa-chart-pie', label: 'Collection Report' },
+    { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title },
     { id: 'staff', icon: 'fa-user-tie', label: t.staff_team, adminOnly: true },
     { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: 'Salary Ledger' },
     { id: 'inventory', icon: 'fa-box', label: t.inventory_stock },

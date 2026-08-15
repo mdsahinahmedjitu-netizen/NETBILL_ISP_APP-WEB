@@ -26,7 +26,7 @@ import com.example.data.entity.*
         InventoryEntity::class,
         SupportTicketEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

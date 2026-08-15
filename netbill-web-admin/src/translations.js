@@ -8,7 +8,25 @@ export const translations = {
     staff_team: "Staff Team",
     inventory_stock: "Inventory Stock",
     service_packages: "Service Packages",
+    expense_title: "Daily Expenses",
+    expense_manager: "Expense Management",
+    expense_ledger: "Expense Ledger",
+    add_expense: "Add New Expense",
+    expense_categories: "Expense Categories",
+    total_selected: "Total Selected",
+    todays_outflow: "Today's Outflow",
     global_settings: "Global Settings",
+
+    // Expense Categories
+    cat_bandwidth: "Bandwidth Cost",
+    cat_salary: "Staff Salary",
+    cat_rent: "Office Rent",
+    cat_electricity: "Electricity Bill",
+    cat_equipment: "Equipment Purchase",
+    cat_maintenance: "Maintenance",
+    cat_transport: "Transport",
+    cat_marketing: "Marketing",
+    cat_other: "Other Expense",
     sign_out: "Sign Out Portal",
 
     // Dashboard
@@ -120,7 +138,25 @@ export const translations = {
     staff_team: "স্টাফ টিম",
     inventory_stock: "ইনভেন্টরি স্টক",
     service_packages: "সার্ভিস প্যাকেজ",
+    expense_title: "দৈনন্দিন খরচ",
+    expense_manager: "খরচ ব্যবস্থাপনা",
+    expense_ledger: "খরচের হিসাব",
+    add_expense: "নতুন খরচ যোগ করুন",
+    expense_categories: "খরচের খাতসমূহ",
+    total_selected: "মোট নির্বাচিত",
+    todays_outflow: "আজকের খরচ",
     global_settings: "গ্লোবাল সেটিংস",
+
+    // Expense Categories
+    cat_bandwidth: "ব্যান্ডউইথ বিল",
+    cat_salary: "স্টাফ বেতন",
+    cat_rent: "অফিস ভাড়া",
+    cat_electricity: "বিদ্যুৎ বিল",
+    cat_equipment: "যন্ত্রাংশ ক্রয়",
+    cat_maintenance: "রক্ষণাবেক্ষণ",
+    cat_transport: "যাতায়াত খরচ",
+    cat_marketing: "মার্কেটিং/প্রচার",
+    cat_other: "অন্যান্য খরচ",
     sign_out: "লগ আউট করুন",
 
     // Dashboard

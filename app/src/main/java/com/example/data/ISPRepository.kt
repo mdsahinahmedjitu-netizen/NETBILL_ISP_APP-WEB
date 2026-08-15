@@ -369,12 +369,14 @@ class ISPRepository(private val db: AppDatabase) {
         transactionId: String,
         collectorName: String,
         remarks: String,
-        date: String? = null
+        date: String? = null,
+        billingMonth: String? = null
     ): PaymentCollectionEntity? {
         val customer = customerDao.getCustomerById(customerId) ?: return null
         val currentDate = date ?: getCurrentDateString()
         val paymentId = UUID.randomUUID().toString()
         val receiptNo = "REC-${System.currentTimeMillis().toString().takeLast(6)}"
+        val finalBillingMonth = billingMonth ?: SimpleDateFormat("MMMM yyyy", Locale.US).format(Date())
 
         val payment = PaymentCollectionEntity(
             id = paymentId,
@@ -387,7 +389,8 @@ class ISPRepository(private val db: AppDatabase) {
             transactionId = transactionId,
             paymentDate = currentDate,
             collectorName = collectorName,
-            remarks = remarks
+            remarks = remarks,
+            billingMonth = finalBillingMonth
         )
 
         val allocations = mutableListOf<PaymentAllocationEntity>()
@@ -419,14 +422,13 @@ class ISPRepository(private val db: AppDatabase) {
 
         var updatedAdvance = customer.advanceBalance
         val timeStr = SimpleDateFormat("hh:mm a", Locale.US).format(Date())
-        val currentMonth = SimpleDateFormat("MMMM yyyy", Locale.US).format(Date())
 
         if (remainingPayment > 0) {
             updatedAdvance += remainingPayment
             ledgerEntries.add(LedgerEntryEntity(
                 id = UUID.randomUUID().toString(), customerId = customer.id, date = currentDate,
                 time = timeStr, type = "Advance", amount = remainingPayment, isDebit = false,
-                runningBalance = 0.0, monthYear = currentMonth, paymentMethod = paymentMethod,
+                runningBalance = 0.0, monthYear = finalBillingMonth, paymentMethod = paymentMethod,
                 collector = collectorName, referenceNo = receiptNo, description = "Advance payment stored"
             ))
         }
@@ -437,8 +439,8 @@ class ISPRepository(private val db: AppDatabase) {
         ledgerEntries.add(LedgerEntryEntity(
             id = UUID.randomUUID().toString(), customerId = customer.id, date = currentDate,
             time = timeStr, type = "Payment", amount = amount, isDebit = false,
-            runningBalance = totalCurrentDue, monthYear = currentMonth, paymentMethod = paymentMethod,
-            collector = collectorName, referenceNo = receiptNo, description = "Payment received"
+            runningBalance = totalCurrentDue, monthYear = finalBillingMonth, paymentMethod = paymentMethod,
+            collector = collectorName, referenceNo = receiptNo, description = "Payment for $finalBillingMonth"
         ))
 
         // Local First
