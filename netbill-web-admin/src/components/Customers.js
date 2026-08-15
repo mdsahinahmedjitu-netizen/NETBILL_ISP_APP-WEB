@@ -470,83 +470,70 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
           </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-6 relative">
-        <div id="customer-table-container" className={`flex-1 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden font-black transition-all duration-500`}>
-            <div className="overflow-x-auto custom-scrollbar min-h-[500px]">
-              <table className="w-full text-center uppercase tracking-tighter whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-700 text-[10px] text-slate-500 tracking-[1px] font-black uppercase">
-                  <tr>
-                    {visibleColumns.cb && <th className="p-4 text-center"><input type="checkbox" checked={selectedIds.length === filteredCustomers.length && filteredCustomers.length > 0} onChange={toggleSelectAll} className="w-6 h-6 rounded-lg border-slate-300 text-teal-600 focus:ring-0 cursor-pointer" /></th>}
-                    {visibleColumns.id && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('customerCode')}>{t.id} <i className={`fas ${getSortIcon('customerCode')} ml-1`}></i></th>}
-                    {visibleColumns.sl && <th className="p-3">{t.sl}</th>}
-                    {visibleColumns.customer && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('name')}>{t.customer} <i className={`fas ${getSortIcon('name')} ml-1`}></i></th>}
-                    {visibleColumns.mikrotik && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('pppoeUsername')}>{t.mikrotik_user} <i className={`fas ${getSortIcon('pppoeUsername')} ml-1`}></i></th>}
-                    {visibleColumns.zone && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('zone')}>{t.zone} <i className={`fas ${getSortIcon('zone')} ml-1`}></i></th>}
-                    {visibleColumns.plan && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('packageName')}>{t.plan} <i className={`fas ${getSortIcon('packageName')} ml-1`}></i></th>}
-                    {visibleColumns.bill && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('monthlyBill')}>{t.bill} <i className={`fas ${getSortIcon('monthlyBill')} ml-1`}></i></th>}
-                    {visibleColumns.join && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('joinDate')}>JOIN DATE <i className={`fas ${getSortIcon('joinDate')} ml-1`}></i></th>}
-                    {visibleColumns.expire && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('expireDate')}>{t.expire_date} <i className={`fas ${getSortIcon('expireDate')} ml-1`}></i></th>}
-                    {visibleColumns.collector && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('assignedStaffId')}>ASSIGNED COLLECTOR <i className={`fas ${getSortIcon('assignedStaffId')} ml-1`}></i></th>}
-                    {visibleColumns.status && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('status')}>{t.status} <i className={`fas ${getSortIcon('status')} ml-1`}></i></th>}
-                    {visibleColumns.online && <th className="p-3">{t.online}</th>}
-                    {visibleColumns.actions && <th className="p-4">{t.actions}</th>}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden font-black transition-all duration-500">
+          <div className="overflow-x-auto custom-scrollbar min-h-[500px]">
+            <table className="w-full text-center uppercase tracking-tighter whitespace-nowrap">
+              <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-700 text-[10px] text-slate-500 tracking-[1px] font-black uppercase">
+                <tr>
+                  {visibleColumns.cb && <th className="p-4 text-center"><input type="checkbox" checked={selectedIds.length === filteredCustomers.length && filteredCustomers.length > 0} onChange={toggleSelectAll} className="w-6 h-6 rounded-lg border-slate-300 text-teal-600 focus:ring-0 cursor-pointer" /></th>}
+                  {visibleColumns.id && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('customerCode')}>{t.id} <i className={`fas ${getSortIcon('customerCode')} ml-1`}></i></th>}
+                  {visibleColumns.sl && <th className="p-3">{t.sl}</th>}
+                  {visibleColumns.customer && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('name')}>{t.customer} <i className={`fas ${getSortIcon('name')} ml-1`}></i></th>}
+                  {visibleColumns.mikrotik && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('pppoeUsername')}>{t.mikrotik_user} <i className={`fas ${getSortIcon('pppoeUsername')} ml-1`}></i></th>}
+                  {visibleColumns.zone && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('zone')}>{t.zone} <i className={`fas ${getSortIcon('zone')} ml-1`}></i></th>}
+                  {visibleColumns.plan && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('packageName')}>{t.plan} <i className={`fas ${getSortIcon('packageName')} ml-1`}></i></th>}
+                  {visibleColumns.bill && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('monthlyBill')}>{t.bill} <i className={`fas ${getSortIcon('monthlyBill')} ml-1`}></i></th>}
+                  {visibleColumns.join && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('joinDate')}>JOIN DATE <i className={`fas ${getSortIcon('joinDate')} ml-1`}></i></th>}
+                  {visibleColumns.expire && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('expireDate')}>{t.expire_date} <i className={`fas ${getSortIcon('expireDate')} ml-1`}></i></th>}
+                  {visibleColumns.collector && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('assignedStaffId')}>ASSIGNED COLLECTOR <i className={`fas ${getSortIcon('assignedStaffId')} ml-1`}></i></th>}
+                  {visibleColumns.status && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('status')}>{t.status} <i className={`fas ${getSortIcon('status')} ml-1`}></i></th>}
+                  {visibleColumns.online && <th className="p-3">{t.online}</th>}
+                  {visibleColumns.actions && <th className="p-4">{t.actions}</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                {sortedCustomers.map((c, idx) => (
+                  <tr key={c.id} className={`transition-all hover:bg-teal-50/50`}>
+                    {visibleColumns.cb && <td className="p-4 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-6 h-6 rounded-lg border-slate-200 text-teal-600 cursor-pointer" /></td>}
+                    {visibleColumns.id && <td className="p-3 text-slate-600 text-[10px] font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
+                    {visibleColumns.sl && <td className="p-3 text-slate-400 text-[10px]">{idx + 1}</td>}
+                    {visibleColumns.customer && <td className="p-3 text-left font-black leading-tight"><p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-sm text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-0.5">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
+                    {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold">{c.pppoeUsername || '---'}</td>}
+                    {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
+                    {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
+                    {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => { const currentMonth = new Date().toLocaleDateString('en-CA').substring(0, 7); const paidThisMonth = store.payments.filter(p => p.customerId === c.id && p.paymentDate?.startsWith(currentMonth)).reduce((s, p) => s + (p.amount || 0), 0); return (<><p className="text-[11px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{c.monthlyBill}</p><p className="text-[11px] font-black text-emerald-600 mt-0.5 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p><p className="text-[14px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(c.currentDue)}</p>{c.advanceBalance > 0 && <p className="text-[9px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(c.advanceBalance)}</p>}</>); })()}</td>}
+                    {visibleColumns.join && <td className="p-3 text-[10px] text-slate-600 font-black">{formatDateDisplay(c.joinDate)}</td>}
+                    {visibleColumns.expire && <td className="p-3 text-center leading-tight"><p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter">{formatDateDisplay(c.expireDate)}</p><p className="text-[9px] font-black text-slate-400 mt-0.5 uppercase">Req: {formatDateDisplay(c.requestDate)}</p></td>}
+                    {visibleColumns.collector && (
+                      <td className="p-3 text-center">
+                        <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
+                          {store.staff?.find(s => s.id === c.assignedStaffId)?.name || c.assignedStaffId || '---'}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.status && <td className="p-3"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>{c.status}</span></td>}
+                    {visibleColumns.online && <td className="p-3 text-center"><div className={`w-3 h-3 rounded-full mx-auto shadow-lg ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-100 dark:ring-emerald-900/30' : 'bg-slate-300'}`}></div></td>}
+                    {visibleColumns.actions && (
+                      <td className="p-4 relative">
+                         <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
+                         {activeMenuId === c.id && (
+                           <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
+                              <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => setActivePage('payments')} />
+                              <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
+                              <ActionItem icon="fa-user-circle" label="Full Profile" color="text-blue-600" onClick={() => setProfileId(c.id)} />
+                              <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
+                              <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
+                              <ActionItem icon="fa-edit" label="Edit" color="text-slate-600" onClick={() => openEditModal(c)} />
+                              <ActionItem icon="fa-trash" label="Delete" color="text-rose-600" onClick={() => handleDelete(c.id)} />
+                           </div>
+                         )}
+                      </td>
+                    )}
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                  {sortedCustomers.map((c, idx) => (
-                    <tr key={c.id} onClick={() => setSelectedCust(c)} className={`cursor-pointer transition-all hover:bg-teal-50/50 ${selectedCust?.id === c.id ? 'bg-teal-50/70 border-l-8 border-teal-500 shadow-inner' : ''}`}>
-                      {visibleColumns.cb && <td className="p-4 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-6 h-6 rounded-lg border-slate-200 text-teal-600 cursor-pointer" /></td>}
-                      {visibleColumns.id && <td className="p-3 text-slate-600 text-[10px] font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
-                      {visibleColumns.sl && <td className="p-3 text-slate-400 text-[10px]">{idx + 1}</td>}
-                      {visibleColumns.customer && <td className="p-3 text-left font-black leading-tight"><p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-sm text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-0.5">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
-                      {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold">{c.pppoeUsername || '---'}</td>}
-                      {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
-                      {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
-                      {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => { const currentMonth = new Date().toLocaleDateString('en-CA').substring(0, 7); const paidThisMonth = store.payments.filter(p => p.customerId === c.id && p.paymentDate?.startsWith(currentMonth)).reduce((s, p) => s + (p.amount || 0), 0); return (<><p className="text-[11px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{c.monthlyBill}</p><p className="text-[11px] font-black text-emerald-600 mt-0.5 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p><p className="text-[14px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(c.currentDue)}</p>{c.advanceBalance > 0 && <p className="text-[9px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(c.advanceBalance)}</p>}</>); })()}</td>}
-                      {visibleColumns.join && <td className="p-3 text-[10px] text-slate-600 font-black">{formatDateDisplay(c.joinDate)}</td>}
-                      {visibleColumns.expire && <td className="p-3 text-center leading-tight"><p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter">{formatDateDisplay(c.expireDate)}</p><p className="text-[9px] font-black text-slate-400 mt-0.5 uppercase">Req: {formatDateDisplay(c.requestDate)}</p></td>}
-                      {visibleColumns.collector && (
-                        <td className="p-3 text-center">
-                          <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
-                            {store.staff?.find(s => s.id === c.assignedStaffId)?.name || c.assignedStaffId || '---'}
-                          </span>
-                        </td>
-                      )}
-                      {visibleColumns.status && <td className="p-3"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>{c.status}</span></td>}
-                      {visibleColumns.online && <td className="p-3 text-center"><div className={`w-3 h-3 rounded-full mx-auto shadow-lg ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-100 dark:ring-emerald-900/30' : 'bg-slate-300'}`}></div></td>}
-                      {visibleColumns.actions && (
-                        <td className="p-4 relative">
-                           <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
-                           {activeMenuId === c.id && (
-                             <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
-                                <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => setActivePage('payments')} />
-                                <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
-                                <ActionItem icon="fa-user-circle" label="Full Profile" color="text-blue-600" onClick={() => setProfileId(c.id)} />
-                                <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
-                                <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
-                                <ActionItem icon="fa-user-circle" label="Profile" color="text-blue-600" onClick={() => { setSelectedCust(c); setActiveMenuId(null); }} />
-                                <ActionItem icon="fa-edit" label="Edit" color="text-slate-600" onClick={() => openEditModal(c)} />
-                                <ActionItem icon="fa-trash" label="Delete" color="text-rose-600" onClick={() => handleDelete(c.id)} />
-                             </div>
-                           )}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-        </div>
-
-        {selectedCust && (
-          <div className="w-full xl:w-[380px] bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 p-8 space-y-8 h-fit sticky top-6 font-black uppercase animate-slideInRight">
-             <div className="flex justify-between items-center"><h4 className="text-sm font-black text-slate-400 uppercase tracking-[3px]">Subscriber Profile</h4><button onClick={() => setSelectedCust(null)} className="w-8 h-8 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-lg hover:rotate-90 transition-transform"><i className="fas fa-times text-xs"></i></button></div>
-             <div className="text-center space-y-4"><div className="w-24 h-24 bg-teal-50 dark:bg-slate-900 rounded-3xl flex items-center justify-center mx-auto text-teal-600 text-4xl shadow-inner border-2 border-teal-100"><i className="fas fa-user-tie"></i></div><div><h4 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{selectedCust.name}</h4><p className="text-xs text-teal-600 font-bold mt-2 uppercase tracking-[4px]">{selectedCust.customerCode}</p></div></div>
-             <div className="grid grid-cols-2 gap-4 uppercase"><div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl text-center shadow-inner border border-slate-100 dark:border-slate-700"><p className="text-[9px] text-slate-400 mb-2 uppercase font-black tracking-widest">DUE</p><p className="text-2xl text-rose-500 font-black tracking-tighter uppercase">৳ {Math.floor(selectedCust.currentDue)}</p></div><div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl text-center shadow-inner border border-slate-100 dark:border-slate-700"><p className="text-[9px] text-slate-400 mb-2 uppercase font-black tracking-widest">ADVANCE</p><p className="text-2xl text-emerald-600 font-black tracking-tighter uppercase">৳ {Math.floor(selectedCust.advanceBalance || 0)}</p></div></div>
-             <div className="space-y-6"><h5 className="text-[10px] font-black text-slate-400 border-b pb-3 uppercase tracking-[5px] uppercase">{t.statement_ledger}</h5><div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">{ledger.map(entry => (<div key={entry.id} className="flex justify-between items-center bg-slate-50/70 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all hover:scale-105 shadow-md"><div><p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-tighter">{entry.type}</p><p className="text-[9px] text-slate-400 font-bold uppercase mt-1 uppercase tracking-widest">{formatDateDisplay(entry.date)}</p></div><p className={`text-lg font-black ${entry.isDebit ? 'text-rose-500' : 'text-emerald-500'}`}>{entry.isDebit ? '+' : '-'} ৳ {entry.amount}</p></div>))}</div></div>
-             <button className="w-full bg-[#0D9488] text-white py-4 rounded-2xl font-black uppercase tracking-[5px] shadow-2xl hover:brightness-110 active:scale-95 transition-all border-b-4 border-teal-900">{t.download_pdf}</button>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
       </div>
 
       {/* DYNAMIC IMPORT MODAL */}
@@ -570,6 +557,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         csvHeaders={csvHeaders}
         mapping={mapping}
         setMapping={setMapping}
+        importStatus={importStatus}
         startBulkImport={startBulkImport}
         t={t}
         showFilterDrawer={showFilterDrawer}
@@ -689,6 +677,172 @@ const ActionModals = ({
   showDateChangeModal, setShowDateChangeModal, custToChangeDate, newDates, setNewDates, handleQuickDateUpdate
 }) => (
     <>
+      {showColumnSelector && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[600] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl border-2 border-slate-100">
+             <div className="flex justify-between items-center border-b pb-8"><h3 className="text-3xl font-black uppercase tracking-tighter">{t.select_columns}</h3><button onClick={() => setShowColumnSelector(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button></div>
+             <div className="grid grid-cols-2 gap-4 pt-6">{Object.keys(visibleColumns).map(col => (<label key={col} className={`flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 ${visibleColumns[col] ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-transparent opacity-60'}`}><span className={`font-black uppercase tracking-widest text-[10px] ${visibleColumns[col] ? 'text-teal-700' : 'text-slate-400'}`}>{col}</span><input type="checkbox" checked={visibleColumns[col]} onChange={() => setVisibleColumns({...visibleColumns, [col]: !visibleColumns[col]})} className="w-7 h-7 rounded-xl text-teal-600 focus:ring-0 cursor-pointer" /></label>))}</div>
+             <button onClick={() => setShowColumnSelector(false)} className="w-full bg-[#0D9488] text-white py-7 rounded-[32px] font-black uppercase tracking-[5px] shadow-2xl">Save Settings</button>
+          </div>
+        </div>
+      )}
+
+      {showSmsModal && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[300] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl space-y-10 border-2 border-slate-100">
+             <div className="flex justify-between items-center"><h3 className="text-4xl font-black uppercase tracking-tighter">{t.sms_send}</h3><button onClick={() => setShowSmsModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button></div>
+             <p className="text-sm font-black text-slate-400">Target Recipients: <span className="text-teal-600">{selectedIds.length || 'All filtered'}</span></p>
+             <textarea value={smsMessage} onChange={(e) => setSmsMessage(e.target.value)} placeholder="Type message..." className="w-full h-60 bg-slate-50 dark:bg-slate-900 p-8 rounded-[48px] border-none font-black text-2xl" />
+             <button onClick={sendSms} className="w-full bg-indigo-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl">Broadcast Launch</button>
+          </div>
+        </div>
+      )}
+
+      {showFilterDrawer && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex justify-end animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md h-full shadow-[-20px_0_50px_rgba(0,0,0,0.1)] p-10 space-y-10 animate-slideInRight relative overflow-y-auto">
+             <div className="flex justify-between items-center border-b pb-6">
+                <div className="flex items-center space-x-4">
+                   <div className="w-12 h-12 bg-teal-500 text-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fas fa-filter text-xl"></i></div>
+                   <h3 className="text-2xl font-black uppercase tracking-tighter">Advanced Filters</h3>
+                </div>
+                <button onClick={() => setShowFilterDrawer(false)} className="text-slate-300 hover:text-rose-500 transition-colors"><i className="fas fa-times-circle text-3xl"></i></button>
+             </div>
+
+             <div className="space-y-8">
+                <FilterSelect
+                   label="Assigned Collector"
+                   value={filters.collector}
+                   options={['All', 'Admin', ...store.staff?.map(s => s.name)]}
+                   onChange={v => setFilters({...filters, collector: v})}
+                />
+
+                {/* Zone Filter with Search */}
+                <div className="space-y-3 relative">
+                  <label className="text-[10px] text-slate-400 ml-2 tracking-[3px] font-black uppercase">Zone / Area</label>
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      placeholder="Search or Select Zone..."
+                      value={filters.zone === 'All' ? '' : filters.zone}
+                      onChange={e => setFilters({...filters, zone: e.target.value || 'All'})}
+                      className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-black text-xs outline-none focus:ring-2 focus:ring-teal-500/20 uppercase shadow-inner"
+                    />
+                    <i className="fas fa-search absolute right-5 top-4 text-slate-300"></i>
+
+                    {/* Suggestions for Zone Filter */}
+                    {store.zones?.filter(z => z.name.toLowerCase().includes(filters.zone?.toLowerCase())).length > 0 && filters.zone !== 'All' && filters.zone !== '' && !store.zones.some(z => z.name === filters.zone) && (
+                      <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[6000] overflow-hidden max-h-40 overflow-y-auto">
+                        <div onClick={() => setFilters({...filters, zone: 'All'})} className="p-4 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b font-black text-[10px] text-slate-400">RESET TO ALL</div>
+                        {store.zones.filter(z => z.name.toLowerCase().includes(filters.zone.toLowerCase())).map(z => (
+                          <div
+                            key={z.id}
+                            onClick={() => setFilters({...filters, zone: z.name})}
+                            className="p-4 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b last:border-0 font-black text-[10px]"
+                          >
+                            {z.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <FilterSelect
+                   label="Account Status"
+                   value={filters.status}
+                   options={['All', 'Active', 'Inactive', 'Expired']}
+                   onChange={v => setFilters({...filters, status: v})}
+                />
+                <FilterSelect
+                   label="Package Plan"
+                   value={filters.plan}
+                   options={['All', ...store.packages?.map(p => p.name)]}
+                   onChange={v => setFilters({...filters, plan: v})}
+                />
+
+                <div className="pt-4">
+                  <label className="flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 bg-rose-50 border-rose-100 dark:bg-rose-900/10">
+                    <div className="space-y-1">
+                      <span className="font-black uppercase tracking-widest text-[11px] text-rose-700 dark:text-rose-400">Hide Paid Customers</span>
+                      <p className="text-[9px] font-bold text-rose-400 uppercase leading-none">Show only subscribers with DUE</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={filters.hideZeroDue}
+                      onChange={() => setFilters({...filters, hideZeroDue: !filters.hideZeroDue})}
+                      className="w-7 h-7 rounded-xl text-rose-600 focus:ring-0 cursor-pointer"
+                    />
+                  </label>
+                </div>
+             </div>
+
+             <div className="pt-10 space-y-4">
+                <button
+                   onClick={() => setFilters({collector: 'All', zone: 'All', status: 'All', plan: 'All', hideZeroDue: false})}
+                   className="w-full py-5 rounded-2xl border-2 border-slate-100 text-slate-400 font-black text-xs tracking-[4px] hover:bg-slate-50 transition-all"
+                >RESET FILTERS</button>
+                <button
+                   onClick={() => setShowFilterDrawer(false)}
+                   className="w-full bg-[#0D9488] text-white py-6 rounded-2xl font-black text-xs tracking-[5px] shadow-2xl shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+                >APPLY FILTERS</button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[800] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-4xl p-14 shadow-2xl border-2 border-slate-100 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-4 bg-rose-600 shadow-lg"></div>
+             <div className="flex justify-between items-center border-b pb-8">
+                <h3 className="text-4xl font-black uppercase tracking-tighter">Subscriber Bulk Import Engine</h3>
+                <button onClick={() => { setShowImportModal(false); setImportStep(1); }} className="text-rose-500 text-3xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+             </div>
+
+             {importStep === 1 ? (
+                <div className="py-12 space-y-8 text-center">
+                   <div className="p-20 bg-slate-50 dark:bg-slate-900 rounded-[56px] border-4 border-dashed border-slate-200 dark:border-slate-700 group hover:border-teal-500 transition-all">
+                      <i className="fas fa-cloud-upload-alt text-[100px] text-slate-300 group-hover:text-teal-500 transition-colors mb-8"></i>
+                      <p className="text-sm font-black text-slate-500 mb-10 tracking-[5px]">DROP YOUR CSV FILE HERE</p>
+                      <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" id="csv-upload-main" />
+                      <label htmlFor="csv-upload-main" className="bg-slate-900 text-white px-16 py-6 rounded-[32px] font-black cursor-pointer hover:bg-teal-600 transition-all shadow-2xl tracking-[5px]">Select Source File</label>
+                   </div>
+                   <p className="text-[10px] text-slate-400 font-bold tracking-[3px]">SUPPORTED FORMATS: .CSV (EXCEL COMPATIBLE)</p>
+                </div>
+             ) : (
+                <div className="py-10 space-y-10">
+                   <div className="grid grid-cols-2 gap-8 max-h-[450px] overflow-y-auto pr-6 custom-scrollbar">
+                      {dbFields.map(field => (
+                        <div key={field.key} className="bg-slate-50 dark:bg-slate-900 p-6 rounded-[32px] flex items-center justify-between border-2 border-slate-100 dark:border-slate-800 transition-all hover:border-teal-500/30">
+                           <div className="space-y-1">
+                              <p className="text-[10px] text-slate-400 font-black tracking-widest">{field.label}</p>
+                              <p className="text-sm font-black text-slate-800 dark:text-white uppercase leading-none">{field.key}</p>
+                           </div>
+                           <select
+                             value={mapping[field.key] || ''}
+                             onChange={(e) => setMapping({...mapping, [field.key]: e.target.value})}
+                             className="bg-white dark:bg-slate-800 border-none rounded-2xl p-3 font-black text-[11px] shadow-sm text-teal-600 outline-none w-48 cursor-pointer"
+                           >
+                              <option value="">-- No Match --</option>
+                              {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                           </select>
+                        </div>
+                      ))}
+                   </div>
+                   <div className="flex flex-col items-center space-y-6 pt-6 border-t">
+                      {importStatus && <p className="text-rose-600 font-black text-xl animate-pulse tracking-widest">{importStatus}</p>}
+                      <div className="flex space-x-4 w-full">
+                         <button onClick={() => setImportStep(1)} className="flex-1 bg-slate-100 text-slate-500 py-7 rounded-[32px] font-black tracking-[5px]">GO BACK</button>
+                         <button onClick={startBulkImport} className="flex-[2] bg-rose-600 text-white py-7 rounded-[32px] font-black tracking-[8px] shadow-2xl hover:brightness-110 active:scale-95 transition-all">LAUNCH IMPORT PROCESS</button>
+                      </div>
+                   </div>
+                </div>
+             )}
+          </div>
+        </div>
+      )}
+
       {showDateChangeModal && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[5000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-xl p-12 shadow-2xl border-4 border-amber-500/20 space-y-8 relative overflow-hidden">
@@ -813,170 +967,6 @@ const ActionModals = ({
              >
                 UPDATE LOCATION
              </button>
-          </div>
-        </div>
-      )}
-      {showFilterDrawer && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex justify-end animate-fadeIn font-black uppercase">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-md h-full shadow-[-20px_0_50px_rgba(0,0,0,0.1)] p-10 space-y-10 animate-slideInRight relative overflow-y-auto">
-             <div className="flex justify-between items-center border-b pb-6">
-                <div className="flex items-center space-x-4">
-                   <div className="w-12 h-12 bg-teal-500 text-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fas fa-filter text-xl"></i></div>
-                   <h3 className="text-2xl font-black uppercase tracking-tighter">Advanced Filters</h3>
-                </div>
-                <button onClick={() => setShowFilterDrawer(false)} className="text-slate-300 hover:text-rose-500 transition-colors"><i className="fas fa-times-circle text-3xl"></i></button>
-             </div>
-
-             <div className="space-y-8">
-                <FilterSelect
-                   label="Assigned Collector"
-                   value={filters.collector}
-                   options={['All', 'Admin', ...store.staff?.map(s => s.name)]}
-                   onChange={v => setFilters({...filters, collector: v})}
-                />
-
-                {/* Zone Filter with Search */}
-                <div className="space-y-3 relative">
-                  <label className="text-[10px] text-slate-400 ml-2 tracking-[3px] font-black uppercase">Zone / Area</label>
-                  <div className="relative group">
-                    <input
-                      type="text"
-                      placeholder="Search or Select Zone..."
-                      value={filters.zone === 'All' ? '' : filters.zone}
-                      onChange={e => setFilters({...filters, zone: e.target.value || 'All'})}
-                      className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-black text-xs outline-none focus:ring-2 focus:ring-teal-500/20 uppercase shadow-inner"
-                    />
-                    <i className="fas fa-search absolute right-5 top-4 text-slate-300"></i>
-
-                    {/* Suggestions for Zone Filter */}
-                    {store.zones?.filter(z => z.name.toLowerCase().includes(filters.zone?.toLowerCase())).length > 0 && filters.zone !== 'All' && filters.zone !== '' && !store.zones.some(z => z.name === filters.zone) && (
-                      <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[6000] overflow-hidden max-h-40 overflow-y-auto">
-                        <div onClick={() => setFilters({...filters, zone: 'All'})} className="p-4 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b font-black text-[10px] text-slate-400">RESET TO ALL</div>
-                        {store.zones.filter(z => z.name.toLowerCase().includes(filters.zone.toLowerCase())).map(z => (
-                          <div
-                            key={z.id}
-                            onClick={() => setFilters({...filters, zone: z.name})}
-                            className="p-4 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b last:border-0 font-black text-[10px]"
-                          >
-                            {z.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <FilterSelect
-                   label="Account Status"
-                   value={filters.status}
-                   options={['All', 'Active', 'Inactive', 'Expired']}
-                   onChange={v => setFilters({...filters, status: v})}
-                />
-                <FilterSelect
-                   label="Package Plan"
-                   value={filters.plan}
-                   options={['All', ...store.packages?.map(p => p.name)]}
-                   onChange={v => setFilters({...filters, plan: v})}
-                />
-
-                <div className="pt-4">
-                  <label className="flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 bg-rose-50 border-rose-100 dark:bg-rose-900/10">
-                    <div className="space-y-1">
-                      <span className="font-black uppercase tracking-widest text-[11px] text-rose-700 dark:text-rose-400">Hide Paid Customers</span>
-                      <p className="text-[9px] font-bold text-rose-400 uppercase leading-none">Show only subscribers with DUE</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={filters.hideZeroDue}
-                      onChange={() => setFilters({...filters, hideZeroDue: !filters.hideZeroDue})}
-                      className="w-7 h-7 rounded-xl text-rose-600 focus:ring-0 cursor-pointer"
-                    />
-                  </label>
-                </div>
-             </div>
-
-             <div className="pt-10 space-y-4">
-                <button
-                   onClick={() => setFilters({collector: 'All', zone: 'All', status: 'All', plan: 'All', hideZeroDue: false})}
-                   className="w-full py-5 rounded-2xl border-2 border-slate-100 text-slate-400 font-black text-xs tracking-[4px] hover:bg-slate-50 transition-all"
-                >RESET FILTERS</button>
-                <button
-                   onClick={() => setShowFilterDrawer(false)}
-                   className="w-full bg-[#0D9488] text-white py-6 rounded-2xl font-black text-xs tracking-[5px] shadow-2xl shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all"
-                >APPLY FILTERS</button>
-             </div>
-          </div>
-        </div>
-      )}
-      {showColumnSelector && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[600] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
-          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl border-2 border-slate-100">
-             <div className="flex justify-between items-center border-b pb-8"><h3 className="text-3xl font-black uppercase tracking-tighter">{t.select_columns}</h3><button onClick={() => setShowColumnSelector(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button></div>
-             <div className="grid grid-cols-2 gap-4 pt-6">{Object.keys(visibleColumns).map(col => (<label key={col} className={`flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 ${visibleColumns[col] ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-transparent opacity-60'}`}><span className={`font-black uppercase tracking-widest text-[10px] ${visibleColumns[col] ? 'text-teal-700' : 'text-slate-400'}`}>{col}</span><input type="checkbox" checked={visibleColumns[col]} onChange={() => setVisibleColumns({...visibleColumns, [col]: !visibleColumns[col]})} className="w-7 h-7 rounded-xl text-teal-600 focus:ring-0 cursor-pointer" /></label>))}</div>
-             <button onClick={() => setShowColumnSelector(false)} className="w-full bg-[#0D9488] text-white py-7 rounded-[32px] font-black uppercase tracking-[5px] shadow-2xl">Save Settings</button>
-          </div>
-        </div>
-      )}
-
-      {showSmsModal && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[300] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
-          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl space-y-10 border-2 border-slate-100">
-             <div className="flex justify-between items-center"><h3 className="text-4xl font-black uppercase tracking-tighter">{t.sms_send}</h3><button onClick={() => setShowSmsModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button></div>
-             <p className="text-sm font-black text-slate-400">Target Recipients: <span className="text-teal-600">{selectedIds.length || 'All filtered'}</span></p>
-             <textarea value={smsMessage} onChange={(e) => setSmsMessage(e.target.value)} placeholder="Type message..." className="w-full h-60 bg-slate-50 dark:bg-slate-900 p-8 rounded-[48px] border-none font-black text-2xl" />
-             <button onClick={sendSms} className="w-full bg-indigo-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl">Broadcast Launch</button>
-          </div>
-        </div>
-      )}
-
-      {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[800] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
-          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-4xl p-14 shadow-2xl border-2 border-slate-100 relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-full h-4 bg-rose-600 shadow-lg"></div>
-             <div className="flex justify-between items-center border-b pb-8">
-                <h3 className="text-4xl font-black uppercase tracking-tighter">Subscriber Bulk Import Engine</h3>
-                <button onClick={() => { setShowImportModal(false); setImportStep(1); }} className="text-rose-500 text-3xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
-             </div>
-
-             {importStep === 1 ? (
-                <div className="py-12 space-y-8 text-center">
-                   <div className="p-20 bg-slate-50 dark:bg-slate-900 rounded-[56px] border-4 border-dashed border-slate-200 dark:border-slate-700 group hover:border-teal-500 transition-all">
-                      <i className="fas fa-cloud-upload-alt text-[100px] text-slate-300 group-hover:text-teal-500 transition-colors mb-8"></i>
-                      <p className="text-sm font-black text-slate-500 mb-10 tracking-[5px]">DROP YOUR CSV FILE HERE</p>
-                      <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" id="csv-upload-main" />
-                      <label htmlFor="csv-upload-main" className="bg-slate-900 text-white px-16 py-6 rounded-[32px] font-black cursor-pointer hover:bg-teal-600 transition-all shadow-2xl tracking-[5px]">Select Source File</label>
-                   </div>
-                   <p className="text-[10px] text-slate-400 font-bold tracking-[3px]">SUPPORTED FORMATS: .CSV (EXCEL COMPATIBLE)</p>
-                </div>
-             ) : (
-                <div className="py-10 space-y-10">
-                   <div className="grid grid-cols-2 gap-8 max-h-[450px] overflow-y-auto pr-6 custom-scrollbar">
-                      {dbFields.map(field => (
-                        <div key={field.key} className="bg-slate-50 dark:bg-slate-900 p-6 rounded-[32px] flex items-center justify-between border-2 border-slate-100 dark:border-slate-800 transition-all hover:border-teal-500/30">
-                           <div className="space-y-1">
-                              <p className="text-[10px] text-slate-400 font-black tracking-widest">{field.label}</p>
-                              <p className="text-sm font-black text-slate-800 dark:text-white uppercase leading-none">{field.key}</p>
-                           </div>
-                           <select
-                             value={mapping[field.key] || ''}
-                             onChange={(e) => setMapping({...mapping, [field.key]: e.target.value})}
-                             className="bg-white dark:bg-slate-800 border-none rounded-2xl p-3 font-black text-[11px] shadow-sm text-teal-600 outline-none w-48 cursor-pointer"
-                           >
-                              <option value="">-- No Match --</option>
-                              {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                           </select>
-                        </div>
-                      ))}
-                   </div>
-                   <div className="flex flex-col items-center space-y-6 pt-6 border-t">
-                      {importStatus && <p className="text-rose-600 font-black text-xl animate-pulse tracking-widest">{importStatus}</p>}
-                      <div className="flex space-x-4 w-full">
-                         <button onClick={() => setImportStep(1)} className="flex-1 bg-slate-100 text-slate-500 py-7 rounded-[32px] font-black tracking-[5px]">GO BACK</button>
-                         <button onClick={startBulkImport} className="flex-[2] bg-rose-600 text-white py-7 rounded-[32px] font-black tracking-[8px] shadow-2xl hover:brightness-110 active:scale-95 transition-all">LAUNCH IMPORT PROCESS</button>
-                      </div>
-                   </div>
-                </div>
-             )}
           </div>
         </div>
       )}
