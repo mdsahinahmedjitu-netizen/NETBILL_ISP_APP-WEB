@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebaseConfig';
-import { collection, onSnapshot, doc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Customers from './components/Customers';
@@ -46,6 +46,11 @@ function App() {
   });
   const [autoOpenAddModal, setAutoOpenAddModal] = useState(false);
   const [showExpiryModal, setShowExpiryModal] = useState(false);
+
+  // Quick Edit States in Global Scope
+  const [showQuickDateModal, setShowQuickDateModal] = useState(false);
+  const [quickDateCust, setQuickDateCust] = useState(null);
+  const [quickDates, setQuickDates] = useState({ expireDate: '', requestDate: '' });
 
   // Expose modal control globally for Dashboard
   window.openExpiryModal = () => setShowExpiryModal(true);
@@ -144,6 +149,17 @@ function App() {
   const navigateToAddCustomer = () => {
     setAutoOpenAddModal(true);
     setActivePage('customers');
+  };
+
+  const handleGlobalQuickDateUpdate = async () => {
+    if (!quickDateCust) return;
+    try {
+      await updateDoc(doc(db, "customers", quickDateCust.id), quickDates);
+      alert("Dates Synchronized Successfully!");
+      setShowQuickDateModal(false);
+    } catch (e) {
+      alert("Cloud sync failed.");
+    }
   };
 
   if (!session) return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -246,22 +262,34 @@ function App() {
 
               <div className="max-h-[400px] md:max-h-[500px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                  {expiringTomorrow.map(c => (
-                   <div key={c.id} className="bg-slate-50 dark:bg-slate-900/50 p-5 md:p-6 rounded-[32px] flex justify-between items-center border-2 border-slate-100 dark:border-slate-800 hover:border-rose-500/30 transition-all group shadow-sm">
-                      <div className="flex items-center space-x-4 md:space-x-5">
-                         <div className="w-12 h-12 md:w-14 md:h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-xl md:text-2xl text-slate-300 group-hover:text-rose-500 transition-colors shadow-inner border border-slate-50 dark:border-slate-700">
-                            <i className="fas fa-user"></i>
-                         </div>
-                         <div className="space-y-1">
-                            <p className="text-lg md:text-xl font-black text-slate-800 dark:text-white uppercase leading-none tracking-tighter">{c.name}</p>
-                            <div className="flex flex-wrap gap-2 items-center">
-                               <span className="text-[9px] font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-2 py-0.5 rounded-lg tracking-widest">#{c.customerCode}</span>
-                               <span className="text-[9px] font-black text-slate-400 tracking-widest">{c.pppoeUsername}</span>
+                   <div
+                     key={c.id}
+                     onClick={() => {
+                        setQuickDateCust(c);
+                        setQuickDates({ expireDate: c.expireDate || '', requestDate: c.requestDate || '' });
+                        setShowQuickDateModal(true);
+                     }}
+                     className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[32px] border-2 border-slate-100 dark:border-slate-800 hover:border-teal-500/50 transition-all group shadow-sm cursor-pointer"
+                   >
+                      <div className="flex justify-between items-start">
+                         <div className="flex items-center space-x-5">
+                            <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-2xl text-slate-300 group-hover:text-teal-500 transition-colors shadow-inner border border-slate-50 dark:border-slate-700">
+                               <i className="fas fa-user"></i>
+                            </div>
+                            <div className="space-y-1">
+                               <p className="text-xl font-black text-slate-800 dark:text-white uppercase leading-none tracking-tighter">{c.name}</p>
+                               <p className="text-xs font-black text-indigo-600 tracking-widest">{c.mobile}</p>
+                               <div className="flex flex-wrap gap-2 items-center pt-1">
+                                  <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg tracking-widest uppercase">{c.zone || 'No Zone'}</span>
+                                  <span className="text-[9px] font-black text-slate-400 tracking-widest">{c.pppoeUsername}</span>
+                               </div>
                             </div>
                          </div>
-                      </div>
-                      <div className="text-right flex flex-col items-end">
-                         <p className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">EXPIRES</p>
-                         <p className="text-sm md:text-lg font-black text-rose-600 bg-rose-50 dark:bg-rose-900/20 px-4 py-1.5 rounded-xl border border-rose-100 dark:border-rose-800 leading-none">{formatDateDisplay(c.expireDate)}</p>
+                         <div className="text-right">
+                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1 leading-none">CURRENT DUE</p>
+                            <p className="text-2xl font-black text-rose-500 tracking-tighter leading-none">৳{Math.floor(c.currentDue)}</p>
+                            <span className="inline-block mt-2 bg-rose-50 text-rose-600 px-3 py-1 rounded-lg text-[9px] font-black border border-rose-100 uppercase animate-pulse">EXPIRING TOMORROW</span>
+                         </div>
                       </div>
                    </div>
                  ))}
@@ -277,6 +305,54 @@ function App() {
                  </button>
               </div>
            </div>
+        </div>
+      )}
+
+      {/* QUICK DATE CHANGE MODAL FROM ALERT */}
+      {showQuickDateModal && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[20000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-lg p-12 shadow-2xl border-4 border-teal-500/20 space-y-10 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-teal-500"></div>
+             <div className="flex justify-between items-center border-b pb-6">
+                <div>
+                   <h3 className="text-3xl font-black uppercase tracking-tighter leading-none text-slate-800 dark:text-white">Quick Update</h3>
+                   <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-[3px] uppercase">Client: {quickDateCust?.name}</p>
+                </div>
+                <button onClick={() => setShowQuickDateModal(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+             </div>
+
+             <div className="space-y-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px] font-black uppercase">Expire Date</label>
+                  <input
+                    type="date"
+                    value={quickDates.expireDate}
+                    onChange={e => setQuickDates({...quickDates, expireDate: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl font-black text-lg outline-none border-none shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px] font-black uppercase">Request Date</label>
+                  <input
+                    type="date"
+                    value={quickDates.requestDate}
+                    onChange={e => setQuickDates({...quickDates, requestDate: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl font-black text-lg outline-none border-none shadow-inner"
+                  />
+                </div>
+             </div>
+
+             <div className="flex space-x-4">
+                <button onClick={() => setShowQuickDateModal(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 py-6 rounded-3xl font-black text-xs tracking-widest text-slate-400">CANCEL</button>
+                <button
+                  onClick={handleGlobalQuickDateUpdate}
+                  className="flex-[2] bg-teal-600 text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                   SAVE CHANGES
+                </button>
+             </div>
+          </div>
         </div>
       )}
     </div>
