@@ -20,6 +20,11 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const [custToChangeZone, setCustToChangeZone] = useState(null);
   const [newZoneData, setNewZoneData] = useState({ zone: '', subZone: '', boxId: '' });
 
+  // Quick Date Change States
+  const [showDateChangeModal, setShowDateChangeModal] = useState(false);
+  const [custToChangeDate, setCustToChangeDate] = useState(null);
+  const [newDates, setNewDates] = useState({ expireDate: '', requestDate: '' });
+
   const [visibleColumns, setVisibleColumns] = useState({
     cb: true, id: true, sl: true, customer: true, mikrotik: true, zone: true,
     plan: true, bill: true, join: true, expire: true, collector: true, status: true, online: true, actions: true
@@ -368,6 +373,28 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
     }
   };
 
+  const openDateChangeModal = (cust) => {
+    setCustToChangeDate(cust);
+    setNewDates({
+      expireDate: cust.expireDate || '',
+      requestDate: cust.requestDate || ''
+    });
+    setShowDateChangeModal(true);
+    setActiveMenuId(null);
+  };
+
+  const handleQuickDateUpdate = async () => {
+    if (!custToChangeDate) return;
+    try {
+      await updateDoc(doc(db, "customers", custToChangeDate.id), newDates);
+      alert("Dates Updated Successfully!");
+      setShowDateChangeModal(false);
+      setCustToChangeDate(null);
+    } catch (e) {
+      alert("Failed to update dates.");
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -493,7 +520,8 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                            {activeMenuId === c.id && (
                              <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
                                 <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => setActivePage('payments')} />
-                                <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable' : 'Enable'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
+                                <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
+                                <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
                                 <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
                                 <ActionItem icon="fa-user-circle" label="Profile" color="text-blue-600" onClick={() => { setSelectedCust(c); setActiveMenuId(null); }} />
                                 <ActionItem icon="fa-edit" label="Edit" color="text-slate-600" onClick={() => openEditModal(c)} />
@@ -554,6 +582,12 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         newZoneData={newZoneData}
         setNewZoneData={setNewZoneData}
         handleQuickZoneUpdate={handleQuickZoneUpdate}
+        showDateChangeModal={showDateChangeModal}
+        setShowDateChangeModal={setShowDateChangeModal}
+        custToChangeDate={custToChangeDate}
+        newDates={newDates}
+        setNewDates={setNewDates}
+        handleQuickDateUpdate={handleQuickDateUpdate}
       />
 
       {showModal && (
@@ -650,9 +684,54 @@ const ActionModals = ({
   showImportModal, setShowImportModal, importStep, setImportStep, handleFileUpload,
   dbFields, csvHeaders, mapping, setMapping, importStatus, startBulkImport, t,
   showFilterDrawer, setShowFilterDrawer, filters, setFilters, store,
-  showZoneChangeModal, setShowZoneChangeModal, custToChangeZone, newZoneData, setNewZoneData, handleQuickZoneUpdate
+  showZoneChangeModal, setShowZoneChangeModal, custToChangeZone, newZoneData, setNewZoneData, handleQuickZoneUpdate,
+  showDateChangeModal, setShowDateChangeModal, custToChangeDate, newDates, setNewDates, handleQuickDateUpdate
 }) => (
     <>
+      {showDateChangeModal && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[5000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-xl p-12 shadow-2xl border-4 border-amber-500/20 space-y-8 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-amber-500"></div>
+             <div className="flex justify-between items-center border-b pb-6">
+                <div>
+                   <h3 className="text-3xl font-black uppercase tracking-tighter leading-none">Update Dates</h3>
+                   <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-[3px]">Subscriber: {custToChangeDate?.name}</p>
+                </div>
+                <button onClick={() => setShowDateChangeModal(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+             </div>
+
+             <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px]">Expire Date</label>
+                  <input
+                    type="date"
+                    value={newDates.expireDate}
+                    onChange={e => setNewDates({...newDates, expireDate: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none cursor-pointer shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px]">Request Date</label>
+                  <input
+                    type="date"
+                    value={newDates.requestDate}
+                    onChange={e => setNewDates({...newDates, requestDate: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none cursor-pointer shadow-inner"
+                  />
+                </div>
+             </div>
+
+             <button
+                onClick={handleQuickDateUpdate}
+                className="w-full bg-amber-600 text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+             >
+                SAVE DATE UPDATES
+             </button>
+          </div>
+        </div>
+      )}
+
       {showZoneChangeModal && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[5000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-xl p-12 shadow-2xl border-4 border-teal-500/20 space-y-8 relative overflow-hidden">
@@ -754,12 +833,38 @@ const ActionModals = ({
                    options={['All', 'Admin', ...store.staff?.map(s => s.name)]}
                    onChange={v => setFilters({...filters, collector: v})}
                 />
-                <FilterSelect
-                   label="Zone / Area"
-                   value={filters.zone}
-                   options={['All', ...store.zones?.map(z => z.name)]}
-                   onChange={v => setFilters({...filters, zone: v})}
-                />
+
+                {/* Zone Filter with Search */}
+                <div className="space-y-3 relative">
+                  <label className="text-[10px] text-slate-400 ml-2 tracking-[3px] font-black uppercase">Zone / Area</label>
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      placeholder="Search or Select Zone..."
+                      value={filters.zone === 'All' ? '' : filters.zone}
+                      onChange={e => setFilters({...filters, zone: e.target.value || 'All'})}
+                      className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-black text-xs outline-none focus:ring-2 focus:ring-teal-500/20 uppercase shadow-inner"
+                    />
+                    <i className="fas fa-search absolute right-5 top-4 text-slate-300"></i>
+
+                    {/* Suggestions for Zone Filter */}
+                    {store.zones?.filter(z => z.name.toLowerCase().includes(filters.zone?.toLowerCase())).length > 0 && filters.zone !== 'All' && filters.zone !== '' && !store.zones.some(z => z.name === filters.zone) && (
+                      <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[6000] overflow-hidden max-h-40 overflow-y-auto">
+                        <div onClick={() => setFilters({...filters, zone: 'All'})} className="p-4 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b font-black text-[10px] text-slate-400">RESET TO ALL</div>
+                        {store.zones.filter(z => z.name.toLowerCase().includes(filters.zone.toLowerCase())).map(z => (
+                          <div
+                            key={z.id}
+                            onClick={() => setFilters({...filters, zone: z.name})}
+                            className="p-4 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b last:border-0 font-black text-[10px]"
+                          >
+                            {z.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <FilterSelect
                    label="Account Status"
                    value={filters.status}
