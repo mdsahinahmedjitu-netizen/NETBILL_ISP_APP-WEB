@@ -23,6 +23,16 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   // Sorting State
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
+  // Filter States
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [filters, setFilters] = useState({
+    collector: 'All',
+    zone: 'All',
+    status: 'All',
+    plan: 'All',
+    hideZeroDue: false
+  });
+
   // Dynamic Import States
   const [showImportModal, setShowImportModal] = useState(false);
   const [importStatus, setImportStatus] = useState('');
@@ -75,12 +85,22 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
     return () => unsub();
   }, [selectedCust]);
 
-  const filteredCustomers = store.customers.filter(c =>
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.customerCode?.toLowerCase().includes(search.toLowerCase()) ||
-    c.mobile?.includes(search) ||
-    c.pppoeUsername?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCustomers = store.customers.filter(c => {
+    const searchMatch = !search ||
+      c.name?.toLowerCase().includes(search.toLowerCase()) ||
+      c.customerCode?.toLowerCase().includes(search.toLowerCase()) ||
+      c.mobile?.includes(search) ||
+      c.pppoeUsername?.toLowerCase().includes(search.toLowerCase());
+
+    const collectorMatch = filters.collector === 'All' || c.assignedStaffId === filters.collector;
+    const zoneMatch = filters.zone === 'All' || c.zone === filters.zone;
+    const statusMatch = filters.status === 'All' || c.status === filters.status;
+    const planMatch = filters.plan === 'All' || c.packageName === filters.plan;
+    const currentDue = parseFloat(c.currentDue) || 0;
+    const dueMatch = !filters.hideZeroDue || (currentDue >= 1);
+
+    return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch;
+  });
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -383,6 +403,10 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
             <i className="fas fa-search absolute left-5 top-5 text-slate-300 text-xl group-focus-within:text-teal-500 transition-colors"></i>
           </div>
           <div className="flex flex-wrap gap-3 font-black">
+             <button onClick={() => setShowFilterDrawer(true)} className="bg-white dark:bg-slate-800 text-teal-600 px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest border-2 border-teal-500/20 leading-none">
+                <i className="fas fa-filter text-lg"></i>
+                <span>Advanced Filter {Object.values(filters).filter(v => v !== 'All').length > 0 && `(${Object.values(filters).filter(v => v !== 'All').length})`}</span>
+             </button>
              <ActionButtonLarge label={`${t.download_excel} (${selectedIds.length || 'All'})`} icon="fa-file-excel" onClick={downloadExcel} />
              <ActionButtonLarge label={`${t.print} (${selectedIds.length || 'All'})`} icon="fa-print" onClick={handlePrint} />
              <ActionButtonLarge label={t.select_columns} icon="fa-columns" onClick={() => setShowColumnSelector(true)} />
@@ -416,7 +440,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                     {visibleColumns.actions && <th className="p-4">{t.actions}</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y-2 divide-slate-50 dark:divide-slate-700">
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                   {sortedCustomers.map((c, idx) => (
                     <tr key={c.id} onClick={() => setSelectedCust(c)} className={`cursor-pointer transition-all hover:bg-teal-50/50 ${selectedCust?.id === c.id ? 'bg-teal-50/70 border-l-8 border-teal-500 shadow-inner' : ''}`}>
                       {visibleColumns.cb && <td className="p-4 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-6 h-6 rounded-lg border-slate-200 text-teal-600 cursor-pointer" /></td>}
@@ -494,13 +518,63 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         importStatus={importStatus}
         startBulkImport={startBulkImport}
         t={t}
+        showFilterDrawer={showFilterDrawer}
+        setShowFilterDrawer={setShowFilterDrawer}
+        filters={filters}
+        setFilters={setFilters}
+        store={store}
       />
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[500] flex items-start justify-center p-6 overflow-y-auto animate-fadeIn font-black scroll-smooth">
           <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-[96%] my-10 p-16 shadow-2xl space-y-14 relative overflow-hidden border-2 border-slate-100">
             <div className="flex justify-between items-center border-b-2 border-slate-50 pb-10"><div className="flex items-center space-x-6"><div className="w-20 h-20 bg-teal-600 text-white rounded-[28px] flex items-center justify-center shadow-2xl shadow-teal-500/40"><i className="fas fa-user-plus text-4xl"></i></div><h3 className="text-6xl font-black uppercase tracking-tighter">{isEditing ? t.update_identity : t.new_enrollment}</h3></div><button onClick={() => setShowModal(false)} className="w-20 h-20 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl group"><i className="fas fa-times text-3xl group-hover:rotate-90 transition-transform"></i></button></div>
-            <form onSubmit={handleSave} className="space-y-14"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10"><Section title={t.router_zone_info} color="blue" bgColor="bg-blue-50 dark:bg-blue-900/10" borderColor="border-blue-100" shadowColor="shadow-blue-500/20"><Field label={t.mikrotik_router} value={formData.routerId} onChange={v => setFormData({...formData, routerId: v})} type="select" options={['MikroTik Core 01']} color="blue" /><Field label={t.package} value={formData.packageName} onChange={v => setFormData({...formData, packageName: v})} type="select" options={['5 Mbps', '10 Mbps', '20 Mbps']} color="blue" /><Field label={t.zone} value={formData.zone} onChange={v => setFormData({...formData, zone: v})} type="select" options={['Zone A']} color="blue" /><Field label={t.sub_zone} value={formData.subZone} onChange={v => setFormData({...formData, subZone: v})} type="select" options={['Block 1']} color="blue" /><Field label={t.box} value={formData.boxId} onChange={v => setFormData({...formData, boxId: v})} type="select" options={['Box 01']} color="blue" /><Field label={t.location} value={formData.address} onChange={v => setFormData({...formData, address: v})} placeholder="Address..." color="blue" /></Section><Section title={t.client_info} color="indigo" bgColor="bg-indigo-50 dark:bg-indigo-900/10" borderColor="border-indigo-100" shadowColor="shadow-indigo-500/20"><Field label="ID" value={formData.customerCode} onChange={v => setFormData({...formData, customerCode: v})} placeholder="Optional" color="indigo" /><Field label="Name *" value={formData.name} onChange={v => setFormData({...formData, name: v})} placeholder="Full name" color="indigo" /><Field label="Mobile *" value={formData.mobile} onChange={v => setFormData({...formData, mobile: v})} placeholder="017xxxx" color="indigo" /><Field label={t.alt_mobile} value={formData.altMobile} onChange={v => setFormData({...formData, altMobile: v})} placeholder="Mobile 2" color="indigo" /><Field label="PPPoE *" value={formData.pppoeUsername} onChange={v => setFormData({...formData, pppoeUsername: v})} placeholder="user@isp" color="indigo" /><Field label="Pass *" value={formData.pppoePassword} onChange={v => setFormData({...formData, pppoePassword: v})} type="password" color="indigo" /><Field label="ONU" value={formData.onuMac} onChange={v => setFormData({...formData, onuMac: v})} placeholder="MAC..." color="indigo" /></Section><Section title={t.billing_info} color="emerald" bgColor="bg-emerald-50 dark:bg-emerald-900/10" borderColor="border-emerald-100" shadowColor="shadow-emerald-500/20"><Field label="Type" value={formData.billingType} onChange={v => setFormData({...formData, billingType: v})} type="select" options={['MONTHLY DATE TO DATE']} color="emerald" /><Field label="Status" value={formData.paymentStatus} onChange={v => setFormData({...formData, paymentStatus: v})} type="select" options={['Unpaid', 'Paid']} color="emerald" /><Field label="Expiry" value={formData.expireDate} onChange={v => setFormData({...formData, expireDate: v})} type="date" color="emerald" /><Field label="Request" value={formData.requestDate} onChange={v => setFormData({...formData, requestDate: v})} type="date" color="emerald" /><Field label="Media" value={formData.connectionType} onChange={v => setFormData({...formData, connectionType: v})} type="select" options={['FTTH', 'LAN']} color="emerald" /><Field label="Account *" value={formData.status} onChange={v => setFormData({...formData, status: v})} type="radio" options={['Active', 'Inactive', 'Expired']} color="emerald" /><Field label="Sub *" value={formData.subscriptionType} onChange={v => setFormData({...formData, subscriptionType: v})} type="radio" options={['Prepaid', 'Postpaid']} color="emerald" /></Section><Section title={t.client_fee} color="cyan" bgColor="bg-cyan-50 dark:bg-cyan-900/10" borderColor="border-cyan-100" shadowColor="shadow-cyan-400/30"><Field label="Bill *" value={formData.monthlyBill} onChange={v => setFormData({...formData, monthlyBill: parseFloat(v) || 0})} type="number" color="cyan" /><Field label="Fee" value={formData.connectionFee} onChange={v => setFormData({...formData, connectionFee: parseFloat(v) || 0})} type="number" color="cyan" /><Field label="Date" value={formData.connectionDate} onChange={v => setFormData({...formData, connectionDate: v})} type="date" color="cyan" /><div className="pt-8 border-t-2 border-cyan-200"><Field label={t.assigned_staff} value={formData.assignedStaffId} onChange={v => setFormData({...formData, assignedStaffId: v})} type="select" options={['No Staff', ...store.staff?.map(s => s.name)]} color="cyan" /></div><div className="bg-white dark:bg-slate-900 p-6 rounded-[40px] space-y-5 shadow-inner"><p className="text-[11px] text-slate-400 font-black text-center tracking-[4px]">REF</p><input type="text" placeholder={t.ref_name} value={formData.referenceName} onChange={e => setFormData({...formData, referenceName: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-none text-xs w-full font-black uppercase" /><input type="text" placeholder={t.ref_mobile} value={formData.referenceMobile} onChange={e => setFormData({...formData, referenceMobile: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-none text-xs w-full font-black uppercase" /></div></Section></div><div className="flex justify-center pt-10"><button type="submit" className="bg-[#0D9488] text-white px-32 py-10 rounded-[64px] font-black uppercase tracking-[15px] shadow-[0_30px_70px_rgba(13,148,136,0.5)] hover:scale-105 active:scale-95 transition-all border-b-8 border-teal-900">{t.commit_cloud}</button></div></form>
+            <form onSubmit={handleSave} className="space-y-14">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+                <Section title={t.router_zone_info} color="blue" bgColor="bg-blue-50 dark:bg-blue-900/10" borderColor="border-blue-100" shadowColor="shadow-blue-500/20">
+                  <Field label={t.mikrotik_router} value={formData.routerId} onChange={v => setFormData({...formData, routerId: v})} type="select" options={['MikroTik Core 01']} color="blue" />
+                  <Field label={t.package} value={formData.packageName} onChange={v => setFormData({...formData, packageName: v})} type="select" options={['No Package', ...store.packages?.map(p => p.name)]} color="blue" />
+                  <Field label={t.zone} value={formData.zone} onChange={v => setFormData({...formData, zone: v})} type="select" options={['All Zones', ...store.zones?.map(z => z.name)]} color="blue" />
+                  <Field label={t.sub_zone} value={formData.subZone} onChange={v => setFormData({...formData, subZone: v})} type="select" options={['All Sub-Zones', ...store.subZones?.filter(sz => !formData.zone || formData.zone === 'All Zones' || store.zones?.find(z => z.name === formData.zone)?.id === sz.zoneId).map(sz => sz.name)]} color="blue" />
+                  <Field label={t.box} value={formData.boxId} onChange={v => setFormData({...formData, boxId: v})} type="select" options={['All Boxes', ...store.boxes?.filter(b => !formData.subZone || formData.subZone === 'All Sub-Zones' || store.subZones?.find(sz => sz.name === formData.subZone)?.id === b.subZoneId).map(b => b.name)]} color="blue" />
+                  <Field label={t.location} value={formData.address} onChange={v => setFormData({...formData, address: v})} placeholder="Address..." color="blue" />
+                </Section>
+                <Section title={t.client_info} color="indigo" bgColor="bg-indigo-50 dark:bg-indigo-900/10" borderColor="border-indigo-100" shadowColor="shadow-indigo-500/20">
+                  <Field label="ID" value={formData.customerCode} onChange={v => setFormData({...formData, customerCode: v})} placeholder="Optional" color="indigo" />
+                  <Field label="Name *" value={formData.name} onChange={v => setFormData({...formData, name: v})} placeholder="Full name" color="indigo" />
+                  <Field label="Mobile *" value={formData.mobile} onChange={v => setFormData({...formData, mobile: v})} placeholder="017xxxx" color="indigo" />
+                  <Field label={t.alt_mobile} value={formData.altMobile} onChange={v => setFormData({...formData, altMobile: v})} placeholder="Mobile 2" color="indigo" />
+                  <Field label="PPPoE *" value={formData.pppoeUsername} onChange={v => setFormData({...formData, pppoeUsername: v})} placeholder="user@isp" color="indigo" />
+                  <Field label="Pass *" value={formData.pppoePassword} onChange={v => setFormData({...formData, pppoePassword: v})} type="password" color="indigo" />
+                  <Field label="ONU" value={formData.onuMac} onChange={v => setFormData({...formData, onuMac: v})} placeholder="MAC..." color="indigo" />
+                </Section>
+                <Section title={t.billing_info} color="emerald" bgColor="bg-emerald-50 dark:bg-emerald-900/10" borderColor="border-emerald-100" shadowColor="shadow-emerald-500/20">
+                  <Field label="Type" value={formData.billingType} onChange={v => setFormData({...formData, billingType: v})} type="select" options={['MONTHLY DATE TO DATE']} color="emerald" />
+                  <Field label="Status" value={formData.paymentStatus} onChange={v => setFormData({...formData, paymentStatus: v})} type="select" options={['Unpaid', 'Paid']} color="emerald" />
+                  <Field label="Expiry" value={formData.expireDate} onChange={v => setFormData({...formData, expireDate: v})} type="date" color="emerald" />
+                  <Field label="Request" value={formData.requestDate} onChange={v => setFormData({...formData, requestDate: v})} type="date" color="emerald" />
+                  <Field label="Media" value={formData.connectionType} onChange={v => setFormData({...formData, connectionType: v})} type="select" options={['FTTH', 'LAN']} color="emerald" />
+                  <Field label="Account *" value={formData.status} onChange={v => setFormData({...formData, status: v})} type="radio" options={['Active', 'Inactive', 'Expired']} color="emerald" />
+                  <Field label="Sub *" value={formData.subscriptionType} onChange={v => setFormData({...formData, subscriptionType: v})} type="radio" options={['Prepaid', 'Postpaid']} color="emerald" />
+                </Section>
+                <Section title={t.client_fee} color="cyan" bgColor="bg-cyan-50 dark:bg-cyan-900/10" borderColor="border-cyan-100" shadowColor="shadow-cyan-400/30">
+                  <Field label="Bill *" value={formData.monthlyBill} onChange={v => setFormData({...formData, monthlyBill: parseFloat(v) || 0})} type="number" color="cyan" />
+                  <Field label="Fee" value={formData.connectionFee} onChange={v => setFormData({...formData, connectionFee: parseFloat(v) || 0})} type="number" color="cyan" />
+                  <Field label="Date" value={formData.connectionDate} onChange={v => setFormData({...formData, connectionDate: v})} type="date" color="cyan" />
+                  <div className="pt-8 border-t-2 border-cyan-200">
+                    <Field label={t.assigned_staff} value={formData.assignedStaffId} onChange={v => setFormData({...formData, assignedStaffId: v})} type="select" options={['No Staff', ...store.staff?.map(s => s.name)]} color="cyan" />
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 p-6 rounded-[40px] space-y-5 shadow-inner">
+                    <p className="text-[11px] text-slate-400 font-black text-center tracking-[4px]">REF</p>
+                    <input type="text" placeholder={t.ref_name} value={formData.referenceName} onChange={e => setFormData({...formData, referenceName: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-none text-xs w-full font-black uppercase" />
+                    <input type="text" placeholder={t.ref_mobile} value={formData.referenceMobile} onChange={e => setFormData({...formData, referenceMobile: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-none text-xs w-full font-black uppercase" />
+                  </div>
+                </Section>
+              </div>
+              <div className="flex justify-center pt-10">
+                <button type="submit" className="bg-[#0D9488] text-white px-32 py-10 rounded-[64px] font-black uppercase tracking-[15px] shadow-[0_30px_70px_rgba(13,148,136,0.5)] hover:scale-105 active:scale-95 transition-all border-b-8 border-teal-900">{t.commit_cloud}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -514,9 +588,76 @@ const ActionModals = ({
   showColumnSelector, setShowColumnSelector, visibleColumns, setVisibleColumns,
   showSmsModal, setShowSmsModal, smsMessage, setSmsMessage, selectedIds, sendSms,
   showImportModal, setShowImportModal, importStep, setImportStep, handleFileUpload,
-  dbFields, csvHeaders, mapping, setMapping, importStatus, startBulkImport, t
+  dbFields, csvHeaders, mapping, setMapping, importStatus, startBulkImport, t,
+  showFilterDrawer, setShowFilterDrawer, filters, setFilters, store
 }) => (
     <>
+      {showFilterDrawer && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex justify-end animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-md h-full shadow-[-20px_0_50px_rgba(0,0,0,0.1)] p-10 space-y-10 animate-slideInRight relative overflow-y-auto">
+             <div className="flex justify-between items-center border-b pb-6">
+                <div className="flex items-center space-x-4">
+                   <div className="w-12 h-12 bg-teal-500 text-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fas fa-filter text-xl"></i></div>
+                   <h3 className="text-2xl font-black uppercase tracking-tighter">Advanced Filters</h3>
+                </div>
+                <button onClick={() => setShowFilterDrawer(false)} className="text-slate-300 hover:text-rose-500 transition-colors"><i className="fas fa-times-circle text-3xl"></i></button>
+             </div>
+
+             <div className="space-y-8">
+                <FilterSelect
+                   label="Assigned Collector"
+                   value={filters.collector}
+                   options={['All', 'Admin', ...store.staff?.map(s => s.name)]}
+                   onChange={v => setFilters({...filters, collector: v})}
+                />
+                <FilterSelect
+                   label="Zone / Area"
+                   value={filters.zone}
+                   options={['All', ...store.zones?.map(z => z.name)]}
+                   onChange={v => setFilters({...filters, zone: v})}
+                />
+                <FilterSelect
+                   label="Account Status"
+                   value={filters.status}
+                   options={['All', 'Active', 'Inactive', 'Expired']}
+                   onChange={v => setFilters({...filters, status: v})}
+                />
+                <FilterSelect
+                   label="Package Plan"
+                   value={filters.plan}
+                   options={['All', ...store.packages?.map(p => p.name)]}
+                   onChange={v => setFilters({...filters, plan: v})}
+                />
+
+                <div className="pt-4">
+                  <label className="flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 bg-rose-50 border-rose-100 dark:bg-rose-900/10">
+                    <div className="space-y-1">
+                      <span className="font-black uppercase tracking-widest text-[11px] text-rose-700 dark:text-rose-400">Hide Paid Customers</span>
+                      <p className="text-[9px] font-bold text-rose-400 uppercase leading-none">Show only subscribers with DUE</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={filters.hideZeroDue}
+                      onChange={() => setFilters({...filters, hideZeroDue: !filters.hideZeroDue})}
+                      className="w-7 h-7 rounded-xl text-rose-600 focus:ring-0 cursor-pointer"
+                    />
+                  </label>
+                </div>
+             </div>
+
+             <div className="pt-10 space-y-4">
+                <button
+                   onClick={() => setFilters({collector: 'All', zone: 'All', status: 'All', plan: 'All', hideZeroDue: false})}
+                   className="w-full py-5 rounded-2xl border-2 border-slate-100 text-slate-400 font-black text-xs tracking-[4px] hover:bg-slate-50 transition-all"
+                >RESET FILTERS</button>
+                <button
+                   onClick={() => setShowFilterDrawer(false)}
+                   className="w-full bg-[#0D9488] text-white py-6 rounded-2xl font-black text-xs tracking-[5px] shadow-2xl shadow-teal-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+                >APPLY FILTERS</button>
+             </div>
+          </div>
+        </div>
+      )}
       {showColumnSelector && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[600] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl border-2 border-slate-100">
@@ -650,6 +791,19 @@ const Field = ({ label, value, onChange, placeholder, type = 'text', options = [
     ) : (
       <input type={type} disabled={disabled} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={`w-full bg-white dark:bg-slate-800 p-6 rounded-[24px] border-2 border-transparent focus:border-teal-500 text-lg font-black shadow-lg outline-none transition-all ${disabled ? 'opacity-50' : ''}`} />
     )}
+  </div>
+);
+
+const FilterSelect = ({ label, value, options, onChange }) => (
+  <div className="space-y-3">
+    <label className="text-[10px] text-slate-400 ml-2 tracking-[3px] font-black">{label}</label>
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-black text-xs outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+    >
+      {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+    </select>
   </div>
 );
 

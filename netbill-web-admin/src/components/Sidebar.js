@@ -10,6 +10,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
     { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: 'Salary Ledger' },
     { id: 'inventory', icon: 'fa-box', label: t.inventory_stock },
     { id: 'packages', icon: 'fa-wifi', label: t.service_packages },
+    { id: 'infrastructure', icon: 'fa-network-wired', label: 'Network Assets', adminOnly: true },
     { id: 'settings', icon: 'fa-cog', label: t.global_settings, adminOnly: true },
   ];
 

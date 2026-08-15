@@ -10,6 +10,7 @@ import CollectionReport from './components/CollectionReport';
 import Staff from './components/Staff';
 import SalaryHistory from './components/SalaryHistory';
 import Inventory from './components/Inventory';
+import Infrastructure from './components/Infrastructure';
 import Packages from './components/Packages';
 import Settings from './components/Settings';
 import Login from './components/Login';
@@ -29,7 +30,8 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [store, setStore] = useState({
     customers: [], tickets: [], payments: [], invoices: [], expenses: [], staff: [],
-    inventory: [], packages: [], settings: {}, paymentRequests: [], staffPayouts: []
+    inventory: [], packages: [], settings: {}, paymentRequests: [], staffPayouts: [],
+    zones: [], subZones: [], boxes: []
   });
   const [autoOpenAddModal, setAutoOpenAddModal] = useState(false);
 
@@ -68,11 +70,20 @@ function App() {
     const unsubStaffPayouts = onSnapshot(collection(db, "staff_payouts"), (snap) => {
       setStore(prev => ({ ...prev, staffPayouts: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
     });
+    const unsubZones = onSnapshot(collection(db, "zones"), (snap) => {
+      setStore(prev => ({ ...prev, zones: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    });
+    const unsubSubZones = onSnapshot(collection(db, "sub_zones"), (snap) => {
+      setStore(prev => ({ ...prev, subZones: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    });
+    const unsubBoxes = onSnapshot(collection(db, "boxes"), (snap) => {
+      setStore(prev => ({ ...prev, boxes: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    });
     const unsubSettings = onSnapshot(doc(db, "settings", "global"), (snap) => {
       if (snap.exists()) setStore(prev => ({ ...prev, settings: snap.data() }));
     });
 
-    return () => { unsubCust(); unsubTickets(); unsubPayments(); unsubRequests(); unsubInvoices(); unsubExpenses(); unsubStaff(); unsubStaffPayouts(); unsubSettings(); };
+    return () => { unsubCust(); unsubTickets(); unsubPayments(); unsubRequests(); unsubInvoices(); unsubExpenses(); unsubStaff(); unsubStaffPayouts(); unsubZones(); unsubSubZones(); unsubBoxes(); unsubSettings(); };
   }, [session]);
 
   const toggleLang = () => {
@@ -164,6 +175,7 @@ function App() {
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} t={t} lang={lang} />}
           {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}
+          {activePage === 'infrastructure' && session.role === 'admin' && <Infrastructure store={store} t={t} />}
           {activePage === 'packages' && <Packages store={store} t={t} lang={lang} />}
           {activePage === 'settings' && session.role === 'admin' && <Settings store={store} t={t} lang={lang} />}
         </main>
