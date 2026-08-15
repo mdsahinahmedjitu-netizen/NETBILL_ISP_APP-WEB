@@ -170,10 +170,10 @@ const Expenses = ({ store, session, t }) => {
                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                   {filteredExpenses.map(exp => (
                     <tr key={exp.id} className="hover:bg-rose-50/20 transition-all group">
-                       <td className="p-6 text-xs font-black text-slate-500">{exp.expenseDate}</td>
+                       <td className="p-6 text-xs font-black text-slate-500">{exp.expenseDate || exp.date}</td>
                        <td className="p-6">
-                          <p className="text-lg font-black text-slate-800 dark:text-white tracking-tighter leading-none">{exp.title}</p>
-                          <p className="text-[9px] text-slate-400 mt-1.5 font-bold italic uppercase">{exp.notes || 'No extra notes'}</p>
+                          <p className="text-lg font-black text-slate-800 dark:text-white tracking-tighter leading-none">{exp.title || exp.item}</p>
+                          <p className="text-[9px] text-slate-400 mt-1.5 font-bold italic uppercase">{exp.notes || exp.remarks || 'No extra notes'}</p>
                        </td>
                        <td className="p-6">
                           <span className="bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl text-[9px] font-black tracking-widest border border-slate-200 dark:border-slate-700">{getCatLabel(exp.category)}</span>
