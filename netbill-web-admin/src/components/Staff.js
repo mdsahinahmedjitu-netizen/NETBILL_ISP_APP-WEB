@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Staff = ({ store, session, t }) => {
   const [showModal, setShowModal] = useState(false);
@@ -25,7 +24,7 @@ const Staff = ({ store, session, t }) => {
       const tomaExists = store.staff?.some(s => s.name === 'TOMA APA');
       if (!tomaExists && store.staff?.length > 0) {
         try {
-          await addDoc(collection(db, "staff"), {
+          await supabase.from('staff').insert({
             name: 'TOMA APA',
             mobile: '01XXXXXXXXX',
             role: 'Collector',
@@ -68,10 +67,12 @@ const Staff = ({ store, session, t }) => {
     e.preventDefault();
     try {
       if (isEditing) {
-        await updateDoc(doc(db, "staff", formData.id), formData);
+        const { error } = await supabase.from('staff').update(formData).eq('id', formData.id);
+        if (error) throw error;
         alert("Staff updated successfully!");
       } else {
-        await addDoc(collection(db, "staff"), formData);
+        const { error } = await supabase.from('staff').insert(formData);
+        if (error) throw error;
         alert("Staff recruited successfully!");
       }
       setShowModal(false);
@@ -112,44 +113,32 @@ const Staff = ({ store, session, t }) => {
       const todayISO = new Date().toLocaleDateString('en-CA');
 
       // 1. Update Staff Balance in DB
-      await updateDoc(doc(db, "staff", selectedStaff.id), { balance: newBalance });
+      await supabase.from('staff').update({ balance: newBalance }).eq('id', selectedStaff.id);
 
       // 2. Record Payout
-      await addDoc(collection(db, "staff_payouts"), {
-        staffId: selectedStaff.id,
-        staffName: selectedStaff.name,
+      await supabase.from('staff_payouts').insert({
+        staff_id: selectedStaff.id,
+        staff_name: selectedStaff.name,
         month: payoutData.month,
         amount: amt,
         type: payoutData.type,
-        newBalance: newBalance,
+        new_balance: newBalance,
         date: todayISO,
         remarks: payoutData.remarks,
-        createdAt: new Date().toISOString()
+        created_at: new Date().toISOString()
       });
 
       // 3. Add to Expenses if it's a payment
       if (payoutData.type === 'payment') {
-        // More robust check: check for recent expenses (last 5 mins) to prevent exact duplicates
-        const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString();
-        const existingExpense = store.expenses?.find(e =>
-          e.category === 'Staff Salary' &&
-          e.amount === amt &&
-          e.expenseDate === todayISO &&
-          e.title?.includes(selectedStaff.name) &&
-          (e.createdAt || '') > fiveMinsAgo
-        );
-
-        if (!existingExpense) {
-          await addDoc(collection(db, "expenses"), {
-            category: 'Staff Salary',
-            title: `Salary Pmt: ${selectedStaff.name} (${payoutData.month})`,
-            amount: amt,
-            expenseDate: todayISO,
-            expenseBy: session?.data?.name || 'Admin',
-            remarks: payoutData.remarks || 'Automated from Staff Panel',
-            createdAt: new Date().toISOString()
-          });
-        }
+        const { error } = await supabase.from('expenses').insert({
+          category: 'Staff Salary',
+          title: `Salary Pmt: ${selectedStaff.name} (${payoutData.month})`,
+          amount: amt,
+          expense_date: todayISO,
+          expense_by: session?.data?.name || 'Admin',
+          remarks: payoutData.remarks || 'Automated from Staff Panel'
+        });
+        if (error) console.error("Expense Error:", error);
       }
 
       // 4. SMS Notification Logic
@@ -175,7 +164,8 @@ const Staff = ({ store, session, t }) => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this staff member?")) {
       try {
-        await deleteDoc(doc(db, "staff", id));
+        const { error } = await supabase.from('staff').delete().eq('id', id);
+        if (error) throw error;
         alert("Staff deleted!");
       } catch (error) {
         alert("Delete failed!");
@@ -197,7 +187,7 @@ const Staff = ({ store, session, t }) => {
     let count = 0;
     for (const c of targets) {
        try {
-         await updateDoc(doc(db, "customers", c.id), { assignedStaffId: 'TOMA APA' });
+         await supabase.from('customers').update({ assigned_staff_id: 'TOMA APA' }).eq('id', c.id);
          count++;
        } catch (e) { console.error(e); }
     }

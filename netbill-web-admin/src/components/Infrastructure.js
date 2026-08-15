@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Infrastructure = ({ store, t }) => {
   const [activeTab, setActiveTab] = useState('zones'); // 'zones', 'subzones', 'boxes'
@@ -14,11 +13,11 @@ const Infrastructure = ({ store, t }) => {
     if (!name) return;
     try {
       if (activeTab === 'zones') {
-        await addDoc(collection(db, "zones"), { name });
+        await supabase.from('zones').insert({ name });
       } else if (activeTab === 'subzones') {
-        await addDoc(collection(db, "sub_zones"), { name, zoneId: parentId });
+        await supabase.from('sub_zones').insert({ name, zone_id: parentId });
       } else if (activeTab === 'boxes') {
-        await addDoc(collection(db, "boxes"), { name, subZoneId: parentId });
+        await supabase.from('boxes').insert({ name, sub_zone_id: parentId });
       }
       setName('');
       setParentId('');
@@ -35,14 +34,12 @@ const Infrastructure = ({ store, t }) => {
        const uniqueZoneNames = [...new Set(store.customers.map(c => c.zone))].filter(z => z && z.trim() !== '');
        const existingNames = store.zones.map(z => z.name.toLowerCase());
 
-       let count = 0;
        for (const zoneName of uniqueZoneNames) {
           if (!existingNames.includes(zoneName.toLowerCase())) {
-             await addDoc(collection(db, "zones"), { name: zoneName });
-             count++;
+             await supabase.from('zones').insert({ name: zoneName });
           }
        }
-       alert(`Sync Complete! Added ${count} new zones.`);
+       alert(`Sync Complete!`);
     } catch (err) {
        alert("Sync failed.");
     } finally {
@@ -52,20 +49,19 @@ const Infrastructure = ({ store, t }) => {
 
   const handleUpdate = async (id, newName, coll) => {
     try {
-       const ref = doc(db, coll, id);
+       const table = coll === 'sub_zones' ? 'sub_zones' : coll;
        const oldItem = (activeTab === 'zones' ? store.zones : activeTab === 'subzones' ? store.subZones : store.boxes).find(i => i.id === id);
        const oldName = oldItem?.name;
 
-       await updateDoc(ref, { name: newName });
+       const { error } = await supabase.from(table).update({ name: newName }).eq('id', id);
+       if (error) throw error;
 
        // If a Zone name is updated, also update all customers in that zone
        if (coll === 'zones' && oldName) {
           const customersInZone = store.customers.filter(c => c.zone === oldName);
           for (const customer of customersInZone) {
-             const custRef = doc(db, "customers", customer.id);
-             await updateDoc(custRef, { zone: newName });
+             await supabase.from('customers').update({ zone: newName }).eq('id', customer.id);
           }
-          console.log(`Updated ${customersInZone.length} customers from ${oldName} to ${newName}`);
        }
 
        alert("Update successful!");
@@ -77,7 +73,8 @@ const Infrastructure = ({ store, t }) => {
 
   const handleDelete = async (id, coll) => {
     if (window.confirm("Delete permanently?")) {
-      await deleteDoc(doc(db, coll, id));
+      const table = coll === 'sub_zones' ? 'sub_zones' : coll;
+      await supabase.from(table).delete().eq('id', id);
     }
   };
 

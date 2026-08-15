@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, orderBy, limit, deleteDoc, getDocs } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Payments = ({ store, session, t }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,11 +39,27 @@ const Payments = ({ store, session, t }) => {
     setCustomerPayments([]);
     if (!selectedCustomerId) return;
 
-    const q = query(collection(db, "payments"), where("customerId", "==", selectedCustomerId), orderBy("paymentDate", "desc"), limit(20));
-    const unsub = onSnapshot(q, (snap) => {
-      setCustomerPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
+    const fetchPayments = async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('customer_id', selectedCustomerId)
+        .order('payment_date', { ascending: false })
+        .limit(20);
+      if (!error) setCustomerPayments(data);
+    };
+
+    fetchPayments();
+
+    const channel = supabase.channel(`cust-payments-${selectedCustomerId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments', filter: `customer_id=eq.${selectedCustomerId}` }, (payload) => {
+        fetchPayments();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedCustomerId]);
 
   const filteredCustomers = store.customers.filter(c =>
@@ -67,8 +82,8 @@ const Payments = ({ store, session, t }) => {
     try {
       const finalRemarks = `${billingMonth} Bill - ${method}`;
       const payAmt = parseFloat(amount);
-      let newDue = (customer.currentDue || 0);
-      let newAdvance = (customer.advanceBalance || 0);
+      let newDue = (customer.current_due || 0);
+      let newAdvance = (customer.advance_balance || 0);
 
       if (payAmt > newDue) {
           const excess = payAmt - newDue;
@@ -78,24 +93,44 @@ const Payments = ({ store, session, t }) => {
           newDue -= payAmt;
       }
 
-      await addDoc(collection(db, "payments"), {
-        customerId: selectedCustomerId, customerName: customer.name, customerCode: customer.customerCode,
-        amount: payAmt, paymentMethod: method, paymentDate: todayISO, billingMonth, receiptNo: `REC-${Date.now().toString().slice(-6)}`, remarks: finalRemarks,
-        collectedBy: selectedCollector.name,
-        collectedById: selectedCollector.id
+      const { data: newPmt, error: pmtErr } = await supabase.from('payments').insert({
+        customer_id: selectedCustomerId,
+        customer_name: customer.name,
+        customer_code: customer.customer_code,
+        amount: payAmt,
+        payment_method: method,
+        payment_date: todayISO,
+        billing_month: billingMonth,
+        receipt_no: `REC-${Date.now().toString().slice(-6)}`,
+        remarks: finalRemarks,
+        collected_by: selectedCollector.name,
+        collected_by_id: selectedCollector.id
+      }).select().single();
+
+      if (pmtErr) throw pmtErr;
+
+      await supabase.from('customers').update({
+          current_due: newDue,
+          advance_balance: newAdvance
+      }).eq('id', selectedCustomerId);
+
+      await supabase.from('ledger_entries').insert({
+        customer_id: selectedCustomerId,
+        date: todayISO,
+        time: timeStr,
+        type: "Payment",
+        description: `Payment for ${billingMonth}`,
+        amount: payAmt,
+        is_debit: false,
+        reference_no: newPmt.receipt_no
       });
 
-      await updateDoc(doc(db, "customers", selectedCustomerId), {
-          currentDue: newDue,
-          advanceBalance: newAdvance
-      });
-
-      await addDoc(collection(db, "ledger_entries"), {
-        customerId: selectedCustomerId, date: todayISO, time: timeStr, type: "Payment", description: `Payment for ${billingMonth}`, amount: payAmt, isDebit: false, runningBalance: newDue
-      });
       alert(t.success_payment);
       setAmount(''); setSelectedCustomerId(''); setSearchTerm('');
-    } catch (e) { alert("Error!"); } finally { setIsProcessing(false); }
+    } catch (e) {
+      console.error(e);
+      alert("Error processing payment!");
+    } finally { setIsProcessing(false); }
   };
 
   const openEditModal = (p) => {
@@ -114,32 +149,34 @@ const Payments = ({ store, session, t }) => {
       const newAmount = parseFloat(editAmount);
       const diff = newAmount - oldAmount;
 
-      // 1. Update Payment Doc
-      await updateDoc(doc(db, "payments", editingPayment.id), {
-        amount: newAmount,
-        remarks: editingPayment.remarks + " (Edited)"
-      });
+      // 1. Update Payment
+      const { error: pmtErr } = await supabase
+        .from('payments')
+        .update({
+          amount: newAmount,
+          remarks: (editingPayment.remarks || '') + " (Edited)"
+        })
+        .eq('id', editingPayment.id);
 
-      // 2. Adjust Customer Due (Diff subtracted from Due)
-      const customer = store.customers.find(c => c.id === editingPayment.customerId);
+      if (pmtErr) throw pmtErr;
+
+      // 2. Adjust Customer Due
+      const customer = store.customers.find(c => c.id === editingPayment.customer_id);
       if (customer) {
-        const newDue = (customer.currentDue || 0) - diff;
-        await updateDoc(doc(db, "customers", customer.id), { currentDue: newDue });
+        const newDue = (customer.current_due || 0) - diff;
+        await supabase.from('customers').update({ current_due: newDue }).eq('id', customer.id);
 
-        // 3. Update Ledger Entry (Optional but good)
-        const q = query(collection(db, "ledger_entries"), where("referenceNo", "==", editingPayment.receiptNo));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-           await updateDoc(doc(db, "ledger_entries", snap.docs[0].id), {
-             amount: newAmount,
-             description: snap.docs[0].data().description + " (Corrected)"
-           });
-        }
+        // 3. Update Ledger Entry
+        await supabase
+          .from('ledger_entries')
+          .update({ amount: newAmount, description: 'Payment (Corrected)' })
+          .eq('reference_no', editingPayment.receipt_no);
       }
 
       alert("Collection updated successfully!");
       setShowEditModal(false);
     } catch (err) {
+      console.error(err);
       alert("Failed to update collection.");
     } finally {
       setIsProcessing(false);

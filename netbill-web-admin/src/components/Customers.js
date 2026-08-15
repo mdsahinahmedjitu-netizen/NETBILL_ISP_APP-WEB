@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, orderBy, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId }) => {
   const [search, setSearch] = useState('');
@@ -89,11 +88,26 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
 
   useEffect(() => {
     if (!selectedCust) return;
-    const q = query(collection(db, "ledger_entries"), where("customerId", "==", selectedCust.id), orderBy("date", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      setLedger(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
+    const fetchLedger = async () => {
+      const { data, error } = await supabase
+        .from('ledger_entries')
+        .select('*')
+        .eq('customer_id', selectedCust.id)
+        .order('date', { ascending: false });
+      if (!error) setLedger(data);
+    };
+    fetchLedger();
+
+    // Subscribe to ledger changes
+    const channel = supabase.channel(`ledger-${selectedCust.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_entries', filter: `customer_id=eq.${selectedCust.id}` }, (payload) => {
+        fetchLedger();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedCust]);
 
   const filteredCustomers = store.customers.filter(c => {
@@ -293,36 +307,48 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
       const todayISO = new Date().toLocaleDateString('en-CA');
       const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      const custRef = await addDoc(collection(db, "customers"), {
-          ...finalData,
-          customerCode: newCode,
-          joinDate: finalData.joinDate || todayISO,
-          status: 'Active'
-      });
+      const { data: newCust, error: custErr } = await supabase.from('customers').insert({
+          customer_code: newCode,
+          name: finalData.name,
+          mobile: finalData.mobile,
+          alt_mobile: finalData.altMobile,
+          address: finalData.address,
+          zone: finalData.zone,
+          package_name: finalData.packageName,
+          monthly_bill: finalData.monthlyBill,
+          current_due: finalData.currentDue,
+          status: 'Active',
+          join_date: finalData.joinDate || todayISO
+      }).select().single();
 
-      // Handle Paid Amount: Create Payment Record so it shows in CRM List
+      if (custErr) {
+        console.error("Import error:", custErr);
+        continue;
+      }
+
+      // Handle Paid Amount
       const paidAmt = parseFloat(finalData.paid) || 0;
       if (paidAmt > 0) {
-          await addDoc(collection(db, "payments"), {
-            customerId: custRef.id,
-            customerName: finalData.name,
-            customerCode: newCode,
+          await supabase.from('payments').insert({
+            customer_id: newCust.id,
+            customer_name: finalData.name,
+            customer_code: newCode,
             amount: paidAmt,
-            paymentMethod: "Imported (Cash)",
-            paymentDate: todayISO,
-            billingMonth: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
-            receiptNo: `REC-IMP-${Date.now().toString().slice(-4)}${i}`,
+            payment_method: "Imported (Cash)",
+            payment_date: todayISO,
+            billing_month: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date()),
+            receipt_no: `REC-IMP-${Date.now().toString().slice(-4)}${i}`,
             remarks: "Imported from Excel"
           });
 
-          await addDoc(collection(db, "ledger_entries"), {
-            customerId: custRef.id,
+          await supabase.from('ledger_entries').insert({
+            customer_id: newCust.id,
             date: todayISO,
             time: timeStr,
             type: "Payment",
             description: "Imported from Excel",
             amount: paidAmt,
-            isDebit: false
+            is_debit: false
           });
       }
 
@@ -344,9 +370,8 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
     if (selectedIds.length === 0) return;
     if (!window.confirm(`Delete ${selectedIds.length} marked subscribers?`)) return;
     try {
-      const batch = writeBatch(db);
-      selectedIds.forEach(id => batch.delete(doc(db, "customers", id)));
-      await batch.commit();
+      const { error } = await supabase.from('customers').delete().in('id', selectedIds);
+      if (error) throw error;
       setSelectedIds([]); setSelectedCust(null); alert("Deleted!");
     } catch (e) { alert("Delete failed!"); }
   };
@@ -364,7 +389,16 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const handleQuickZoneUpdate = async () => {
     if (!custToChangeZone) return;
     try {
-      await updateDoc(doc(db, "customers", custToChangeZone.id), newZoneData);
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          zone: newZoneData.zone,
+          sub_zone: newZoneData.subZone,
+          box_id: newZoneData.boxId
+        })
+        .eq('id', custToChangeZone.id);
+
+      if (error) throw error;
       alert("Zone Updated Successfully!");
       setShowZoneChangeModal(false);
       setCustToChangeZone(null);
@@ -376,8 +410,8 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const openDateChangeModal = (cust) => {
     setCustToChangeDate(cust);
     setNewDates({
-      expireDate: cust.expireDate || '',
-      requestDate: cust.requestDate || ''
+      expireDate: cust.expire_date || '',
+      requestDate: cust.request_date || ''
     });
     setShowDateChangeModal(true);
     setActiveMenuId(null);
@@ -386,7 +420,15 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const handleQuickDateUpdate = async () => {
     if (!custToChangeDate) return;
     try {
-      await updateDoc(doc(db, "customers", custToChangeDate.id), newDates);
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          expire_date: newDates.expireDate,
+          request_date: newDates.requestDate
+        })
+        .eq('id', custToChangeDate.id);
+
+      if (error) throw error;
       alert("Dates Updated Successfully!");
       setShowDateChangeModal(false);
       setCustToChangeDate(null);
@@ -398,31 +440,134 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      if (isEditing) { await updateDoc(doc(db, "customers", formData.id), formData); alert("Updated!"); }
-      else {
-        const today = new Date(); const day = today.getDate(); let currentDue = 0; let billApplied = false;
-        if (day <= 20) { currentDue = parseFloat(formData.monthlyBill) || 0; billApplied = true; }
-        else {
-          const choice = window.confirm("গ্রাহক ২০ তারিখের পরে জয়েন করেছেন। চলতি মাসের বিল কি এখনই জেনারেট করবেন?");
-          if (choice) { currentDue = parseFloat(formData.monthlyBill) || 0; billApplied = true; } else { currentDue = 0; billApplied = false; }
+      const dbData = {
+        customer_code: formData.customerCode,
+        name: formData.name,
+        mobile: formData.mobile,
+        alt_mobile: formData.altMobile,
+        address: formData.address,
+        zone: formData.zone,
+        sub_zone: formData.subZone,
+        box_id: formData.boxId,
+        package_name: formData.packageName,
+        monthly_bill: parseFloat(formData.monthlyBill) || 0,
+        pppoe_username: formData.pppoeUsername,
+        pppoe_password: formData.pppoePassword,
+        router_id: formData.routerId,
+        billing_type: formData.billingType,
+        payment_status: formData.paymentStatus,
+        expire_date: formData.expireDate || null,
+        request_date: formData.requestDate || null,
+        connection_type: formData.connectionType,
+        status: formData.status,
+        subscription_type: formData.subscriptionType,
+        connection_fee: parseFloat(formData.connectionFee) || 0,
+        reference_name: formData.referenceName,
+        reference_mobile: formData.referenceMobile
+      };
+
+      if (isEditing) {
+        const { error } = await supabase.from('customers').update(dbData).eq('id', formData.id);
+        if (error) {
+          console.error("Supabase Update Error:", error);
+          throw error;
         }
+        alert("Updated!");
+      }
+      else {
+        const today = new Date();
+        const day = today.getDate();
+        let currentDue = 0;
+        let billApplied = false;
+
+        if (day <= 20) {
+          currentDue = parseFloat(formData.monthlyBill) || 0;
+          billApplied = true;
+        } else {
+          const choice = window.confirm("গ্রাহক ২০ তারিখের পরে জয়েন করেছেন। চলতি মাসের বিল কি এখনই জেনারেট করবেন?");
+          if (choice) {
+            currentDue = parseFloat(formData.monthlyBill) || 0;
+            billApplied = true;
+          } else {
+            currentDue = 0;
+            billApplied = false;
+          }
+        }
+
         const newCode = formData.customerCode || `CUST-${Date.now().toString().slice(-4)}`;
         const joinDate = new Date().toLocaleDateString('en-CA');
-        const custRef = await addDoc(collection(db, "customers"), { ...formData, customerCode: newCode, currentDue, advanceBalance: 0, joinDate });
-        if (billApplied && currentDue > 0) {
-          const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(today);
-          await addDoc(collection(db, "invoices"), { invoiceNo: "INV-" + Math.random().toString(36).substr(2, 6).toUpperCase(), customerId: custRef.id, customerCode: newCode, customerName: formData.name, packageName: formData.packageName, billingMonthYear: currentMonth, billAmount: currentDue, totalPayable: currentDue, dueAmount: currentDue, status: "Unpaid", generatedDate: joinDate });
-          await addDoc(collection(db, "ledger_entries"), { customerId: custRef.id, date: joinDate, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), type: "Monthly Bill", amount: currentDue, isDebit: true, description: `${currentMonth} Enrollment Bill Applied` });
+
+        // Insert new customer and get the data back
+        const { data: insertedData, error: custErr } = await supabase.from('customers').insert({
+          ...dbData,
+          customer_code: newCode,
+          current_due: currentDue,
+          advance_balance: 0,
+          join_date: joinDate
+        }).select();
+
+        if (custErr) {
+          console.error("Supabase Customer Insert Error:", custErr);
+          throw custErr;
         }
-        alert("Success!");
+
+        const newCust = insertedData[0];
+
+        if (billApplied && currentDue > 0 && newCust) {
+          const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(today);
+          const invNo = "INV-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+          // 1. Create Invoice
+          const { error: invErr } = await supabase.from('invoices').insert({
+            invoice_no: invNo,
+            customer_id: newCust.id,
+            customer_name: formData.name,
+            billing_month_year: currentMonth,
+            bill_amount: currentDue,
+            total_payable: currentDue,
+            due_amount: currentDue,
+            status: "Unpaid",
+            generated_date: joinDate
+          });
+          if (invErr) console.error("Invoice Error:", invErr);
+
+          // 2. Create Ledger Entry
+          const { error: ledErr } = await supabase.from('ledger_entries').insert({
+            customer_id: newCust.id,
+            date: joinDate,
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            type: "Monthly Bill",
+            amount: currentDue,
+            is_debit: true,
+            description: `${currentMonth} Enrollment Bill Applied`,
+            reference_no: invNo
+          });
+          if (ledErr) console.error("Ledger Error:", ledErr);
+        }
+        alert("Customer Enrolled & Bill Generated Successfully!");
       }
       setShowModal(false);
-    } catch (err) { alert("Error saving!"); }
+    } catch (err) {
+      console.error(err);
+      alert("Error saving!");
+    }
   };
 
-  const handleDelete = async (id) => { if (window.confirm("Delete permanently?")) { await deleteDoc(doc(db, "customers", id)); setSelectedCust(null); setActiveMenuId(null); } };
+  const handleDelete = async (id) => {
+    if (window.confirm("Delete permanently?")) {
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (!error) {
+        setSelectedCust(null);
+        setActiveMenuId(null);
+      }
+    }
+  };
 
-  const toggleStatus = async (cust) => { const nextStatus = cust.status === 'Active' ? 'Inactive' : 'Active'; await updateDoc(doc(db, "customers", cust.id), { status: nextStatus }); setActiveMenuId(null); };
+  const toggleStatus = async (cust) => {
+    const nextStatus = cust.status === 'Active' ? 'Inactive' : 'Active';
+    await supabase.from('customers').update({ status: nextStatus }).eq('id', cust.id);
+    setActiveMenuId(null);
+  };
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr || dateStr === 'Not Set') return dateStr || '';

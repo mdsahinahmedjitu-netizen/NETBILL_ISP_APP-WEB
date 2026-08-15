@@ -105,6 +105,14 @@ dependencies {
   implementation(libs.firebase.firestore)
   implementation(libs.firebase.storage)
   implementation(libs.firebase.analytics)
+
+  // Supabase Dependencies
+  implementation(libs.supabase.postgrest)
+  implementation(libs.supabase.realtime)
+  implementation(libs.supabase.gotrue)
+  implementation(libs.supabase.storage)
+  implementation(libs.ktor.client.android)
+
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)

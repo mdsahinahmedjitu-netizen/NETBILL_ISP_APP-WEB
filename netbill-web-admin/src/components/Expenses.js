@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, doc, deleteDoc } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Expenses = ({ store, session, t }) => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -46,7 +45,7 @@ const Expenses = ({ store, session, t }) => {
     e.preventDefault();
     if (!newCatName) return;
     try {
-      await addDoc(collection(db, "expense_categories"), { name: newCatName });
+      await supabase.from('expense_categories').insert({ name: newCatName });
       setNewCatName('');
       alert("Category added successfully!");
     } catch (e) { alert("Failed to add category"); }
@@ -55,7 +54,7 @@ const Expenses = ({ store, session, t }) => {
   const handleCatDelete = async (id) => {
     if (window.confirm("Delete this category?")) {
       try {
-        await deleteDoc(doc(db, "expense_categories", id));
+        await supabase.from('expense_categories').delete().eq('id', id);
       } catch (e) { alert("Delete failed."); }
     }
   };
@@ -64,14 +63,14 @@ const Expenses = ({ store, session, t }) => {
     return store.expenses?.filter(e => {
       const matchCat = filterCategory === 'All' || e.category === filterCategory;
       const matchSearch = !search ||
-        e.title?.toLowerCase().includes(search.toLowerCase()) ||
-        e.expenseBy?.toLowerCase().includes(search.toLowerCase());
+        (e.title || e.item)?.toLowerCase().includes(search.toLowerCase()) ||
+        e.expense_by?.toLowerCase().includes(search.toLowerCase());
       return matchCat && matchSearch;
-    }).sort((a, b) => new Date(b.expenseDate) - new Date(a.expenseDate));
+    }).sort((a, b) => new Date(b.expense_date || b.date) - new Date(a.expense_date || a.date));
   }, [store.expenses, filterCategory, search]);
 
   const totalExpense = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-  const todayExpense = store.expenses?.filter(e => e.expenseDate === new Date().toLocaleDateString('en-CA'))
+  const todayExpense = store.expenses?.filter(e => (e.expense_date || e.date) === new Date().toLocaleDateString('en-CA'))
     .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
 
   const handleAddExpense = async (e) => {
@@ -80,11 +79,15 @@ const Expenses = ({ store, session, t }) => {
 
     setIsProcessing(true);
     try {
-      await addDoc(collection(db, "expenses"), {
-        ...formData,
+      const { error } = await supabase.from('expenses').insert({
+        title: formData.title,
+        category: formData.category,
         amount: parseFloat(formData.amount),
-        createdAt: new Date().toISOString()
+        expense_date: formData.expenseDate,
+        expense_by: formData.expenseBy,
+        notes: formData.notes
       });
+      if (error) throw error;
       alert("Expense Recorded Successfully!");
       setShowAddModal(false);
       setFormData(initialState);
@@ -98,7 +101,7 @@ const Expenses = ({ store, session, t }) => {
   const handleDelete = async (id) => {
     if (window.confirm("Delete this expense permanently?")) {
       try {
-        await deleteDoc(doc(db, "expenses", id));
+        await supabase.from('expenses').delete().eq('id', id);
       } catch (e) { alert("Delete failed."); }
     }
   };
@@ -170,7 +173,7 @@ const Expenses = ({ store, session, t }) => {
                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                   {filteredExpenses.map(exp => (
                     <tr key={exp.id} className="hover:bg-rose-50/20 transition-all group">
-                       <td className="p-6 text-xs font-black text-slate-500">{exp.expenseDate || exp.date}</td>
+                       <td className="p-6 text-xs font-black text-slate-500">{exp.expense_date || exp.date}</td>
                        <td className="p-6">
                           <p className="text-lg font-black text-slate-800 dark:text-white tracking-tighter leading-none">{exp.title || exp.item}</p>
                           <p className="text-[9px] text-slate-400 mt-1.5 font-bold italic uppercase">{exp.notes || exp.remarks || 'No extra notes'}</p>
@@ -178,7 +181,7 @@ const Expenses = ({ store, session, t }) => {
                        <td className="p-6">
                           <span className="bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl text-[9px] font-black tracking-widest border border-slate-200 dark:border-slate-700">{getCatLabel(exp.category)}</span>
                        </td>
-                       <td className="p-6 text-xs font-black text-indigo-600 uppercase italic">{exp.expenseBy}</td>
+                       <td className="p-6 text-xs font-black text-indigo-600 uppercase italic">{exp.expense_by || exp.expenseBy}</td>
                        <td className="p-6 text-right font-black text-2xl text-rose-500 tracking-tighter">৳ {exp.amount}</td>
                        <td className="p-6 text-center">
                           <button

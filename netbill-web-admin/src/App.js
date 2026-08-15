@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebaseConfig';
+import { supabase } from './supabaseClient';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -80,51 +81,83 @@ function App() {
     else document.body.classList.remove('dark-mode');
   }, [isDarkMode]);
 
-  // Real-time Cloud Sync
+  // Real-time Cloud Sync with Supabase
   useEffect(() => {
     if (!session) return;
 
-    const unsubCust = onSnapshot(collection(db, "customers"), (snap) => {
-      setStore(prev => ({ ...prev, customers: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubTickets = onSnapshot(collection(db, "support_tickets"), (snap) => {
-      setStore(prev => ({ ...prev, tickets: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubPayments = onSnapshot(collection(db, "payments"), (snap) => {
-      setStore(prev => ({ ...prev, payments: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubRequests = onSnapshot(collection(db, "payment_requests"), (snap) => {
-      setStore(prev => ({ ...prev, paymentRequests: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubInvoices = onSnapshot(collection(db, "invoices"), (snap) => {
-      setStore(prev => ({ ...prev, invoices: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubExpenses = onSnapshot(collection(db, "expenses"), (snap) => {
-      setStore(prev => ({ ...prev, expenses: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubStaff = onSnapshot(collection(db, "staff"), (snap) => {
-      setStore(prev => ({ ...prev, staff: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubStaffPayouts = onSnapshot(collection(db, "staff_payouts"), (snap) => {
-      setStore(prev => ({ ...prev, staffPayouts: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubZones = onSnapshot(collection(db, "zones"), (snap) => {
-      setStore(prev => ({ ...prev, zones: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubSubZones = onSnapshot(collection(db, "sub_zones"), (snap) => {
-      setStore(prev => ({ ...prev, subZones: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubBoxes = onSnapshot(collection(db, "boxes"), (snap) => {
-      setStore(prev => ({ ...prev, boxes: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubExpCat = onSnapshot(collection(db, "expense_categories"), (snap) => {
-      setStore(prev => ({ ...prev, expenseCategories: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-    });
-    const unsubSettings = onSnapshot(doc(db, "settings", "global"), (snap) => {
-      if (snap.exists()) setStore(prev => ({ ...prev, settings: snap.data() }));
+    const fetchData = async () => {
+      const tables = [
+        'customers', 'support_tickets', 'payments', 'payment_requests',
+        'invoices', 'expenses', 'staff', 'staff_payouts',
+        'zones', 'sub_zones', 'boxes', 'expense_categories', 'packages', 'inventory_items'
+      ];
+
+      for (const table of tables) {
+        const { data, error } = await supabase.from(table).select('*');
+        if (!error) {
+          // Map snake_case to camelCase for UI compatibility
+          const mappedData = data.map(item => ({
+            ...item,
+            customerCode: item.customer_code,
+            altMobile: item.alt_mobile,
+            packageName: item.package_name,
+            monthlyBill: item.monthly_bill,
+            currentDue: item.current_due,
+            advanceBalance: item.advance_balance,
+            pppoeUsername: item.pppoe_username,
+            pppoePassword: item.pppoe_password,
+            onuMac: item.onu_mac,
+            routerId: item.router_id,
+            billingType: item.billing_type,
+            paymentStatus: item.payment_status,
+            expireDate: item.expire_date,
+            requestDate: item.request_date,
+            connectionType: item.connection_type,
+            subscriptionType: item.subscription_type,
+            connectionFee: item.connection_fee,
+            joinDate: item.join_date,
+            assignedStaffId: item.assigned_staff_id,
+            referenceName: item.reference_name,
+            referenceMobile: item.reference_mobile,
+            expenseDate: item.expense_date,
+            expenseBy: item.expense_by,
+            receiptNo: item.receipt_no,
+            paymentDate: item.payment_date,
+            billingMonth: item.billing_month,
+            collectedBy: item.collected_by,
+            collectedById: item.collected_by_id
+          }));
+
+          setStore(prev => ({
+            ...prev,
+            [table === 'support_tickets' ? 'tickets' : (table === 'inventory_items' ? 'inventory' : table)]: mappedData
+          }));
+        }
+      }
+
+      // Special handling for settings - use maybeSingle to avoid error if table is empty
+      const { data: settingsData } = await supabase.from('settings').select('*').limit(1).maybeSingle();
+      if (settingsData) setStore(prev => ({ ...prev, settings: settingsData }));
+    };
+
+    fetchData();
+
+    // Subscribe to changes for all tables
+    const channels = [
+      'customers', 'support_tickets', 'payments', 'payment_requests',
+      'invoices', 'expenses', 'staff', 'staff_payouts',
+      'zones', 'sub_zones', 'boxes', 'expense_categories'
+    ].map(table => {
+      return supabase.channel(`${table}-changes`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: table }, (payload) => {
+          fetchData(); // Simplest way to keep store in sync for now
+        })
+        .subscribe();
     });
 
-    return () => { unsubCust(); unsubTickets(); unsubPayments(); unsubRequests(); unsubInvoices(); unsubExpenses(); unsubStaff(); unsubStaffPayouts(); unsubZones(); unsubSubZones(); unsubBoxes(); unsubExpCat(); unsubSettings(); };
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel));
+    };
   }, [session]);
 
   const toggleLang = () => {

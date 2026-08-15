@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebaseConfig';
+import { supabase } from '../supabaseClient';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const Settings = ({ store, t, lang }) => {
   const [settings, setSettings] = useState({
+    // ... (existing settings state)
     companyName: 'NetBill ISP',
     companyAddress: '',
     companyPhone: '',
@@ -25,6 +27,66 @@ const Settings = ({ store, t, lang }) => {
   });
 
   const [isSaving, setIsProcessing] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [migStatus, setMigStatus] = useState('');
+
+  const runMigration = async () => {
+    if (!window.confirm("এটি আপনার ফায়ারবেসের সব ডাটা সুপারবেসে কপি করবে। আপনি কি নিশ্চিত?")) return;
+    setMigrating(true);
+    setMigStatus('Preparing to migrate...');
+
+    try {
+      // 1. Sync Categories
+      setMigStatus('Syncing Expense Categories...');
+      const defaultCats = ['Bandwidth Cost', 'Staff Salary', 'Office Rent', 'Electricity Bill', 'Equipment Purchase', 'Maintenance', 'Transport', 'Marketing', 'Other Expense'];
+      for (const cat of defaultCats) {
+        await supabase.from('expense_categories').upsert({ name: cat });
+      }
+
+      // 2. Migrate Customers
+      setMigStatus(`Migrating ${store.customers.length} Customers...`);
+      for (const c of store.customers) {
+        const { error } = await supabase.from('customers').upsert({
+          customer_code: c.customerCode,
+          name: c.name,
+          mobile: c.mobile,
+          alt_mobile: c.altMobile || null,
+          address: c.address || null,
+          zone: c.zone || null,
+          package_name: c.packageName || null,
+          monthly_bill: parseFloat(c.monthlyBill) || 0,
+          current_due: parseFloat(c.currentDue) || 0,
+          pppoe_username: c.pppoeUsername || null,
+          pppoe_password: c.pppoePassword || null,
+          status: c.status || 'Active',
+          join_date: c.joinDate || null
+        }, { onConflict: 'customer_code' });
+        if (error) console.error("Cust Error:", error);
+      }
+
+      // 3. Migrate Payments
+      setMigStatus(`Migrating ${store.payments.length} Payments...`);
+      for (const p of store.payments) {
+        await supabase.from('payments').upsert({
+          receipt_no: p.receiptNo,
+          amount: parseFloat(p.amount) || 0,
+          payment_method: p.paymentMethod || 'Cash',
+          payment_date: p.paymentDate || null,
+          billing_month: p.billingMonth || null,
+          customer_name: p.customerName || null,
+          collected_by: p.collectedBy || null
+        }, { onConflict: 'receipt_no' });
+      }
+
+      setMigStatus('SUCCESS! ALL DATA COPIED TO SUPABASE.');
+      alert("Migration Successful! You can now start using Supabase.");
+    } catch (err) {
+      console.error(err);
+      setMigStatus('Migration Failed. Check console.');
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "global"), (doc) => {
@@ -39,8 +101,28 @@ const Settings = ({ store, t, lang }) => {
     e.preventDefault();
     setIsProcessing(true);
     try {
-      await setDoc(doc(db, "settings", "global"), settings);
-      alert("System Configuration Synchronized Successfully!");
+      const { error } = await supabase.from('settings').upsert({
+        id: 1, // Only one row for settings
+        company_name: settings.companyName,
+        company_address: settings.companyAddress,
+        company_phone: settings.companyPhone,
+        monthly_target: settings.monthlyTarget,
+        sms_api_key: settings.smsApiKey,
+        sms_sender_id: settings.smsSenderId,
+        api_mode: settings.apiMode,
+        bkash_app_key: settings.bkashAppKey,
+        bkash_app_secret: settings.bkashAppSecret,
+        bkash_username: settings.bkashUsername,
+        bkash_password: settings.bkashPassword,
+        nagad_merchant_id: settings.nagadMerchantId,
+        nagad_mobile: settings.nagadMobile,
+        personal_bkash_no: settings.personalBkashNo,
+        personal_nagad_no: settings.personalNagadNo,
+        billing_day: settings.billingDay,
+        auto_disable_days: settings.autoDisableDays
+      });
+      if (error) throw error;
+      alert("Settings Saved Successfully to Supabase!");
     } catch (error) {
       alert("Failed to save settings.");
     } finally {
@@ -50,9 +132,25 @@ const Settings = ({ store, t, lang }) => {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter transition-all">
-      <div className="space-y-2 uppercase">
-        <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{t.global_settings}</h3>
-        <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">Master Control Panel • API & Logic Configuration</p>
+      <div className="flex justify-between items-end">
+        <div className="space-y-2 uppercase">
+          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{t.global_settings}</h3>
+          <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">Master Control Panel • API & Logic Configuration</p>
+        </div>
+
+        {/* MIGRATION CONTROLLER */}
+        <div className="bg-rose-50 dark:bg-rose-900/20 p-6 rounded-[32px] border-2 border-rose-100 dark:border-rose-800 space-y-4">
+           <p className="text-[10px] text-rose-600 font-bold tracking-widest">DATABASE MIGRATION (FIREBASE -> SUPABASE)</p>
+           <button
+             onClick={runMigration}
+             disabled={migrating}
+             className="bg-rose-600 text-white px-8 py-3 rounded-2xl font-black text-xs shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center space-x-3"
+           >
+              <i className={`fas ${migrating ? 'fa-sync fa-spin' : 'fa-database'}`}></i>
+              <span>{migrating ? 'MIGRATING...' : 'START DATA TRANSFER'}</span>
+           </button>
+           {migStatus && <p className="text-[9px] text-rose-500 font-black animate-pulse">{migStatus}</p>}
+        </div>
       </div>
 
       <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-2 gap-12 font-black">

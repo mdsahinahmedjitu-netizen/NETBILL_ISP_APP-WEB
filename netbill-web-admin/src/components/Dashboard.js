@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) => {
   const [activeFilter, setActiveFilter] = useState('today');
@@ -31,11 +30,11 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
   const currentMonthStr = todayStr.substring(0, 7);
 
   const filteredPayments = store.payments.filter(p => {
-    const pDate = p.paymentDate;
+    const pDate = p.payment_date || p.paymentDate;
 
     // Staff Isolation: Only show their own collections if role is 'staff'
     if (session?.role === 'staff') {
-       if (p.collectedById !== session.data.id && p.collectedBy !== session.data.name) return false;
+       if (p.collected_by_id !== session.data.id && p.collected_by !== session.data.name && p.collectedBy !== session.data.name) return false;
     }
 
     if (activeFilter === 'today') return pDate === todayStr;
@@ -46,11 +45,11 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
     return true;
   });
 
-  const selectedTotal = filteredPayments.reduce((s, p) => s + (p.amount || 0), 0);
-  const dueTotal = store.customers.reduce((s, c) => s + (parseFloat(c.currentDue) || 0), 0);
+  const selectedTotal = filteredPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+  const dueTotal = store.customers.reduce((s, c) => s + (parseFloat(c.current_due || c.currentDue) || 0), 0);
   const activeCount = store.customers.filter(c => c.status === 'Active').length;
   const expiredCount = store.customers.filter(c => c.status !== 'Active').length;
-  const targetPlan = store.settings?.monthlyTarget || 0;
+  const targetPlan = store.settings?.monthlyTarget || store.settings?.monthly_target || 0;
 
   // VERIFICATION LOGIC
   const pendingRequests = store.paymentRequests?.filter(r => r.status === 'pending') || [];
@@ -62,35 +61,47 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
         const receiptNo = "REC-" + Math.random().toString(36).substr(2, 6).toUpperCase();
 
         // 1. Record Payment
-        await addDoc(collection(db, "payments"), {
-            customerId: req.customerId, customerName: req.customerName, customerCode: req.customerCode,
-            amount: req.amount, paymentMethod: req.method + " (Online)", paymentDate: paymentDate,
-            receiptNo: receiptNo, transactionId: req.trxId, collectorName: "Admin Verified",
+        await supabase.from('payments').insert({
+            customer_id: req.customer_id,
+            customer_name: req.customer_name,
+            customer_code: req.customer_code,
+            amount: req.amount,
+            payment_method: (req.method || 'Unknown') + " (Online)",
+            payment_date: paymentDate,
+            receipt_no: receiptNo,
+            transaction_id: req.trx_id,
+            collected_by: "Admin Verified",
             remarks: "Approved Web Submission"
         });
 
         // 2. Update Customer Balance
-        const customer = store.customers.find(c => c.id === req.customerId);
+        const customer = store.customers.find(c => c.id === req.customer_id);
         if (customer) {
-            const newDue = (customer.currentDue || 0) - req.amount;
-            await updateDoc(doc(db, "customers", req.customerId), { currentDue: newDue });
+            const newDue = (customer.current_due || 0) - req.amount;
+            await supabase.from('customers').update({ current_due: newDue }).eq('id', req.customer_id);
         }
 
         // 3. Add Ledger
-        await addDoc(collection(db, "ledger_entries"), {
-            customerId: req.customerId, date: paymentDate, time: timeStr, type: "Payment",
-            amount: req.amount, isDebit: false, referenceNo: receiptNo, description: "TrxID: " + req.trxId
+        await supabase.from('ledger_entries').insert({
+            customer_id: req.customer_id,
+            date: paymentDate,
+            time: timeStr,
+            type: "Payment",
+            amount: req.amount,
+            is_debit: false,
+            reference_no: receiptNo,
+            description: "TrxID: " + req.trx_id
         });
 
         // 4. Update Request Status
-        await updateDoc(doc(db, "payment_requests", req.id), { status: 'approved' });
+        await supabase.from('payment_requests').update({ status: 'approved' }).eq('id', req.id);
         alert("Payment Approved!");
     } catch (e) { alert("Action failed!"); }
   };
 
   const handleReject = async (id) => {
     if (window.confirm("Reject and delete this request?")) {
-        await deleteDoc(doc(db, "payment_requests", id));
+        await supabase.from('payment_requests').delete().eq('id', id);
     }
   };
 

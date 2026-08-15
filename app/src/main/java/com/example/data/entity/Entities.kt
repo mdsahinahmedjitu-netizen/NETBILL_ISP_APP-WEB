@@ -2,8 +2,10 @@ package com.example.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
+@Serializable
 @Entity(tableName = "users")
 data class UserEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
@@ -11,280 +13,209 @@ data class UserEntity(
     val passwordHash: String = "",
     val name: String = "",
     val mobile: String = "",
-    val role: String = "", // "Super Admin", "Manager", "Billing Operator", "Support Staff"
+    val role: String = "Billing Operator", // e.g. "Super Admin", "Billing Operator", "Support Staff"
     val active: Boolean = true,
 )
 
+@Serializable
 @Entity(tableName = "customers")
 data class CustomerEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val customerCode: String = "", // e.g. NET-1001
+    val customer_code: String = "", 
     val name: String = "",
-    val mobile: String = "", // 01XXXXXXXXX
-    val altMobile: String = "",
-    val email: String = "",
-    val nidNumber: String = "", // NID Number
-    val dob: String = "", // YYYY-MM-DD
+    val mobile: String = "",
+    val alt_mobile: String = "",
     val address: String = "",
-    val zone: String = "", // e.g. Uttara Zone, Dhanmondi, Mirpur
-    val subZone: String = "",
-    val houseOwnerName: String = "", // House owner info
-    val emergencyContact: String = "", // Emergency contact phone
-    val networkBox: String = "", // e.g. TJ-04 / Splitter 1:8
-    val onuMacSerial: String = "", // ONU Serial / Model
-    val fiberCoreNo: String = "", // Fiber core color / number
-    val packageName: String = "",
-    val packageId: String = "",
-    val monthlyBill: Double = 0.0, // in ৳ BDT
-    val discount: Double = 0.0, // Monthly discount ৳
-    val connectionFee: Double = 0.0, // One-time connection fee ৳
-    val billingType: String = "Prepaid", // "Prepaid", "Postpaid"
-    val username: String = "",
-    val password: String = "",
-    val pppoeUsername: String = "",
-    val pppoePassword: String = "",
-    val ipAddress: String = "",
-    val macAddress: String = "",
-    val connectionType: String = "PPPoE", // "PPPoE", "Static IP", "Hotspot"
-    val joinDate: String = "", // YYYY-MM-DD
-    val joinDayOfMonth: Int = 1, // 1 to 31 (To enforce 20th day rule)
-    val expireDate: String = "",
-    val expireTime: String = "23:59",
-    val status: String = "Active", // "Active", "Inactive", "Suspended"
-    val referenceName: String = "",
-    val referenceMobile: String = "",
-    val currentDue: Double = 0.0, // in ৳ BDT
-    val advanceBalance: Double = 0.0, // in ৳ BDT (excess payments carried over)
-    val notes: String = "",
-)
+    val zone: String = "",
+    val sub_zone: String = "",
+    val box_id: String = "",
+    val package_name: String = "",
+    val package_id: String? = null,
+    val monthly_bill: Double = 0.0,
+    val current_due: Double = 0.0,
+    val advance_balance: Double = 0.0,
+    val pppoe_username: String = "",
+    val pppoe_password: String = "",
+    val onu_mac: String = "",
+    val onu_serial: String = "",
+    val router_id: String = "",
+    val billing_type: String = "MONTHLY DATE TO DATE",
+    val status: String = "Active",
+    val subscription_type: String = "Prepaid",
+    val join_date: String = "",
+    val assigned_staff_id: String = "",
+    val expire_date: String = "",
+    val request_date: String = "",
+    val reference_name: String = "",
+    val reference_mobile: String = "",
+    val notes: String = ""
+) {
+    // CamelCase helpers for UI compatibility
+    val customerCode get() = customer_code
+    val packageName get() = package_name
+    val monthlyBill get() = monthly_bill
+    val currentDue get() = current_due
+    val pppoeUsername get() = pppoe_username
+    val joinDayOfMonth: Int get() = try {
+        val parts = join_date.split("-")
+        if (parts.size == 3) parts[2].toInt() else 1
+    } catch (e: Exception) { 1 }
+}
 
+@Serializable
 @Entity(tableName = "packages")
 data class PackageEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val name: String = "", // e.g. 10 Mbps Home
-    val speed: String = "", // e.g. 10 Mbps
-    val monthlyPrice: Double = 0.0, // in ৳ BDT
-    val description: String = "",
-    val activeUserCount: Int = 0,
-)
+    val name: String = "",
+    val speed: String = "",
+    val monthly_price: Double = 0.0,
+    val description: String = ""
+) {
+    val monthlyPrice get() = monthly_price
+}
 
+@Serializable
 @Entity(tableName = "invoices")
 data class InvoiceEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val invoiceNo: String = "", // e.g. INV-2026-08101
-    val customerId: String = "",
-    val customerCode: String = "",
-    val customerName: String = "",
-    val packageName: String = "",
-    val billingMonthYear: String = "", // e.g. "August 2026"
-    val billAmount: Double = 0.0, // ৳ (Current bill)
-    val previousDue: Double = 0.0, // ৳ (Previous unpaid bills)
-    val carryForwardDue: Double = 0.0, // ৳ (Carried forward balance)
-    val lateFee: Double = 0.0,
-    val totalPayable: Double = 0.0,
-    val paidAmount: Double = 0.0,
-    val dueAmount: Double = 0.0,
-    val status: String = "Unpaid", // "Paid", "Partially Paid", "Due", "Overdue", "Cancelled"
-    val generatedDate: String = "",
-    val dueDate: String = "",
-    val paymentDate: String = "",
-    val is20thDayOverrideChoice: String = "Standard", // "CurrentMonth", "NextMonth", "Standard"
-)
+    val invoice_no: String = "",
+    val customer_id: String = "",
+    val customer_name: String = "",
+    val billing_month_year: String = "",
+    val bill_amount: Double = 0.0,
+    val total_payable: Double = 0.0,
+    val due_amount: Double = 0.0,
+    val status: String = "Unpaid",
+    val generated_date: String = ""
+) {
+    val invoiceNo get() = invoice_no
+    val billingMonthYear get() = billing_month_year
+    val totalPayable get() = total_payable
+    val dueAmount get() = due_amount
+    val billAmount get() = bill_amount
+}
 
-@Entity(tableName = "payment_allocations")
-data class PaymentAllocationEntity(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val paymentId: String = "", // Reference to payment_collections id
-    val invoiceId: String = "", // Reference to invoices id
-    val customerId: String = "",
-    val allocatedAmount: Double = 0.0, // ৳ allocated to this specific bill via FIFO
-    val remainingBillDueAfter: Double = 0.0, // ৳ remaining due on this bill after allocation
-    val paymentDate: String = "",
-    val paymentMethod: String = "",
-    val collector: String = "",
-    val remarks: String = "",
-)
-
-@Entity(tableName = "payment_collections")
+@Serializable
+@Entity(tableName = "payments")
 data class PaymentCollectionEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val receiptNo: String = "", // e.g. REC-99201
-    val invoiceId: String = "",
-    val customerId: String = "",
-    val customerName: String = "",
-    val customerCode: String = "",
-    val amount: Double = 0.0, // ৳ BDT
-    val paymentMethod: String = "", // "bKash", "Nagad", "Rocket", "Cash", "Bank Transfer"
-    val transactionId: String = "", // e.g. BK89230X1
-    val paymentDate: String = "",
-    val collectorName: String = "",
-    val remarks: String = "",
-    val billingMonth: String = "" // Added to match Web
-)
+    val receipt_no: String = "",
+    val customer_id: String = "",
+    val customer_name: String = "",
+    val customer_code: String = "",
+    val amount: Double = 0.0,
+    val payment_method: String = "Cash",
+    val transaction_id: String = "",
+    val payment_date: String = "",
+    val billing_month: String = "",
+    val collected_by: String = "",
+    val remarks: String = ""
+) {
+    val receiptNo get() = receipt_no
+    val customerName get() = customer_name
+    val customerCode get() = customer_code
+    val paymentMethod get() = payment_method
+    val transactionId get() = transaction_id
+    val paymentDate get() = payment_date
+    val billingMonth get() = billing_month
+}
 
+@Serializable
 @Entity(tableName = "expenses")
 data class ExpenseEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val title: String = "",
-    val category: String = "", // "Bandwidth Cost", "Staff Salary", "Electricity Bill", "Equipment Purchase", "Office Rent", "Maintenance", "Transport", "Other Expense"
-    val amount: Double = 0.0, // ৳ BDT
-    val expenseDate: String = "",
-    val expenseBy: String = "",
-    val notes: String = "",
-)
+    val category: String = "",
+    val amount: Double = 0.0,
+    val expense_date: String = "",
+    val expense_by: String = "",
+    val notes: String = ""
+) {
+    val expenseDate get() = expense_date
+}
 
+@Serializable
 @Entity(tableName = "staff")
 data class StaffEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String = "",
     val mobile: String = "",
-    val address: String = "",
-    val role: String = "", // "Super Admin", "Manager", "Billing Operator", "Support Staff", "Lineman"
-    val salary: Double = 0.0, // ৳ BDT
-    val joiningDate: String = "",
-    val active: Boolean = true,
-    val receiveAlerts: Boolean = false, // If true, receives WhatsApp/SMS alerts
+    val role: String = "Lineman",
+    val salary: Double = 0.0,
+    val balance: Double = 0.0,
+    val status: String = "Active"
 )
 
-@Entity(tableName = "staff_salaries")
-data class StaffSalaryEntity(
+@Serializable
+@Entity(tableName = "zones")
+data class ZoneEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val staffId: String = "",
-    val staffName: String = "",
-    val amount: Double = 0.0,
-    val salaryMonth: String = "", // "August 2026"
-    val paymentDate: String = "",
-    val paymentMethod: String = "Cash",
-    val remarks: String = "",
+    val name: String = ""
 )
 
-@Entity(tableName = "mikrotik_routers")
-data class MikroTikRouterEntity(
+@Serializable
+@Entity(tableName = "sub_zones")
+data class SubZoneEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val routerName: String = "", // e.g. Main Core Router - Uttara
-    val ipAddress: String = "", // e.g. 192.168.88.1
-    val apiPort: Int = 8728,
-    val username: String = "admin",
-    val password: String = "",
-    val isConnected: Boolean = true,
-    val activePppoeCount: Int = 0,
-    val totalRxMbps: Double = 0.0,
-    val totalTxMbps: Double = 0.0,
-    val zone: String = "",
+    val zone_id: String = "",
+    val name: String = ""
 )
 
-@Entity(tableName = "isp_settings")
-data class ISPSettingsEntity(
-    @PrimaryKey val id: String = "1",
-    val ispName: String = "NetBill Broadband ISP",
-    val address: String = "House 14, Road 7, Sector 4, Uttara, Dhaka-1230",
-    val mobileNumber: String = "01711000000",
-    val supportNumber: String = "01911000000",
-    val logoUrl: String = "",
-    val currencySymbol: String = "৳",
-    val defaultLanguage: String = "bn", // "bn" or "en"
-    val autoInvoiceDayOfMonth: Int = 1,
-    val lateFeeAmount: Double = 50.0,
-    
-    // SMS & WhatsApp Gateway Configuration
-    val smsApiUrl: String = "",
-    val smsApiKey: String = "",
-    val smsSenderId: String = "",
-    val isAutoSmsEnabled: Boolean = false,
-    val whatsappApiUrl: String = "",
-    val whatsappInstanceId: String = "",
-    val whatsappToken: String = "",
-    val adminWhatsappNumber: String = "",
-    val isWhatsappAlertEnabled: Boolean = false,
-
-    // NEW: Payment Gateway & Logic Controls (Synced with Web Admin)
-    val apiMode: String = "Sandbox", // "Sandbox" or "Production"
-    val bkashAppKey: String = "",
-    val bkashAppSecret: String = "",
-    val bkashUsername: String = "",
-    val bkashPassword: String = "",
-    val nagadMerchantId: String = "",
-    val nagadMobile: String = "",
-    val personalBkashNo: String = "",
-    val personalNagadNo: String = "",
-    val monthlyTarget: Double = 0.0,
-    val billingDay: Int = 1,
-    val autoDisableDays: Int = 10
-)
-
-@Entity(tableName = "ledger_entries")
-data class LedgerEntryEntity(
+@Serializable
+@Entity(tableName = "boxes")
+data class BoxEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val sub_zone_id: String = "",
+    val name: String = ""
+)
+
+@Serializable
+@Entity(tableName = "payment_allocations")
+data class PaymentAllocationEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val paymentId: String = "",
+    val invoiceId: String = "",
     val customerId: String = "",
-    val date: String = "", // YYYY-MM-DD
-    val time: String = "10:00 AM",
-    val type: String = "", // "Monthly Bill", "Payment", "Discount", "Advance", "Adjustment", "Previous Due", "Carry Forward Due", "Manual Charge", "Refund", "Waiver"
-    val referenceNo: String = "",
-    val description: String = "",
-    val amount: Double = 0.0,
-    val isDebit: Boolean = true, // true if increases customer due (+), false if decreases customer due (-)
-    val runningBalance: Double = 0.0,
-    val monthYear: String = "", // e.g. "August 2026"
-    val paymentMethod: String = "", // Cash, bKash, Nagad, Rocket, Bank
-    val collector: String = "",
+    val allocatedAmount: Double = 0.0
 )
 
+@Serializable
 @Entity(tableName = "sms_logs")
 data class SmsLogEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val customerId: String = "",
-    val customerCode: String = "",
-    val customerName: String = "",
-    val mobile: String = "",
-    val notificationType: String = "", // "Billing Alert", "Support Update", "Payment Receipt", "20th Day Reminder"
     val message: String = "",
-    val sentTimestamp: String = "",
-    val status: String = "", // "Delivered", "Failed", "Pending", "Sent"
-    val deliveryReport: String = "",
-    val gatewayProvider: String = "Greenweb Gateway"
+    val status: String = "Sent"
 )
 
+@Serializable
 @Entity(tableName = "sms_templates")
 data class SmsTemplateEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val title: String = "", // e.g. "Monthly Bill Due Alert", "Scheduled Fiber Downtime"
-    val category: String = "", // "Billing Alert", "Service Downtime", "Payment Receipt", "Network Outage", "General Notice"
-    val messageContent: String = "", // Template string with placeholders like {NAME}, {AMOUNT}, {ZONE}, {DUE_DATE}, etc.
-    val targetAudience: String = "All Active Customers",
-    val isDefault: Boolean = false,
-    val isActive: Boolean = true,
-    val lastUpdated: String = ""
+    val title: String = "",
+    val messageContent: String = ""
 )
 
-@Entity(tableName = "support_tickets")
-data class SupportTicketEntity(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val customerId: String = "",
-    val customerName: String = "",
-    val customerCode: String = "",
-    val customerPhone: String = "",
-    val issueType: String = "",
-    val description: String = "",
-    val status: String = "Pending", // Pending, In Progress, Resolved
-    val priority: String = "Normal",
-    val createdAt: String = "",
-    val lastUpdated: String = "",
-    val scheduledDate: String = "",
-    val scheduledTime: String = ""
-)
-
+@Serializable
 @Entity(tableName = "inventory_items")
 data class InventoryEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val itemName: String = "", // ONU, Router, Fiber Cable, etc.
-    val category: String = "", // Active, Passive, Customer-End
-    val serialNumber: String = "", // For ONU/Router
-    val brand: String = "",
-    val quantity: Int = 0,
-    val unit: String = "Pcs", // Pcs, Meter
-    val costPrice: Double = 0.0,
-    val supplier: String = "",
-    val purchaseDate: String = "",
-    val assignedToCustomerId: String? = null,
-    val status: String = "In Stock" // In Stock, Assigned, Damaged
+    val name: String = "",
+    val status: String = "In Stock"
+)
+
+@Serializable
+@Entity(tableName = "support_tickets")
+data class SupportTicketEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val customer_id: String = "",
+    val description: String = "",
+    val status: String = "Pending"
+)
+
+@Serializable
+data class ISPSettingsEntity(
+    val id: String = "1",
+    val company_name: String = "NetBill ISP",
+    val company_phone: String = ""
 )
