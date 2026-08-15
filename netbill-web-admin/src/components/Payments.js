@@ -147,25 +147,26 @@ const Payments = ({ store, session, t }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter transition-all">
-      <div className="space-y-2 uppercase">
-        <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{t.payment_center}</h3>
-        <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">Collection Hub • Financial Controller</p>
+    <div className="max-w-6xl mx-auto space-y-4 pb-10 uppercase font-black tracking-tighter transition-all">
+      <div className="space-y-0.5">
+        <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase leading-none">{t.payment_center}</h3>
+        <p className="text-[9px] text-teal-600 tracking-[3px] font-black uppercase italic opacity-70 leading-none">Collection Hub • Financial Controller</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* NEW COLLECTION FORM */}
-        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 font-black">
-           <div className="mb-10 bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[40px] border-2 border-indigo-100 dark:border-indigo-800">
-              <label className="text-[10px] font-black text-indigo-600 uppercase tracking-[4px] ml-4 block mb-3">Active Collector (Session Lock)</label>
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-700 font-black h-fit">
+           <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-3xl border-2 border-indigo-100 dark:border-indigo-800 flex items-center justify-between">
+              <label className="text-[10px] font-black text-indigo-600 uppercase tracking-[2px] ml-2">Collector:</label>
               <select
                 value={selectedCollector.id}
+                size="1"
                 onChange={(e) => {
                   const id = e.target.value;
                   const name = e.target.options[e.target.selectedIndex].text;
                   setSelectedCollector({ id, name });
                 }}
-                className="w-full bg-white dark:bg-slate-800 border-none p-4 rounded-2xl font-black text-sm text-slate-800 dark:text-white uppercase shadow-sm outline-none cursor-pointer"
+                className="bg-white dark:bg-slate-800 border-none px-4 py-2 rounded-xl font-black text-[11px] text-slate-800 dark:text-white uppercase shadow-sm outline-none cursor-pointer min-w-[200px]"
               >
                 <option value={session?.data?.id || 'admin'}>{session?.data?.name || 'Super Admin'} (YOU)</option>
                 {store.staff?.filter(s => s.id !== session?.data?.id).map(s => (
@@ -174,20 +175,20 @@ const Payments = ({ store, session, t }) => {
               </select>
            </div>
 
-           <form onSubmit={handlePayment} className="space-y-10 uppercase">
-              <div className="space-y-4">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[4px] ml-4">{t.find_subscriber}</label>
-                <div className="relative space-y-6">
+           <form onSubmit={handlePayment} className="space-y-6 uppercase">
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[3px] ml-4">{t.find_subscriber}</label>
+                <div className="relative space-y-3">
                   <input
                     type="text"
                     placeholder={t.search_placeholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border-none p-8 rounded-[40px] font-black text-2xl shadow-inner focus:ring-4 focus:ring-teal-500/10 transition-all outline-none"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-xl shadow-inner focus:ring-4 focus:ring-teal-500/10 transition-all outline-none"
                   />
                   <select
                     value={selectedCustomerId}
-                    size={searchTerm.length > 0 ? 6 : 1}
+                    size={searchTerm.length > 0 ? 5 : 1}
                     onChange={(e) => {
                       const id = e.target.value; setSelectedCustomerId(id);
                       const cust = store.customers.find(c => c.id === id);
@@ -196,12 +197,12 @@ const Payments = ({ store, session, t }) => {
                         setSearchTerm('');
                       }
                     }}
-                    className={`w-full bg-white dark:bg-slate-800 border-4 border-teal-500/10 p-7 rounded-[40px] font-black text-xl text-slate-800 dark:text-white uppercase shadow-xl outline-none cursor-pointer hover:border-teal-500 transition-all ${searchTerm.length > 0 ? 'ring-8 ring-teal-500/5 mt-2' : ''}`}
+                    className={`w-full bg-white dark:bg-slate-800 border-4 border-teal-500/10 p-4 rounded-[28px] font-black text-lg text-slate-800 dark:text-white uppercase shadow-xl outline-none cursor-pointer hover:border-teal-500 transition-all ${searchTerm.length > 0 ? 'mt-1' : ''}`}
                     required
                   >
-                    <option value="" className="p-4">-- {filteredCustomers.length} Results Found --</option>
+                    <option value="">-- {filteredCustomers.length} Results --</option>
                     {filteredCustomers.map(c => (
-                      <option key={c.id} value={c.id} className="p-4 border-b border-slate-50 dark:border-slate-700">
+                      <option key={c.id} value={c.id} className="p-2 border-b border-slate-50 dark:border-slate-700">
                         {c.name} - {c.zone || 'Global'} - DUE: ৳{Math.floor(c.currentDue)}
                       </option>
                     ))}
@@ -209,60 +210,60 @@ const Payments = ({ store, session, t }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <div className="space-y-4">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[4px] ml-4">{t.billing_month}</label>
-                    <select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-6 rounded-[32px] font-black uppercase text-sm cursor-pointer">
+              <div className="grid grid-cols-2 gap-6">
+                 <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[3px] ml-4">{t.billing_month}</label>
+                    <select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-4 rounded-2xl font-black uppercase text-xs cursor-pointer shadow-inner">
                       {months.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                  </div>
-                 <div className="space-y-4">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[4px] ml-4">{t.method}</label>
-                    <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-6 rounded-[32px] font-black uppercase text-sm cursor-pointer">
+                 <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[3px] ml-4">{t.method}</label>
+                    <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-4 rounded-2xl font-black uppercase text-xs cursor-pointer shadow-inner">
                       <option value="Cash">Cash</option><option value="bKash">bKash</option><option value="Nagad">Nagad</option><option value="Rocket">Rocket</option><option value="Bank">Bank</option>
                     </select>
                  </div>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-[11px] text-slate-400 uppercase tracking-[4px] ml-4">ENTER COLLECTION AMOUNT (৳)</label>
-                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-100 dark:bg-slate-900 border-none p-8 rounded-[40px] font-black text-6xl text-teal-600 tracking-tighter shadow-inner" required />
+              <div className="space-y-3">
+                <label className="text-[11px] text-slate-400 uppercase tracking-[4px] ml-4">ENTER AMOUNT (৳)</label>
+                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-100 dark:bg-slate-900 border-none p-8 rounded-[40px] font-black text-6xl text-teal-600 tracking-tighter shadow-inner text-center" required />
               </div>
 
-              <button type="submit" disabled={isProcessing} className={`w-full py-10 rounded-[48px] font-black uppercase tracking-[10px] shadow-2xl transition-all ${isProcessing ? 'bg-slate-400' : 'bg-[#0D9488] text-white hover:scale-[1.02] active:scale-95 border-b-8 border-teal-900 shadow-teal-500/30'}`}>
+              <button type="submit" disabled={isProcessing} className={`w-full py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl transition-all ${isProcessing ? 'bg-slate-400' : 'bg-[#0D9488] text-white hover:scale-[1.01] active:scale-95 border-b-8 border-teal-900 shadow-teal-500/30'}`}>
                 {isProcessing ? 'COMMITING...' : 'COMMIT PAYMENT'}
               </button>
            </form>
         </div>
 
         {/* COLLECTION HISTORY & EDIT */}
-        <div className="space-y-8 font-black uppercase">
-           <div className="flex justify-between items-center ml-4 border-b pb-6">
-              <h4 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-[5px]">Collection History</h4>
-              <span className="bg-slate-100 dark:bg-slate-900 px-5 py-2 rounded-full text-[10px] font-black">LATEST 20 ENTRIES</span>
+        <div className="space-y-6 font-black uppercase">
+           <div className="flex justify-between items-center ml-4 border-b pb-4">
+              <h4 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-[4px]">History</h4>
+              <span className="bg-slate-100 dark:bg-slate-900 px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest leading-none">LATEST 20</span>
            </div>
-           <div className="space-y-6 max-h-[800px] overflow-y-auto pr-4 custom-scrollbar">
+           <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
               {customerPayments.length > 0 ? customerPayments.map(p => (
-                <div key={p.id} className="bg-white dark:bg-slate-800 p-8 rounded-[48px] shadow-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center group transition-all font-black hover:-translate-y-1 relative">
-                   <div className="flex items-center space-x-8">
-                      <div className="w-20 h-20 rounded-[32px] bg-teal-50 dark:bg-slate-900 text-teal-600 flex items-center justify-center text-4xl shadow-inner shrink-0 transition-transform group-hover:rotate-12">
+                <div key={p.id} className="bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center group transition-all font-black hover:-translate-y-1 relative leading-none">
+                   <div className="flex items-center space-x-6">
+                      <div className="w-14 h-14 rounded-2xl bg-teal-50 dark:bg-slate-900 text-teal-600 flex items-center justify-center text-2xl shadow-inner shrink-0 transition-transform group-hover:rotate-12">
                          <i className={`fas ${p.paymentMethod === 'Cash' ? 'fa-wallet' : p.paymentMethod === 'Bank' ? 'fa-building-columns' : 'fa-mobile-screen-button'}`}></i>
                       </div>
                       <div className="space-y-2">
-                         <p className="text-2xl font-black text-slate-800 dark:text-white uppercase leading-none tracking-tighter">{p.billingMonth}</p>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{p.paymentMethod} • REF: {p.receiptNo}</p>
-                         <button onClick={() => openEditModal(p)} className="text-[10px] font-black text-indigo-600 underline tracking-[3px] opacity-0 group-hover:opacity-100 transition-all uppercase">Edit Entry</button>
+                         <p className="text-xl font-black text-slate-800 dark:text-white uppercase leading-none tracking-tighter">{p.billingMonth}</p>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">{p.paymentMethod} • REF: {p.receiptNo}</p>
+                         <button onClick={() => openEditModal(p)} className="text-[8px] font-black text-indigo-600 underline tracking-[2px] opacity-0 group-hover:opacity-100 transition-all uppercase">Edit</button>
                       </div>
                    </div>
-                   <div className="text-right space-y-2 font-black">
-                      <p className="text-4xl font-black text-emerald-600 tracking-tighter leading-none">৳ {p.amount}</p>
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-[4px]">{formatDateDisplay(p.paymentDate)}</p>
+                   <div className="text-right space-y-1 font-black">
+                      <p className="text-2xl font-black text-emerald-600 tracking-tighter leading-none">৳ {p.amount}</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[2px]">{formatDateDisplay(p.paymentDate)}</p>
                    </div>
                 </div>
               )) : (
-                <div className="text-center py-40 opacity-10 uppercase">
-                  <i className="fas fa-hand-holding-dollar text-[120px]"></i>
-                  <p className="text-2xl font-black mt-8 tracking-[15px]">No History</p>
+                <div className="text-center py-20 opacity-10 uppercase">
+                  <i className="fas fa-hand-holding-dollar text-[80px]"></i>
+                  <p className="text-lg font-black mt-4 tracking-[10px]">No History</p>
                 </div>
               )}
            </div>
