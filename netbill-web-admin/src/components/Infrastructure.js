@@ -154,15 +154,48 @@ const Infrastructure = ({ store, t }) => {
 
         {/* LIST */}
         <div className="lg:col-span-2 space-y-6">
-           {activeTab === 'zones' && store.zones?.filter(z => z.name.toLowerCase().includes(search.toLowerCase())).map(z => (
-             <AssetItem key={z.id} item={z} sub={`${store.subZones?.filter(sz => sz.zoneId === z.id).length || 0} Sub-Zones`} icon="fa-map-location-dot" color="text-teal-600" onUpdate={(n) => handleUpdate(z.id, n, 'zones')} onDelete={() => handleDelete(z.id, 'zones')} />
-           ))}
-           {activeTab === 'subzones' && store.subZones?.filter(sz => sz.name.toLowerCase().includes(search.toLowerCase())).map(sz => (
-             <AssetItem key={sz.id} item={sz} sub={`Zone: ${store.zones?.find(z => z.id === sz.zoneId)?.name || 'N/A'}`} icon="fa-layer-group" color="text-indigo-600" onUpdate={(n) => handleUpdate(sz.id, n, 'sub_zones')} onDelete={() => handleDelete(sz.id, 'sub_zones')} />
-           ))}
-           {activeTab === 'boxes' && store.boxes?.filter(b => b.name.toLowerCase().includes(search.toLowerCase())).map(b => (
-             <AssetItem key={b.id} item={b} sub={`Sub-Zone: ${store.subZones?.find(sz => sz.id === b.subZoneId)?.name || 'N/A'}`} icon="fa-box" color="text-rose-600" onUpdate={(n) => handleUpdate(b.id, n, 'boxes')} onDelete={() => handleDelete(b.id, 'boxes')} />
-           ))}
+           {activeTab === 'zones' && store.zones?.filter(z => z.name.toLowerCase().includes(search.toLowerCase())).map(z => {
+             const customerCount = store.customers?.filter(c => c.zone === z.name).length || 0;
+             return (
+               <AssetItem
+                 key={z.id}
+                 item={z}
+                 sub={`${store.subZones?.filter(sz => sz.zoneId === z.id).length || 0} Sub-Zones • ${customerCount} Active Customers`}
+                 icon="fa-map-location-dot"
+                 color="text-teal-600"
+                 onUpdate={(n) => handleUpdate(z.id, n, 'zones')}
+                 onDelete={() => handleDelete(z.id, 'zones')}
+               />
+             );
+           })}
+           {activeTab === 'subzones' && store.subZones?.filter(sz => sz.name.toLowerCase().includes(search.toLowerCase())).map(sz => {
+             const customerCount = store.customers?.filter(c => c.subZone === sz.name).length || 0;
+             return (
+               <AssetItem
+                 key={sz.id}
+                 item={sz}
+                 sub={`Zone: ${store.zones?.find(z => z.id === sz.zoneId)?.name || 'N/A'} • ${customerCount} Customers`}
+                 icon="fa-layer-group"
+                 color="text-indigo-600"
+                 onUpdate={(n) => handleUpdate(sz.id, n, 'sub_zones')}
+                 onDelete={() => handleDelete(sz.id, 'sub_zones')}
+               />
+             );
+           })}
+           {activeTab === 'boxes' && store.boxes?.filter(b => b.name.toLowerCase().includes(search.toLowerCase())).map(b => {
+             const customerCount = store.customers?.filter(c => c.boxId === b.name).length || 0;
+             return (
+               <AssetItem
+                 key={b.id}
+                 item={b}
+                 sub={`Sub-Zone: ${store.subZones?.find(sz => sz.id === b.subZoneId)?.name || 'N/A'} • ${customerCount} Customers`}
+                 icon="fa-box"
+                 color="text-rose-600"
+                 onUpdate={(n) => handleUpdate(b.id, n, 'boxes')}
+                 onDelete={() => handleDelete(b.id, 'boxes')}
+               />
+             );
+           })}
            {((activeTab === 'zones' && !store.zones?.filter(z => z.name.toLowerCase().includes(search.toLowerCase())).length) ||
              (activeTab === 'subzones' && !store.subZones?.filter(sz => sz.name.toLowerCase().includes(search.toLowerCase())).length) ||
              (activeTab === 'boxes' && !store.boxes?.filter(b => b.name.toLowerCase().includes(search.toLowerCase())).length)) && (
