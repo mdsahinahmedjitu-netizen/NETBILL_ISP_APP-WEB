@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { db } from '../firebaseConfig';
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
-const Staff = ({ store, t }) => {
+const Staff = ({ store, session, t }) => {
   const [showModal, setShowModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Payment States
@@ -92,8 +93,9 @@ const Staff = ({ store, t }) => {
 
   const handlePaySalary = async (e) => {
     e.preventDefault();
-    if (!selectedStaff) return;
+    if (!selectedStaff || isProcessing) return;
 
+    setIsProcessing(true);
     try {
       const amt = parseFloat(payoutData.amount) || 0;
       let newBalance = selectedStaff.balance || 0;
@@ -121,19 +123,33 @@ const Staff = ({ store, t }) => {
         type: payoutData.type,
         newBalance: newBalance,
         date: todayISO,
-        remarks: payoutData.remarks
+        remarks: payoutData.remarks,
+        createdAt: new Date().toISOString()
       });
 
       // 3. Add to Expenses if it's a payment
       if (payoutData.type === 'payment') {
-        await addDoc(collection(db, "expenses"), {
-          category: 'Staff Salary',
-          item: `Salary Pmt: ${selectedStaff.name} (${payoutData.month})`,
-          amount: amt,
-          date: todayISO,
-          method: 'Cash',
-          remarks: payoutData.remarks
-        });
+        // More robust check: check for recent expenses (last 5 mins) to prevent exact duplicates
+        const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString();
+        const existingExpense = store.expenses?.find(e =>
+          e.category === 'Staff Salary' &&
+          e.amount === amt &&
+          e.expenseDate === todayISO &&
+          e.title?.includes(selectedStaff.name) &&
+          (e.createdAt || '') > fiveMinsAgo
+        );
+
+        if (!existingExpense) {
+          await addDoc(collection(db, "expenses"), {
+            category: 'Staff Salary',
+            title: `Salary Pmt: ${selectedStaff.name} (${payoutData.month})`,
+            amount: amt,
+            expenseDate: todayISO,
+            expenseBy: session?.data?.name || 'Admin',
+            remarks: payoutData.remarks || 'Automated from Staff Panel',
+            createdAt: new Date().toISOString()
+          });
+        }
       }
 
       // 4. SMS Notification Logic
@@ -151,6 +167,8 @@ const Staff = ({ store, t }) => {
       setShowPayModal(false);
     } catch (error) {
       alert("Action failed!");
+    } finally {
+      setIsProcessing(false);
     }
   };
 

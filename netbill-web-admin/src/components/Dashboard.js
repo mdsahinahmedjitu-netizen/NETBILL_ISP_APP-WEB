@@ -148,14 +148,14 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-7 font-black uppercase tracking-widest leading-none">
-        <FeatureCard title={t.payment_center} icon="fa-hand-holding-dollar" grad="grad-collection" onClick={() => setActivePage('payments')} />
-        <FeatureCard title="Collection Report" icon="fa-chart-column" grad="grad-invoices" onClick={() => setActivePage('reports')} />
-        <FeatureCard title={t.subscribers_crm} icon="fa-users-viewfinder" grad="grad-subscribers" onClick={() => setActivePage('customers')} />
-        <FeatureCard title="Tickets" icon="fa-ticket" grad="grad-tickets" onClick={() => {}} />
-        <FeatureCard title="Add New" icon="fa-user-plus" grad="grad-create" onClick={navigateToAddCustomer} />
-        <FeatureCard title="Search" icon="fa-magnifying-glass-chart" grad="grad-search" onClick={() => setActivePage('customers')} />
-        <FeatureCard title="Due List" icon="fa-money-bill-transfer" grad="grad-due" onClick={() => setActivePage('customers')} />
-        <FeatureCard title="Summary" icon="fa-chart-pie" grad="grad-summary" onClick={() => {}} />
+        <FeatureCard title={t.grid_collection} icon="fa-hand-holding-dollar" grad="grad-collection" onClick={() => setActivePage('payments')} />
+        <FeatureCard title={t.grid_report} icon="fa-chart-column" grad="grad-invoices" onClick={() => setActivePage('reports')} />
+        <FeatureCard title={t.grid_crm} icon="fa-users-viewfinder" grad="grad-subscribers" onClick={() => setActivePage('customers')} />
+        <FeatureCard title={t.grid_tickets} icon="fa-ticket" grad="grad-tickets" onClick={() => {}} />
+        <FeatureCard title={t.grid_add} icon="fa-user-plus" grad="grad-create" onClick={navigateToAddCustomer} />
+        <FeatureCard title={t.grid_search} icon="fa-magnifying-glass-chart" grad="grad-search" onClick={() => setActivePage('customers')} />
+        <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => setActivePage('customers')} />
+        <FeatureCard title={t.grid_summary} icon="fa-chart-pie" grad="grad-summary" onClick={() => {}} />
       </div>
 
       {/* Collection Breakdown Card */}

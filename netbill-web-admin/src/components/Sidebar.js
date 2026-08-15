@@ -5,13 +5,13 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
     { id: 'dashboard', icon: 'fa-th-large', label: t.dashboard_overview },
     { id: 'customers', icon: 'fa-users', label: t.subscribers_crm },
     { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center },
-    { id: 'reports', icon: 'fa-chart-pie', label: 'Collection Report' },
+    { id: 'reports', icon: 'fa-chart-pie', label: t.collection_report },
     { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title },
     { id: 'staff', icon: 'fa-user-tie', label: t.staff_team, adminOnly: true },
-    { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: 'Salary Ledger' },
+    { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: t.salary_ledger },
     { id: 'inventory', icon: 'fa-box', label: t.inventory_stock },
     { id: 'packages', icon: 'fa-wifi', label: t.service_packages },
-    { id: 'infrastructure', icon: 'fa-network-wired', label: 'Network Assets', adminOnly: true },
+    { id: 'infrastructure', icon: 'fa-network-wired', label: t.infrastructure || 'Network Assets', adminOnly: true },
     { id: 'settings', icon: 'fa-cog', label: t.global_settings, adminOnly: true },
   ];
 
@@ -42,30 +42,30 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
           </button>
         </div>
 
-        <nav className={`flex-1 space-y-2 overflow-y-auto pr-2 text-[10px] tracking-[2px] transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-          {menuItems.map((item) => {
-            // Role-based Access Control
-            if (item.adminOnly && role !== 'admin') return null;
+      <nav className={`flex-1 space-y-2 overflow-y-auto pr-2 text-[12px] tracking-[2px] transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
+        {menuItems.map((item) => {
+          // Role-based Access Control
+          if (item.adminOnly && role !== 'admin') return null;
 
-            return (
-              <div
-                key={item.id}
-                onClick={() => {
-                  setActivePage(item.id);
-                  if (window.innerWidth <= 1024) setIsSidebarOpen(false);
-                }}
-                className={`p-4 rounded-2xl flex items-center space-x-4 cursor-pointer transition-all duration-300 ${
-                  activePage === item.id
-                    ? 'bg-[#0D9488] text-white shadow-xl shadow-teal-500/30 scale-[1.02]'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <i className={`fas ${item.icon} text-sm`}></i>
-                <span className="whitespace-nowrap">{item.label}</span>
-              </div>
-            );
-          })}
-        </nav>
+          return (
+            <div
+              key={item.id}
+              onClick={() => {
+                setActivePage(item.id);
+                if (window.innerWidth <= 1024) setIsSidebarOpen(false);
+              }}
+              className={`p-4 md:p-5 rounded-2xl flex items-center space-x-4 cursor-pointer transition-all duration-300 ${
+                activePage === item.id
+                  ? 'bg-[#0D9488] text-white shadow-xl shadow-teal-500/30 scale-[1.02]'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <i className={`fas ${item.icon} text-lg`}></i>
+              <span className="whitespace-nowrap font-black">{item.label}</span>
+            </div>
+          );
+        })}
+      </nav>
 
         <div className={`pt-6 border-t border-slate-700 transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
           <button

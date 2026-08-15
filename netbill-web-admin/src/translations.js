@@ -8,6 +8,9 @@ export const translations = {
     staff_team: "Staff Team",
     inventory_stock: "Inventory Stock",
     service_packages: "Service Packages",
+    infrastructure: "Network Assets",
+    collection_report: "Collection Report",
+    salary_ledger: "Salary Ledger",
     expense_title: "Daily Expenses",
     expense_manager: "Expense Management",
     expense_ledger: "Expense Ledger",
@@ -51,6 +54,16 @@ export const translations = {
     custom_date: "Custom Date",
     breakdown_by_sector: "Collection Breakdown by Sector",
     manage_hub: "Manage Hub",
+
+    // Feature Grid
+    grid_collection: "Collection",
+    grid_report: "Report",
+    grid_crm: "Subscribers",
+    grid_tickets: "Tickets",
+    grid_add: "Add New",
+    grid_search: "Search",
+    grid_due: "Due List",
+    grid_summary: "Summary",
 
     // Payments
     find_subscriber: "Find Subscriber",
@@ -138,6 +151,9 @@ export const translations = {
     staff_team: "স্টাফ টিম",
     inventory_stock: "ইনভেন্টরি স্টক",
     service_packages: "সার্ভিস প্যাকেজ",
+    infrastructure: "নেটওয়ার্ক এসেট",
+    collection_report: "কালেকশন রিপোর্ট",
+    salary_ledger: "বেতন হিসাব (লেজার)",
     expense_title: "দৈনন্দিন খরচ",
     expense_manager: "খরচ ব্যবস্থাপনা",
     expense_ledger: "খরচের হিসাব",
@@ -181,6 +197,16 @@ export const translations = {
     custom_date: "কাস্টম তারিখ",
     breakdown_by_sector: "আদায়ের খাতভিত্তিক বিবরণ",
     manage_hub: "ম্যানেজ হাব",
+
+    // Feature Grid
+    grid_collection: "কালেকশন",
+    grid_report: "রিপোর্ট",
+    grid_crm: "গ্রাহকগণ",
+    grid_tickets: "টিকিট",
+    grid_add: "নতুন গ্রাহক",
+    grid_search: "অনুসন্ধান",
+    grid_due: "বকেয়া তালিকা",
+    grid_summary: "সারসংক্ষেপ",
 
     // Payments
     find_subscriber: "গ্রাহক খুঁজুন",

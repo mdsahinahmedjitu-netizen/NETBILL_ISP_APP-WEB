@@ -226,7 +226,7 @@ function App() {
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
           {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} />}
           {activePage === 'expenses' && <Expenses store={store} session={session} t={t} />}
-          {activePage === 'staff' && session.role === 'admin' && <Staff store={store} t={t} lang={lang} />}
+          {activePage === 'staff' && session.role === 'admin' && <Staff store={store} session={session} t={t} lang={lang} />}
           {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}
           {activePage === 'infrastructure' && session.role === 'admin' && <Infrastructure store={store} t={t} />}
