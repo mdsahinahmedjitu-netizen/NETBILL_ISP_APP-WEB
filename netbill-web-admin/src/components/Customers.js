@@ -14,6 +14,12 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsMessage, setSmsMessage] = useState('');
+
+  // Quick Zone Change States
+  const [showZoneChangeModal, setShowZoneChangeModal] = useState(false);
+  const [custToChangeZone, setCustToChangeZone] = useState(null);
+  const [newZoneData, setNewZoneData] = useState({ zone: '', subZone: '', boxId: '' });
+
   const [visibleColumns, setVisibleColumns] = useState({
     cb: true, id: true, sl: true, customer: true, mikrotik: true, zone: true,
     plan: true, bill: true, join: true, expire: true, collector: true, status: true, online: true, actions: true
@@ -343,6 +349,25 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const openAddModal = () => { setIsEditing(false); setFormData(initialState); setShowModal(true); };
   const openEditModal = (cust) => { setIsEditing(true); setFormData(cust); setShowModal(true); setActiveMenuId(null); };
 
+  const openZoneChangeModal = (cust) => {
+    setCustToChangeZone(cust);
+    setNewZoneData({ zone: cust.zone || '', subZone: cust.subZone || '', boxId: cust.boxId || '' });
+    setShowZoneChangeModal(true);
+    setActiveMenuId(null);
+  };
+
+  const handleQuickZoneUpdate = async () => {
+    if (!custToChangeZone) return;
+    try {
+      await updateDoc(doc(db, "customers", custToChangeZone.id), newZoneData);
+      alert("Zone Updated Successfully!");
+      setShowZoneChangeModal(false);
+      setCustToChangeZone(null);
+    } catch (e) {
+      alert("Failed to update zone.");
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -469,6 +494,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                              <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
                                 <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => setActivePage('payments')} />
                                 <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable' : 'Enable'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
+                                <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
                                 <ActionItem icon="fa-user-circle" label="Profile" color="text-blue-600" onClick={() => { setSelectedCust(c); setActiveMenuId(null); }} />
                                 <ActionItem icon="fa-edit" label="Edit" color="text-slate-600" onClick={() => openEditModal(c)} />
                                 <ActionItem icon="fa-trash" label="Delete" color="text-rose-600" onClick={() => handleDelete(c.id)} />
@@ -515,7 +541,6 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         csvHeaders={csvHeaders}
         mapping={mapping}
         setMapping={setMapping}
-        importStatus={importStatus}
         startBulkImport={startBulkImport}
         t={t}
         showFilterDrawer={showFilterDrawer}
@@ -523,6 +548,12 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         filters={filters}
         setFilters={setFilters}
         store={store}
+        showZoneChangeModal={showZoneChangeModal}
+        setShowZoneChangeModal={setShowZoneChangeModal}
+        custToChangeZone={custToChangeZone}
+        newZoneData={newZoneData}
+        setNewZoneData={setNewZoneData}
+        handleQuickZoneUpdate={handleQuickZoneUpdate}
       />
 
       {showModal && (
@@ -534,7 +565,36 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                 <Section title={t.router_zone_info} color="blue" bgColor="bg-blue-50 dark:bg-blue-900/10" borderColor="border-blue-100" shadowColor="shadow-blue-500/20">
                   <Field label={t.mikrotik_router} value={formData.routerId} onChange={v => setFormData({...formData, routerId: v})} type="select" options={['MikroTik Core 01']} color="blue" />
                   <Field label={t.package} value={formData.packageName} onChange={v => setFormData({...formData, packageName: v})} type="select" options={['No Package', ...store.packages?.map(p => p.name)]} color="blue" />
-                  <Field label={t.zone} value={formData.zone} onChange={v => setFormData({...formData, zone: v})} type="select" options={['All Zones', ...store.zones?.map(z => z.name)]} color="blue" />
+
+                  <div className="space-y-3 uppercase font-black relative">
+                    <label className="text-[12px] text-slate-600 dark:text-slate-300 ml-2 tracking-widest uppercase leading-none">{t.zone}</label>
+                    <div className="relative group">
+                      <input
+                        type="text"
+                        placeholder="Search or Select Zone..."
+                        value={formData.zone}
+                        onChange={e => setFormData({...formData, zone: e.target.value, subZone: '', boxId: ''})}
+                        className="w-full bg-white dark:bg-slate-800 p-6 rounded-[24px] border-2 border-transparent focus:border-teal-500 text-lg font-black shadow-lg outline-none transition-all uppercase"
+                      />
+                      <i className="fas fa-search absolute right-6 top-6 text-slate-300"></i>
+
+                      {/* Suggestion Dropdown */}
+                      {store.zones?.filter(z => z.name.toLowerCase().includes(formData.zone?.toLowerCase())).length > 0 && formData.zone !== '' && !store.zones.some(z => z.name === formData.zone) && (
+                        <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[1000] overflow-hidden max-h-60 overflow-y-auto">
+                          {store.zones.filter(z => z.name.toLowerCase().includes(formData.zone.toLowerCase())).map(z => (
+                            <div
+                              key={z.id}
+                              onClick={() => setFormData({...formData, zone: z.name, subZone: '', boxId: ''})}
+                              className="p-5 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b last:border-0 font-black text-sm"
+                            >
+                              {z.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <Field label={t.sub_zone} value={formData.subZone} onChange={v => setFormData({...formData, subZone: v})} type="select" options={['All Sub-Zones', ...store.subZones?.filter(sz => !formData.zone || formData.zone === 'All Zones' || store.zones?.find(z => z.name === formData.zone)?.id === sz.zoneId).map(sz => sz.name)]} color="blue" />
                   <Field label={t.box} value={formData.boxId} onChange={v => setFormData({...formData, boxId: v})} type="select" options={['All Boxes', ...store.boxes?.filter(b => !formData.subZone || formData.subZone === 'All Sub-Zones' || store.subZones?.find(sz => sz.name === formData.subZone)?.id === b.subZoneId).map(b => b.name)]} color="blue" />
                   <Field label={t.location} value={formData.address} onChange={v => setFormData({...formData, address: v})} placeholder="Address..." color="blue" />
@@ -589,9 +649,93 @@ const ActionModals = ({
   showSmsModal, setShowSmsModal, smsMessage, setSmsMessage, selectedIds, sendSms,
   showImportModal, setShowImportModal, importStep, setImportStep, handleFileUpload,
   dbFields, csvHeaders, mapping, setMapping, importStatus, startBulkImport, t,
-  showFilterDrawer, setShowFilterDrawer, filters, setFilters, store
+  showFilterDrawer, setShowFilterDrawer, filters, setFilters, store,
+  showZoneChangeModal, setShowZoneChangeModal, custToChangeZone, newZoneData, setNewZoneData, handleQuickZoneUpdate
 }) => (
     <>
+      {showZoneChangeModal && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[5000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-xl p-12 shadow-2xl border-4 border-teal-500/20 space-y-8 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-teal-500"></div>
+             <div className="flex justify-between items-center border-b pb-6">
+                <div>
+                   <h3 className="text-3xl font-black uppercase tracking-tighter leading-none">Change Zone</h3>
+                   <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-[3px]">Subscriber: {custToChangeZone?.name}</p>
+                </div>
+                <button onClick={() => setShowZoneChangeModal(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+             </div>
+
+             <div className="space-y-6">
+                {/* Zone Search/Select with Search Box */}
+                <div className="space-y-2 relative">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px]">Select Zone</label>
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      placeholder="Search or Select Zone..."
+                      value={newZoneData.zone}
+                      onChange={e => setNewZoneData({...newZoneData, zone: e.target.value, subZone: '', boxId: ''})}
+                      className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-2 border-transparent focus:border-teal-500 transition-all uppercase shadow-inner"
+                    />
+                    <i className="fas fa-search absolute right-6 top-5 text-slate-300"></i>
+
+                    {/* Suggestions for Change Zone */}
+                    {store.zones?.filter(z => z.name.toLowerCase().includes(newZoneData.zone?.toLowerCase())).length > 0 && newZoneData.zone !== '' && !store.zones.some(z => z.name === newZoneData.zone) && (
+                      <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[6000] overflow-hidden max-h-60 overflow-y-auto">
+                        {store.zones.filter(z => z.name.toLowerCase().includes(newZoneData.zone.toLowerCase())).map(z => (
+                          <div
+                            key={z.id}
+                            onClick={() => setNewZoneData({...newZoneData, zone: z.name, subZone: '', boxId: ''})}
+                            className="p-5 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b last:border-0 font-black text-sm"
+                          >
+                            {z.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sub-Zone Select */}
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px]">Select Sub-Zone</label>
+                  <select
+                    value={newZoneData.subZone}
+                    onChange={e => setNewZoneData({...newZoneData, subZone: e.target.value, boxId: ''})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none cursor-pointer"
+                  >
+                    <option value="">-- Select Sub-Zone --</option>
+                    {store.subZones?.filter(sz => !newZoneData.zone || store.zones?.find(z => z.name === newZoneData.zone)?.id === sz.zoneId).map(sz => (
+                      <option key={sz.id} value={sz.name}>{sz.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Box Select */}
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px]">Select Box</label>
+                  <select
+                    value={newZoneData.boxId}
+                    onChange={e => setNewZoneData({...newZoneData, boxId: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none cursor-pointer"
+                  >
+                    <option value="">-- Select Box --</option>
+                    {store.boxes?.filter(b => !newZoneData.subZone || store.subZones?.find(sz => sz.name === newZoneData.subZone)?.id === b.subZoneId).map(b => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+             </div>
+
+             <button
+                onClick={handleQuickZoneUpdate}
+                className="w-full bg-[#0D9488] text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+             >
+                UPDATE LOCATION
+             </button>
+          </div>
+        </div>
+      )}
       {showFilterDrawer && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[1000] flex justify-end animate-fadeIn font-black uppercase">
           <div className="bg-white dark:bg-slate-800 w-full max-w-md h-full shadow-[-20px_0_50px_rgba(0,0,0,0.1)] p-10 space-y-10 animate-slideInRight relative overflow-y-auto">
