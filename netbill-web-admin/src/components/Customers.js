@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebaseConfig';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, orderBy, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 
-const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenModal }) => {
+const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId }) => {
   const [search, setSearch] = useState('');
   const [selectedCust, setSelectedCust] = useState(null);
   const [ledger, setLedger] = useState([]);
@@ -521,6 +521,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                              <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
                                 <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => setActivePage('payments')} />
                                 <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
+                                <ActionItem icon="fa-user-circle" label="Full Profile" color="text-blue-600" onClick={() => setProfileId(c.id)} />
                                 <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
                                 <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
                                 <ActionItem icon="fa-user-circle" label="Profile" color="text-blue-600" onClick={() => { setSelectedCust(c); setActiveMenuId(null); }} />

@@ -15,6 +15,7 @@ import Packages from './components/Packages';
 import Settings from './components/Settings';
 import Login from './components/Login';
 import CustomerPortal from './components/CustomerPortal';
+import CustomerFullProfile from './components/CustomerFullProfile';
 import { translations } from './translations';
 import './index.css';
 
@@ -25,6 +26,7 @@ function App() {
   });
 
   const [activePage, setActivePage] = useState('dashboard');
+  const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('dark_mode') === 'true');
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'bn');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -168,7 +170,8 @@ function App() {
 
         <main className="flex-1 overflow-y-auto p-10 scroll-smooth transition-colors font-black">
           {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} navigateToAddCustomer={navigateToAddCustomer} t={t} lang={lang} />}
-          {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} />}
+          {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
+          {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
           {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} />}
