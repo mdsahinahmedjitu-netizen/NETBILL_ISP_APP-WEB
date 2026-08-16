@@ -166,13 +166,95 @@ const CollectionReport = ({ store, session, t }) => {
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
-    const tableRows = filteredPayments.map((p, idx) => {
-      const customer = store.customers.find(c => c.id === p.customerId || c.customerCode === p.customerCode);
-      return `<tr><td>${idx+1}</td><td>${p.customerCode||''}</td><td>${p.customerName}</td><td>${customer?.address||''}</td><td>${p.paymentMethod}</td><td>${p.paymentDate}</td><td>${p.collectedBy}</td><td align="right">৳${p.amount}</td></tr>`;
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const nowTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+
+    const tableRows = filteredPayments.map((p) => {
+      const customer = store.customers.find(c => c.id === p.customerId || c.id === p.customer_id || c.customerCode === p.customerCode);
+      const displayName = customer?.name || p.customerName || '---';
+      const displayAddress = customer?.address || customer?.zone || '---';
+      return `
+        <tr>
+          <td>${displayName}</td>
+          <td>${displayAddress}</td>
+          <td>${p.paymentDate}</td>
+          <td>${p.collectedBy || 'Admin'}</td>
+          <td align="right">৳${(p.amount || 0).toLocaleString()}</td>
+        </tr>
+      `;
     }).join('');
-    printWindow.document.write(`<html><body><h2>Collection Report</h2><table border="1" width="100%" style="border-collapse:collapse"><thead><tr><th>#</th><th>ID</th><th>CUSTOMER</th><th>ADDRESS</th><th>METHOD</th><th>DATE</th><th>COLLECTOR</th><th>AMOUNT</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`);
+
+    const printHtml = `
+      <html>
+        <head>
+          <title>NetBill ISP - Collection Report</title>
+          <style>
+            @page { size: portrait; margin: 15mm; }
+            body { font-family: 'Inter', sans-serif; color: #1a1a1a; margin: 0; padding: 20px; -webkit-print-color-adjust: exact; }
+            .header { text-align: center; margin-bottom: 40px; }
+            .header h1 { font-size: 32px; font-weight: 800; margin: 0; letter-spacing: 1px; color: #2d3748; }
+            .header p { font-size: 13px; color: #718096; margin-top: 8px; font-weight: 600; }
+
+            .summary-container { display: flex; flex-direction: column; gap: 15px; max-width: 600px; margin: 0 auto 40px auto; }
+            .summary-box { border: 1px solid #edf2f7; border-radius: 12px; padding: 15px; text-align: center; background: #fff; }
+            .summary-label { font-size: 10px; font-weight: 800; color: #a0aec0; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
+            .summary-value { font-size: 24px; font-weight: 800; color: #2d3748; }
+
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th { text-align: left; padding: 12px 15px; font-size: 11px; font-weight: 800; color: #718096; text-transform: uppercase; border-bottom: 2px solid #edf2f7; border-top: 1px solid #edf2f7; background-color: #ffffff; }
+            td { padding: 12px 15px; font-size: 12px; font-weight: 600; color: #2d3748; border-bottom: 1px solid #edf2f7; }
+            tr:last-child td { border-bottom: 2px solid #edf2f7; }
+
+            .footer { margin-top: 60px; text-align: right; border-top: 1px solid #edf2f7; padding-top: 10px; }
+            .footer p { font-size: 10px; color: #a0aec0; font-weight: 700; margin: 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>NETBILL ISP - COLLECTION REPORT</h1>
+            <p>Date Range: ${startDate} to ${endDate} | Filter: ${selectedStaff} / ${selectedMethod}</p>
+          </div>
+
+          <div class="summary-container">
+            <div class="summary-box">
+              <div class="summary-label">TOTAL ENTRIES</div>
+              <div class="summary-value">${filteredPayments.length}</div>
+            </div>
+            <div class="summary-box">
+              <div class="summary-label">TOTAL COLLECTED</div>
+              <div class="summary-value">৳${totalAmount.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th width="25%">CUSTOMER</th>
+                <th width="35%">ADDRESS / ZONE</th>
+                <th width="15%">DATE</th>
+                <th width="15%">COLLECTOR</th>
+                <th width="10%" align="right">AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+
+          <div class="footer">
+            <p>Generated on ${today}, ${nowTime}</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printHtml);
     printWindow.document.close();
-    printWindow.print();
   };
 
   return (
