@@ -649,13 +649,49 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                     {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold">{c.pppoeUsername || '---'}</td>}
                     {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
                     {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
-                    {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => { const currentMonth = new Date().toLocaleDateString('en-CA').substring(0, 7); const paidThisMonth = store.payments.filter(p => p.customerId === c.id && p.paymentDate?.startsWith(currentMonth)).reduce((s, p) => s + (p.amount || 0), 0); return (<><p className="text-[11px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{c.monthlyBill}</p><p className="text-[11px] font-black text-emerald-600 mt-0.5 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p><p className="text-[14px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(c.currentDue)}</p>{c.advanceBalance > 0 && <p className="text-[9px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(c.advanceBalance)}</p>}</>); })()}</td>}
+                    {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => {
+                      const today = new Date();
+                      const currentMonth = today.getMonth() + 1;
+                      const currentYear = today.getFullYear();
+                      const currentMonthStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
+
+                      const paidThisMonth = store.payments?.filter(p => {
+                        const cid = p.customerId || p.customer_id || p.customerCode || p.customer_code;
+                        const isCustomerMatch = (cid === c.id || cid === c.customerCode || cid === c.customer_code);
+                        if (!isCustomerMatch) return false;
+
+                        const pDate = p.paymentDate || p.payment_date || p.date;
+                        return pDate && (pDate.includes(currentMonthStr) || pDate.includes(`${currentMonth.toString().padStart(2, '0')}-${currentYear}`));
+                      }).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) || 0;
+
+                      const currentDue = parseFloat(c.currentDue || c.current_due || 0);
+                      const monthlyBill = parseFloat(c.monthlyBill || c.monthly_bill || 0);
+                      const advanceBalance = parseFloat(c.advanceBalance || c.advance_balance || 0);
+
+                      return (<>
+                        <p className="text-[11px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{monthlyBill}</p>
+                        <p className="text-[11px] font-black text-emerald-600 mt-0.5 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p>
+                        <p className="text-[14px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(currentDue)}</p>
+                        {advanceBalance > 0 && <p className="text-[9px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(advanceBalance)}</p>}
+                      </>);
+                    })()}</td>}
                     {visibleColumns.join && <td className="p-3 text-[10px] text-slate-600 font-black">{formatDateDisplay(c.joinDate)}</td>}
-                    {visibleColumns.expire && <td className="p-3 text-center leading-tight"><p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter">{formatDateDisplay(c.expireDate)}</p><p className="text-[9px] font-black text-slate-400 mt-0.5 uppercase">Req: {formatDateDisplay(c.requestDate)}</p></td>}
+                    {visibleColumns.expire && <td className="p-3 text-center leading-tight">
+                      <p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter">
+                        {formatDateDisplay(c.expireDate || c.expire_date || c.expiryDate || c.expiry_date || 'Not Set')}
+                      </p>
+                      <p className="text-[9px] font-black text-slate-400 mt-0.5 uppercase">
+                        Req: {formatDateDisplay(c.requestDate || c.request_date || 'Not Set')}
+                      </p>
+                    </td>}
                     {visibleColumns.collector && (
                       <td className="p-3 text-center">
                         <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
-                          {store.staff?.find(s => s.id === c.assignedStaffId)?.name || c.assignedStaffId || '---'}
+                          {(() => {
+                              const sid = c.assignedStaffId || c.assigned_staff_id || c.collectorId || c.collector_id;
+                              const staff = store.staff?.find(s => s.id === sid || s.name === sid);
+                              return staff?.name || sid || '---';
+                          })()}
                         </span>
                       </td>
                     )}

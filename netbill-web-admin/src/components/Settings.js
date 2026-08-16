@@ -4,136 +4,110 @@ import { supabase } from '../supabaseClient';
 import { doc, setDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 
 const Settings = ({ store, t, lang }) => {
-  const [settings, setSettings] = useState({
-    // ... (existing settings state)
-    companyName: 'NetBill ISP',
-    companyAddress: '',
-    companyPhone: '',
-    monthlyTarget: 0,
-    smsApiKey: '',
-    smsSenderId: '',
-    apiMode: 'Production',
-    bkashAppKey: '',
-    bkashAppSecret: '',
-    bkashUsername: '',
-    bkashPassword: '',
-    nagadMerchantId: '',
-    nagadMobile: '',
-    rocketMerchant: '',
-    personalBkashNo: '',
-    personalNagadNo: '',
-    billingDay: 1,
-    autoDisableDays: 10
-  });
-
-  const [isSaving, setIsProcessing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migStatus, setMigStatus] = useState('');
+  const [settings, setSettings] = useState({
+    companyName: 'NetBill ISP', companyAddress: '', companyPhone: '', monthlyTarget: 0,
+    smsApiUrl: '', smsApiKey: '', smsSenderId: '', apiMode: 'Production',
+    bkashAppKey: '', bkashAppSecret: '', bkashUsername: '', bkashPassword: '',
+    nagadMerchantId: '', nagadMobile: '', rocketMerchant: '',
+    personalBkashNo: '', personalNagadNo: '', billingDay: 1, autoDisableDays: 10
+  });
 
   const runMigration = async () => {
-    if (!window.confirm("এটি আপনার ফায়ারবেসের সব ডাটা সুপারবেসে কপি করবে। আপনি কি নিশ্চিত?")) return;
+    if (!window.confirm("এটি ফায়ারবেসের সব ডাটা সুপারবেসে কপি করবে। ডুপ্লিকেট ডাটা অটোমেটিক রিমুভ করা হবে। আপনি কি নিশ্চিত?")) return;
     setMigrating(true);
-    setMigStatus('Fetching data from Firebase...');
+    setMigStatus('Connecting to Firebase...');
 
     try {
       const fetchFromFirebase = async (collName) => {
-        try {
-          const querySnapshot = await getDocs(collection(db, collName));
-          return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch (e) {
-          console.error(`Error fetching ${collName}:`, e);
-          return [];
-        }
+        const querySnapshot = await getDocs(collection(db, collName));
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       };
 
-      // 1. Fetch all data from Firebase
       const fbCustomers = await fetchFromFirebase('customers');
       const fbPayments = await fetchFromFirebase('payments');
       const fbStaff = await fetchFromFirebase('staff');
-      const fbExpenses = await fetchFromFirebase('expenses');
+      const fbLedger = await fetchFromFirebase('ledger');
 
-      // 2. Sync Categories
-      setMigStatus('Syncing Expense Categories...');
-      const defaultCats = ['Bandwidth Cost', 'Staff Salary', 'Office Rent', 'Electricity Bill', 'Equipment Purchase', 'Maintenance', 'Transport', 'Marketing', 'Other Expense'];
-      for (const cat of defaultCats) {
-        await supabase.from('expense_categories').upsert({ name: cat });
+      setMigStatus('Cleaning Supabase Tables...');
+      await supabase.from('customers').delete().neq('id', '0');
+      await supabase.from('payments').delete().neq('id', '0');
+      await supabase.from('ledger_entries').delete().neq('id', '0');
+
+      setMigStatus(`Processing ${fbCustomers.length} Customers...`);
+
+      // UNIQUE MAPPING: Remove duplicates based on customer_code before sending to Supabase
+      const seenCodes = new Set();
+      const mappedCustomers = [];
+
+      fbCustomers.forEach(c => {
+          const code = c.customerCode || c.customer_code || c.id;
+          if (!seenCodes.has(code)) {
+              seenCodes.add(code);
+              mappedCustomers.push({
+                  id: c.id,
+                  customer_code: code,
+                  name: c.name || '',
+                  mobile: c.mobile || '',
+                  alt_mobile: c.altMobile || c.alt_mobile || null,
+                  address: c.address || null,
+                  zone: c.zone || null,
+                  package_name: c.packageName || c.package_name || null,
+                  monthly_bill: parseFloat(c.monthlyBill || c.monthly_bill || 0) || 0,
+                  current_due: parseFloat(c.currentDue || c.current_due || 0) || 0,
+                  paid: parseFloat(c.paid || 0) || 0,
+                  pppoe_username: c.pppoeUsername || c.pppoe_username || null,
+                  pppoe_password: c.pppoePassword || c.pppoe_password || null,
+                  status: c.status || 'Active',
+                  join_date: c.joinDate || c.join_date || null,
+                  assigned_staff_id: c.assignedStaffId || c.assigned_staff_id || null,
+                  expire_date: c.expireDate || c.expire_date || null,
+                  expire_time: c.expireTime || null,
+                  connection_date: c.connectionDate || null,
+                  join_day_of_month: parseInt(c.joinDayOfMonth || 1) || 1
+              });
+          }
+      });
+
+      if (mappedCustomers.length > 0) {
+        const { error } = await supabase.from('customers').upsert(mappedCustomers);
+        if (error) throw new Error("Customer Migration Failed: " + error.message);
       }
 
-      // 3. Migrate Customers
-      setMigStatus(`Migrating ${fbCustomers.length} Customers...`);
-      for (const c of fbCustomers) {
-        await supabase.from('customers').upsert({
-          customer_code: c.customerCode || c.customer_code || '',
-          name: c.name || '',
-          mobile: c.mobile || '',
-          alt_mobile: c.altMobile || c.alt_mobile || null,
-          address: c.address || null,
-          zone: c.zone || null,
-          package_name: c.packageName || c.package_name || null,
-          monthly_bill: parseFloat(c.monthlyBill || c.monthly_bill) || 0,
-          current_due: parseFloat(c.currentDue || c.current_due) || 0,
-          pppoe_username: c.pppoeUsername || c.pppoe_username || null,
-          pppoe_password: c.pppoePassword || c.pppoe_password || null,
-          status: c.status || 'Active',
-          join_date: c.joinDate || c.join_date || null
-        }, { onConflict: 'customer_code' });
-      }
-
-      // 4. Migrate Payments
-      setMigStatus(`Migrating ${fbPayments.length} Payments...`);
-      for (const p of fbPayments) {
-        await supabase.from('payments').upsert({
-          receipt_no: p.receiptNo || p.receipt_no,
-          amount: parseFloat(p.amount) || 0,
-          payment_method: p.paymentMethod || p.payment_method || 'Cash',
+      setMigStatus('Syncing History...');
+      const mappedPayments = fbPayments.map(p => ({
+          id: p.id, receipt_no: p.receiptNo || p.receipt_no || `REC-${Math.random().toString(36).substr(2, 9)}`,
+          customer_id: p.customerId || p.customer_id || null,
+          amount: parseFloat(p.amount || 0) || 0,
+          payment_method: p.paymentMethod || 'Cash',
           payment_date: p.paymentDate || p.payment_date || null,
-          billing_month: p.billingMonth || p.billing_month || null,
-          customer_name: p.customerName || p.customer_name || null,
-          collected_by: p.collectedBy || p.collected_by || null
-        }, { onConflict: 'receipt_no' });
-      }
+          billing_month: p.billingMonth || null
+      }));
+      if (mappedPayments.length > 0) await supabase.from('payments').upsert(mappedPayments);
 
-      // 5. Migrate Staff
-      setMigStatus(`Migrating ${fbStaff.length} Staff Members...`);
-      for (const s of fbStaff) {
-        await supabase.from('staff').upsert({
-          name: s.name,
-          mobile: s.mobile,
-          role: s.role || 'Lineman',
-          salary: parseFloat(s.salary) || 0,
-          password: s.password || '123456',
-          status: s.status || 'Active'
-        }, { onConflict: 'mobile' });
-      }
+      const mappedLedger = fbLedger.map(l => ({
+          id: l.id, customer_id: l.customerId || null, date: l.date || '',
+          type: l.type || 'Payment', amount: parseFloat(l.amount) || 0,
+          is_debit: l.isDebit !== undefined ? l.isDebit : (l.is_debit || false),
+          description: l.description || '', running_balance: parseFloat(l.runningBalance || 0) || 0
+      }));
+      if (mappedLedger.length > 0) await supabase.from('ledger_entries').upsert(mappedLedger);
 
-      // 6. Migrate Expenses
-      setMigStatus(`Migrating ${fbExpenses.length} Expenses...`);
-      for (const e of fbExpenses) {
-        await supabase.from('expenses').upsert({
-          title: e.title || '',
-          category: e.category || 'Other Expense',
-          amount: parseFloat(e.amount) || 0,
-          expense_date: e.expenseDate || e.expense_date || null,
-          expense_by: e.expenseBy || e.expense_by || 'Admin',
-          notes: e.notes || null
-        });
-      }
-
-      setMigStatus('SUCCESS! ALL DATA COPIED TO SUPABASE.');
-      alert("Migration Successful! Data transferred from Firebase to Supabase.");
+      setMigStatus('SUCCESS!');
+      alert(`Success! ${mappedCustomers.length} customers and their history have been recovered.`);
+      window.location.reload();
     } catch (err) {
-      console.error(err);
-      setMigStatus('Migration Failed. Check console.');
+        alert("Error: " + err.message);
     } finally {
-      setMigrating(false);
+        setMigrating(false);
     }
   };
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "settings", "global"), (doc) => {
-      if (doc.exists()) {
-        setSettings(prev => ({ ...prev, ...doc.data() }));
-      }
+      if (doc.exists()) setSettings(prev => ({ ...prev, ...doc.data() }));
     });
     return () => unsub();
   }, []);
@@ -142,170 +116,72 @@ const Settings = ({ store, t, lang }) => {
     e.preventDefault();
     setIsProcessing(true);
     try {
-      const { error } = await supabase.from('settings').upsert({
-        id: 1, // Only one row for settings
-        company_name: settings.companyName,
-        company_address: settings.companyAddress,
-        company_phone: settings.companyPhone,
-        monthly_target: settings.monthlyTarget,
-        sms_api_key: settings.smsApiKey,
-        sms_sender_id: settings.smsSenderId,
-        api_mode: settings.apiMode,
-        bkash_app_key: settings.bkashAppKey,
-        bkash_app_secret: settings.bkashAppSecret,
-        bkash_username: settings.bkashUsername,
-        bkash_password: settings.bkashPassword,
-        nagad_merchant_id: settings.nagadMerchantId,
-        nagad_mobile: settings.nagadMobile,
-        personal_bkash_no: settings.personalBkashNo,
-        personal_nagad_no: settings.personalNagadNo,
-        billing_day: settings.billingDay,
+      await supabase.from('settings').upsert({
+        id: 1, company_name: settings.companyName, company_address: settings.companyAddress,
+        company_phone: settings.companyPhone, monthly_target: settings.monthlyTarget,
+        sms_api_url: settings.smsApiUrl, sms_api_key: settings.smsApiKey,
+        sms_sender_id: settings.smsSenderId, personal_bkash_no: settings.personalBkashNo,
+        personal_nagad_no: settings.personalNagadNo, billing_day: settings.billingDay,
         auto_disable_days: settings.autoDisableDays
       });
-      if (error) throw error;
-      alert("Settings Saved Successfully to Supabase!");
-    } catch (error) {
-      alert("Failed to save settings.");
-    } finally {
-      setIsProcessing(false);
-    }
+      alert("Settings Saved!");
+    } catch (error) { alert("Save failed."); }
+    finally { setIsProcessing(false); }
   };
+
+  const SettingField = ({ label, value, onChange, type = 'text' }) => (
+    <div className="space-y-2 uppercase font-black w-full">
+      <label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">{label}</label>
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-lg w-full shadow-inner focus:ring-2 focus:ring-teal-500/20 transition-all" />
+    </div>
+  );
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter transition-all">
       <div className="flex justify-between items-end">
-        <div className="space-y-2 uppercase">
-          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{t.global_settings}</h3>
-          <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">Master Control Panel • API & Logic Configuration</p>
+        <div className="space-y-2">
+          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">Settings</h3>
+          <p className="text-xs text-teal-600 tracking-widest font-black italic">Recovery & Migration</p>
         </div>
-
-        {/* MIGRATION CONTROLLER */}
-        <div className="bg-rose-50 dark:bg-rose-900/20 p-6 rounded-[32px] border-2 border-rose-100 dark:border-rose-800 space-y-4">
-           <p className="text-[10px] text-rose-600 font-bold tracking-widest">DATABASE MIGRATION (FIREBASE -> SUPABASE)</p>
-           <button
-             onClick={runMigration}
-             disabled={migrating}
-             className="bg-rose-600 text-white px-8 py-3 rounded-2xl font-black text-xs shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center space-x-3"
-           >
-              <i className={`fas ${migrating ? 'fa-sync fa-spin' : 'fa-database'}`}></i>
-              <span>{migrating ? 'MIGRATING...' : 'START DATA TRANSFER'}</span>
+        <div className="bg-rose-50 dark:bg-rose-900/20 p-6 rounded-[32px] border-2 border-rose-100 dark:border-rose-800 space-y-4 text-center">
+           <p className="text-[10px] text-rose-600 font-bold tracking-widest">CLEAN RECOVERY ENGINE</p>
+           <button onClick={runMigration} disabled={migrating} className="bg-rose-600 text-white px-8 py-3 rounded-2xl font-black text-xs shadow-xl hover:scale-105 active:scale-95 transition-all">
+              {migrating ? 'RECOVERING...' : 'START TRANSFER'}
            </button>
-           {migStatus && <p className="text-[9px] text-rose-500 font-black animate-pulse">{migStatus}</p>}
         </div>
       </div>
-
       <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-2 gap-12 font-black">
-
-        {/* 1. MANUAL PAYMENT NUMBERS (PERSONAL ACCOUNTS) - NEW */}
-        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border-2 border-teal-500/20 space-y-10 lg:col-span-1">
-           <div className="flex items-center space-x-4 text-[#0D9488]">
-              <div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center">
-                 <i className="fas fa-hand-holding-dollar text-3xl"></i>
-              </div>
-              <h3 className="text-2xl font-black uppercase tracking-tight">Personal Accounts (Send Money)</h3>
-           </div>
-
-           <div className="space-y-6">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">এই নাম্বারগুলো আপনার কাস্টমার পোর্টালে "Send Money" নির্দেশিকায় দেখা যাবে।</p>
-              <div className="space-y-4">
-                 <SettingField label="BKASH SEND MONEY NO" value={settings.personalBkashNo} onChange={v => setSettings({...settings, personalBkashNo: v})} />
-                 <SettingField label="NAGAD SEND MONEY NO" value={settings.personalNagadNo} onChange={v => setSettings({...settings, personalNagadNo: v})} />
-              </div>
+        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border-2 border-teal-500/20 lg:col-span-1">
+           <div className="flex items-center space-x-4 text-[#0D9488] mb-8"><div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center"><i className="fas fa-hand-holding-dollar text-3xl"></i></div><h3 className="text-2xl font-black uppercase tracking-tight">Personal Accounts</h3></div>
+           <div className="space-y-4">
+              <SettingField label="BKASH NO" value={settings.personalBkashNo} onChange={v => setSettings({...settings, personalBkashNo: v})} />
+              <SettingField label="NAGAD NO" value={settings.personalNagadNo} onChange={v => setSettings({...settings, personalNagadNo: v})} />
            </div>
         </div>
-
-        {/* 2. AUTOMATION & BUSINESS PROFILE */}
         <div className="space-y-12">
             <div className="bg-white dark:bg-slate-800 p-10 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-8">
-               <div className="bg-blue-600 text-white p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-[3px] shadow-xl">Business Profile</div>
+               <div className="bg-blue-600 text-white p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-[3px]">Business Profile</div>
                <div className="space-y-6">
                   <SettingField label="COMPANY NAME" value={settings.companyName} onChange={v => setSettings({...settings, companyName: v})} />
-                  <SettingField label="OFFICE ADDRESS" value={settings.companyAddress} onChange={v => setSettings({...settings, companyAddress: v})} />
-                  <SettingField label="SUPPORT HOTLINE" value={settings.companyPhone} onChange={v => setSettings({...settings, companyPhone: v})} />
-               </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 p-10 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-8">
-               <div className="bg-emerald-600 text-white p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-[3px] shadow-xl">Automation Rules</div>
-               <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">BILLING DAY</label>
-                    <input type="number" value={settings.billingDay} onChange={e => setSettings({...settings, billingDay: parseInt(e.target.value)})} className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-3xl text-emerald-600 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">GRACE PERIOD</label>
-                    <input type="number" value={settings.autoDisableDays} onChange={e => setSettings({...settings, autoDisableDays: parseInt(e.target.value)})} className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-3xl text-rose-500 w-full" />
-                  </div>
+                  <SettingField label="HOTLINE" value={settings.companyPhone} onChange={v => setSettings({...settings, companyPhone: v})} />
                </div>
             </div>
         </div>
-
-        {/* 3. PAYMENT GATEWAY APIs (OPTIONAL) */}
-        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-10 xl:col-span-2">
-           <div className="flex items-center space-x-4 text-[#D0006F]">
-              <i className="fas fa-shield-alt text-3xl"></i>
-              <h3 className="text-2xl font-black uppercase tracking-tight">bKash & Nagad API (Automatic Gateway)</h3>
-           </div>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              <div className="space-y-4">
-                 <p className="text-[10px] font-black text-[#D0006F] uppercase tracking-widest">bKash Tokenized Checkout</p>
-                 <GatewayInput placeholder="bKash App Key" value={settings.bkashAppKey} onChange={v => setSettings({...settings, bkashAppKey: v})} />
-                 <GatewayInput placeholder="bKash App Secret" value={settings.bkashAppSecret} onChange={v => setSettings({...settings, bkashAppSecret: v})} type="password" />
-                 <GatewayInput placeholder="bKash Merchant Username" value={settings.bkashUsername} onChange={v => setSettings({...settings, bkashUsername: v})} />
-                 <GatewayInput placeholder="bKash Merchant Password" value={settings.bkashPassword} onChange={v => setSettings({...settings, bkashPassword: v})} type="password" />
-              </div>
-              <div className="space-y-4">
-                 <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Nagad Payment Gateway</p>
-                 <GatewayInput placeholder="Nagad Merchant ID" value={settings.nagadMerchantId} onChange={v => setSettings({...settings, nagadMerchantId: v})} />
-                 <GatewayInput placeholder="Nagad Merchant Number" value={settings.nagadMobile} onChange={v => setSettings({...settings, nagadMobile: v})} />
-              </div>
-           </div>
-        </div>
-
-        {/* 4. SMS & Global Target (Bottom Row) */}
         <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-8 xl:col-span-2">
-           <div className="bg-indigo-600 text-white p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-[3px] shadow-xl">Global Target & SMS Masking</div>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="space-y-2">
-                <label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">MONTHLY COLLECTION TARGET (৳)</label>
-                <input type="number" value={settings.monthlyTarget} onChange={e => setSettings({...settings, monthlyTarget: parseFloat(e.target.value) || 0})} className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-4xl text-teal-600 w-full tracking-tighter" />
-              </div>
-              <SettingField label="SMS API TOKEN" value={settings.smsApiKey} onChange={v => setSettings({...settings, smsApiKey: v})} type="password" />
-              <SettingField label="SMS SENDER ID" value={settings.smsSenderId} onChange={v => setSettings({...settings, smsSenderId: v})} />
+           <div className="bg-indigo-600 text-white p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-[3px]">SMS & Targets</div>
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div className="space-y-2"><label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">TARGET</label><input type="number" value={settings.monthlyTarget} onChange={e => setSettings({...settings, monthlyTarget: parseFloat(e.target.value) || 0})} className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-4xl text-teal-600 w-full tracking-tighter" /></div>
+              <div className="md:col-span-1"><SettingField label="SMS URL" value={settings.smsApiUrl} onChange={v => setSettings({...settings, smsApiUrl: v})} /></div>
+              <SettingField label="SMS TOKEN" value={settings.smsApiKey} onChange={v => setSettings({...settings, smsApiKey: v})} type="password" />
+              <SettingField label="SMS SENDER" value={settings.smsSenderId} onChange={v => setSettings({...settings, smsSenderId: v})} />
            </div>
         </div>
-
         <div className="xl:col-span-2 flex justify-center pt-10 pb-20">
-           <button type="submit" disabled={isSaving} className="bg-slate-900 text-white px-32 py-10 rounded-[64px] font-black uppercase tracking-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all border-b-8 border-slate-700">
-             {isSaving ? 'UPDATING CLOUD...' : 'SAVE ALL SETTINGS'}
-           </button>
+           <button type="submit" disabled={isProcessing} className="bg-slate-900 text-white px-32 py-10 rounded-[64px] font-black uppercase tracking-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all border-b-8 border-slate-700">SAVE ALL SETTINGS</button>
         </div>
-
       </form>
     </div>
   );
 };
-
-const GatewayInput = ({ placeholder, value, onChange, type = 'text' }) => (
-  <input
-    type={type}
-    placeholder={placeholder}
-    value={value}
-    onChange={e => onChange(e.target.value)}
-    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 p-5 rounded-2xl font-black text-lg text-slate-800 dark:text-white placeholder:text-slate-300 outline-none focus:border-[#D0006F] transition-all shadow-sm"
-  />
-);
-
-const SettingField = ({ label, value, onChange, type = 'text' }) => (
-  <div className="space-y-2 uppercase font-black w-full">
-    <label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-lg w-full shadow-inner focus:ring-2 focus:ring-teal-500/20 transition-all"
-    />
-  </div>
-);
 
 export default Settings;
