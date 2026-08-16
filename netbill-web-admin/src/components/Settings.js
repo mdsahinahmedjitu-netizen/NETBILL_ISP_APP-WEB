@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebaseConfig';
 import { supabase } from '../supabaseClient';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
 
 const Settings = ({ store, t, lang }) => {
   const [settings, setSettings] = useState({
@@ -33,53 +33,94 @@ const Settings = ({ store, t, lang }) => {
   const runMigration = async () => {
     if (!window.confirm("এটি আপনার ফায়ারবেসের সব ডাটা সুপারবেসে কপি করবে। আপনি কি নিশ্চিত?")) return;
     setMigrating(true);
-    setMigStatus('Preparing to migrate...');
+    setMigStatus('Fetching data from Firebase...');
 
     try {
-      // 1. Sync Categories
+      const fetchFromFirebase = async (collName) => {
+        try {
+          const querySnapshot = await getDocs(collection(db, collName));
+          return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (e) {
+          console.error(`Error fetching ${collName}:`, e);
+          return [];
+        }
+      };
+
+      // 1. Fetch all data from Firebase
+      const fbCustomers = await fetchFromFirebase('customers');
+      const fbPayments = await fetchFromFirebase('payments');
+      const fbStaff = await fetchFromFirebase('staff');
+      const fbExpenses = await fetchFromFirebase('expenses');
+
+      // 2. Sync Categories
       setMigStatus('Syncing Expense Categories...');
       const defaultCats = ['Bandwidth Cost', 'Staff Salary', 'Office Rent', 'Electricity Bill', 'Equipment Purchase', 'Maintenance', 'Transport', 'Marketing', 'Other Expense'];
       for (const cat of defaultCats) {
         await supabase.from('expense_categories').upsert({ name: cat });
       }
 
-      // 2. Migrate Customers
-      setMigStatus(`Migrating ${store.customers.length} Customers...`);
-      for (const c of store.customers) {
-        const { error } = await supabase.from('customers').upsert({
-          customer_code: c.customerCode,
-          name: c.name,
-          mobile: c.mobile,
-          alt_mobile: c.altMobile || null,
+      // 3. Migrate Customers
+      setMigStatus(`Migrating ${fbCustomers.length} Customers...`);
+      for (const c of fbCustomers) {
+        await supabase.from('customers').upsert({
+          customer_code: c.customerCode || c.customer_code || '',
+          name: c.name || '',
+          mobile: c.mobile || '',
+          alt_mobile: c.altMobile || c.alt_mobile || null,
           address: c.address || null,
           zone: c.zone || null,
-          package_name: c.packageName || null,
-          monthly_bill: parseFloat(c.monthlyBill) || 0,
-          current_due: parseFloat(c.currentDue) || 0,
-          pppoe_username: c.pppoeUsername || null,
-          pppoe_password: c.pppoePassword || null,
+          package_name: c.packageName || c.package_name || null,
+          monthly_bill: parseFloat(c.monthlyBill || c.monthly_bill) || 0,
+          current_due: parseFloat(c.currentDue || c.current_due) || 0,
+          pppoe_username: c.pppoeUsername || c.pppoe_username || null,
+          pppoe_password: c.pppoePassword || c.pppoe_password || null,
           status: c.status || 'Active',
-          join_date: c.joinDate || null
+          join_date: c.joinDate || c.join_date || null
         }, { onConflict: 'customer_code' });
-        if (error) console.error("Cust Error:", error);
       }
 
-      // 3. Migrate Payments
-      setMigStatus(`Migrating ${store.payments.length} Payments...`);
-      for (const p of store.payments) {
+      // 4. Migrate Payments
+      setMigStatus(`Migrating ${fbPayments.length} Payments...`);
+      for (const p of fbPayments) {
         await supabase.from('payments').upsert({
-          receipt_no: p.receiptNo,
+          receipt_no: p.receiptNo || p.receipt_no,
           amount: parseFloat(p.amount) || 0,
-          payment_method: p.paymentMethod || 'Cash',
-          payment_date: p.paymentDate || null,
-          billing_month: p.billingMonth || null,
-          customer_name: p.customerName || null,
-          collected_by: p.collectedBy || null
+          payment_method: p.paymentMethod || p.payment_method || 'Cash',
+          payment_date: p.paymentDate || p.payment_date || null,
+          billing_month: p.billingMonth || p.billing_month || null,
+          customer_name: p.customerName || p.customer_name || null,
+          collected_by: p.collectedBy || p.collected_by || null
         }, { onConflict: 'receipt_no' });
       }
 
+      // 5. Migrate Staff
+      setMigStatus(`Migrating ${fbStaff.length} Staff Members...`);
+      for (const s of fbStaff) {
+        await supabase.from('staff').upsert({
+          name: s.name,
+          mobile: s.mobile,
+          role: s.role || 'Lineman',
+          salary: parseFloat(s.salary) || 0,
+          password: s.password || '123456',
+          status: s.status || 'Active'
+        }, { onConflict: 'mobile' });
+      }
+
+      // 6. Migrate Expenses
+      setMigStatus(`Migrating ${fbExpenses.length} Expenses...`);
+      for (const e of fbExpenses) {
+        await supabase.from('expenses').upsert({
+          title: e.title || '',
+          category: e.category || 'Other Expense',
+          amount: parseFloat(e.amount) || 0,
+          expense_date: e.expenseDate || e.expense_date || null,
+          expense_by: e.expenseBy || e.expense_by || 'Admin',
+          notes: e.notes || null
+        });
+      }
+
       setMigStatus('SUCCESS! ALL DATA COPIED TO SUPABASE.');
-      alert("Migration Successful! You can now start using Supabase.");
+      alert("Migration Successful! Data transferred from Firebase to Supabase.");
     } catch (err) {
       console.error(err);
       setMigStatus('Migration Failed. Check console.');

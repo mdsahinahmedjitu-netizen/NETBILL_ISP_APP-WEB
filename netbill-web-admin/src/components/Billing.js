@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, addDoc, doc, updateDoc, getDocs, query, where } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Billing = ({ store, t }) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -18,7 +17,6 @@ const Billing = ({ store, t }) => {
   }, [store.customers]);
 
   const triggerSilentBilling = async () => {
-    // Only run if not already processing and we have customers
     if (isProcessing) return;
 
     try {
@@ -28,11 +26,16 @@ const Billing = ({ store, t }) => {
 
       for (const cust of activeCustomers) {
         // Check if invoice already exists for this month to avoid duplicates
-        const invQ = query(collection(db, "invoices"), where("customerId", "==", cust.id), where("billingMonthYear", "==", currentMonth));
-        const invSnap = await getDocs(invQ);
-        if (!invSnap.empty) continue;
+        const { data: existingInv } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('customer_id', cust.id)
+            .eq('billing_month_year', currentMonth)
+            .maybeSingle();
 
-        setIsProcessing(true); // Show syncing state
+        if (existingInv) continue;
+
+        setIsProcessing(true);
 
         const billAmt = parseFloat(cust.monthlyBill) || 0;
         const prevDue = parseFloat(cust.currentDue) || 0;
@@ -47,36 +50,33 @@ const Billing = ({ store, t }) => {
             remainingAdvance -= advanceUsed;
         }
 
-        const invId = "INV-" + Math.random().toString(36).substr(2, 8).toUpperCase();
+        const invNo = "INV-" + Math.random().toString(36).substr(2, 8).toUpperCase();
 
-        await addDoc(collection(db, "invoices"), {
-          invoiceNo: invId,
-          customerId: cust.id,
-          customerName: cust.name,
-          customerCode: cust.customerCode,
-          packageName: cust.packageName,
-          billingMonthYear: currentMonth,
-          billAmount: billAmt,
-          previousDue: prevDue,
-          totalPayable: totalPayable + advanceUsed,
-          paidAmount: advanceUsed,
-          dueAmount: totalPayable,
+        await supabase.from('invoices').insert({
+          invoice_no: invNo,
+          customer_id: cust.id,
+          customer_name: cust.name,
+          billing_month_year: currentMonth,
+          bill_amount: billAmt,
+          total_payable: totalPayable + advanceUsed,
+          due_amount: totalPayable,
           status: totalPayable <= 0 ? "Paid" : (advanceUsed > 0 ? "Partially Paid" : "Unpaid"),
-          generatedDate: todayISO
+          generated_date: todayISO
         });
 
-        await updateDoc(doc(db, "customers", cust.id), {
-          currentDue: totalPayable,
-          advanceBalance: remainingAdvance
-        });
+        await supabase.from('customers').update({
+          current_due: totalPayable,
+          advance_balance: remainingAdvance,
+          payment_status: totalPayable <= 0 ? 'Paid' : 'Unpaid'
+        }).eq('id', cust.id);
 
-        await addDoc(collection(db, "ledger_entries"), {
-          customerId: cust.id,
+        await supabase.from('ledger_entries').insert({
+          customer_id: cust.id,
           date: todayISO,
           time: timeStr,
           type: "Monthly Bill",
           amount: billAmt,
-          isDebit: true,
+          is_debit: true,
           description: `Auto-Bill ${currentMonth} (Adv: ${advanceUsed})`
         });
       }
@@ -86,6 +86,7 @@ const Billing = ({ store, t }) => {
       setIsProcessing(false);
     }
   };
+
 
   return (
     <div className="max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter">

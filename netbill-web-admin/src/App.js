@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db } from './firebaseConfig';
 import { supabase } from './supabaseClient';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import Sidebar from './components/Sidebar';
+
 import Dashboard from './components/Dashboard';
 import Customers from './components/Customers';
 import Billing from './components/Billing';
@@ -14,6 +13,8 @@ import SalaryHistory from './components/SalaryHistory';
 import Inventory from './components/Inventory';
 import Infrastructure from './components/Infrastructure';
 import Packages from './components/Packages';
+import SmsSetup from './components/SmsSetup';
+import SmsLogs from './components/SmsLogs';
 import Settings from './components/Settings';
 import Login from './components/Login';
 import CustomerPortal from './components/CustomerPortal';
@@ -44,7 +45,8 @@ function App() {
   const [store, setStore] = useState({
     customers: [], tickets: [], payments: [], invoices: [], expenses: [], staff: [],
     inventory: [], packages: [], settings: {}, paymentRequests: [], staffPayouts: [],
-    zones: [], subZones: [], boxes: [], expenseCategories: []
+    zones: [], subZones: [], boxes: [], expenseCategories: [], smsTemplates: [], smsLogs: [],
+    ledgerEntries: []
   });
   const [autoOpenAddModal, setAutoOpenAddModal] = useState(false);
   const [showExpiryModal, setShowExpiryModal] = useState(false);
@@ -89,68 +91,58 @@ function App() {
       const tables = [
         'customers', 'support_tickets', 'payments', 'payment_requests',
         'invoices', 'expenses', 'staff', 'staff_payouts',
-        'zones', 'sub_zones', 'boxes', 'expense_categories', 'packages', 'inventory_items'
+        'zones', 'sub_zones', 'boxes', 'expense_categories', 'packages', 'inventory_items', 'sms_templates', 'sms_logs', 'ledger_entries'
       ];
 
       for (const table of tables) {
         const { data, error } = await supabase.from(table).select('*');
-        if (!error) {
+        if (!error && data) {
           // Map snake_case to camelCase for UI compatibility
-          const mappedData = data.map(item => ({
-            ...item,
-            customerCode: item.customer_code,
-            altMobile: item.alt_mobile,
-            packageName: item.package_name,
-            monthlyBill: item.monthly_bill,
-            currentDue: item.current_due,
-            advanceBalance: item.advance_balance,
-            pppoeUsername: item.pppoe_username,
-            pppoePassword: item.pppoe_password,
-            onuMac: item.onu_mac,
-            routerId: item.router_id,
-            billingType: item.billing_type,
-            paymentStatus: item.payment_status,
-            expireDate: item.expire_date,
-            requestDate: item.request_date,
-            connectionType: item.connection_type,
-            subscriptionType: item.subscription_type,
-            connectionFee: item.connection_fee,
-            joinDate: item.join_date,
-            assignedStaffId: item.assigned_staff_id,
-            referenceName: item.reference_name,
-            referenceMobile: item.reference_mobile,
-            expenseDate: item.expense_date,
-            expenseBy: item.expense_by,
-            receiptNo: item.receipt_no,
-            paymentDate: item.payment_date,
-            billingMonth: item.billing_month,
-            collectedBy: item.collected_by,
-            collectedById: item.collected_by_id
-          }));
+          const mappedData = data.map(mapToCamelCase);
+          const storeKey = table === 'support_tickets' ? 'tickets' : (table === 'inventory_items' ? 'inventory' : (table === 'sms_templates' ? 'smsTemplates' : (table === 'sms_logs' ? 'smsLogs' : (table === 'ledger_entries' ? 'ledgerEntries' : table))));
 
           setStore(prev => ({
             ...prev,
-            [table === 'support_tickets' ? 'tickets' : (table === 'inventory_items' ? 'inventory' : table)]: mappedData
+            [storeKey]: mappedData
           }));
         }
       }
 
-      // Special handling for settings - use maybeSingle to avoid error if table is empty
       const { data: settingsData } = await supabase.from('settings').select('*').limit(1).maybeSingle();
-      if (settingsData) setStore(prev => ({ ...prev, settings: settingsData }));
+      if (settingsData) setStore(prev => ({ ...prev, settings: mapToCamelCase(settingsData) }));
     };
 
     fetchData();
 
     // Subscribe to changes for all tables
-    const channels = [
+    const tableList = [
       'customers', 'support_tickets', 'payments', 'payment_requests',
       'invoices', 'expenses', 'staff', 'staff_payouts',
-      'zones', 'sub_zones', 'boxes', 'expense_categories'
-    ].map(table => {
+      'zones', 'sub_zones', 'boxes', 'expense_categories', 'packages', 'inventory_items', 'sms_templates', 'sms_logs', 'ledger_entries'
+    ];
+
+    const channels = tableList.map(table => {
       return supabase.channel(`${table}-changes`)
         .on('postgres_changes', { event: '*', schema: 'public', table: table }, (payload) => {
-          fetchData(); // Simplest way to keep store in sync for now
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+          const storeKey = table === 'support_tickets' ? 'tickets' : (table === 'inventory_items' ? 'inventory' : (table === 'sms_templates' ? 'smsTemplates' : (table === 'sms_logs' ? 'smsLogs' : (table === 'ledger_entries' ? 'ledgerEntries' : table))));
+
+          setStore(prev => {
+            const currentList = prev[storeKey] || [];
+            let newList;
+
+            if (eventType === 'INSERT') {
+              newList = [...currentList, mapToCamelCase(newRecord)];
+            } else if (eventType === 'UPDATE') {
+              newList = currentList.map(item => item.id === newRecord.id ? mapToCamelCase(newRecord) : item);
+            } else if (eventType === 'DELETE') {
+              newList = currentList.filter(item => item.id !== oldRecord.id);
+            } else {
+              newList = currentList;
+            }
+
+            return { ...prev, [storeKey]: newList };
+          });
         })
         .subscribe();
     });
@@ -159,6 +151,18 @@ function App() {
       channels.forEach(channel => supabase.removeChannel(channel));
     };
   }, [session]);
+
+  // Helper to map snake_case object to camelCase
+  const mapToCamelCase = (obj) => {
+    if (!obj) return obj;
+    const newObj = {};
+    Object.keys(obj).forEach(key => {
+      const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+      newObj[camelKey] = obj[key];
+    });
+    return newObj;
+  };
+
 
   const toggleLang = () => {
     const newLang = lang === 'en' ? 'bn' : 'en';
@@ -191,13 +195,22 @@ function App() {
   const handleGlobalQuickDateUpdate = async () => {
     if (!quickDateCust) return;
     try {
-      await updateDoc(doc(db, "customers", quickDateCust.id), quickDates);
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          expire_date: quickDates.expireDate,
+          request_date: quickDates.requestDate
+        })
+        .eq('id', quickDateCust.id);
+
+      if (error) throw error;
       alert("Dates Synchronized Successfully!");
       setShowQuickDateModal(false);
     } catch (e) {
       alert("Cloud sync failed.");
     }
   };
+
 
   if (!session) return <Login onLoginSuccess={handleLoginSuccess} />;
 
@@ -264,6 +277,8 @@ function App() {
           {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}
           {activePage === 'infrastructure' && session.role === 'admin' && <Infrastructure store={store} t={t} />}
           {activePage === 'packages' && <Packages store={store} t={t} lang={lang} />}
+          {activePage === 'sms_setup' && <SmsSetup store={store} t={t} />}
+          {activePage === 'sms_logs' && <SmsLogs store={store} />}
           {activePage === 'settings' && session.role === 'admin' && <Settings store={store} t={t} lang={lang} />}
         </main>
       </div>

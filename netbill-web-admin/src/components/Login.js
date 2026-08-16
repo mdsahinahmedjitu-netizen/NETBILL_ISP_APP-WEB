@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const Login = ({ onLoginSuccess }) => {
   const [loginType, setLoginType] = useState('admin'); // 'admin' or 'customer'
@@ -14,15 +13,27 @@ const Login = ({ onLoginSuccess }) => {
 
     try {
       if (loginType === 'admin') {
-        // Simple hardcoded admin for now, can be extended to Staff check later
         if (email === 'admin@isp.com' && password === '123456') {
           onLoginSuccess({ role: 'admin', data: { name: 'Super Admin' } });
         } else {
-          // Check Staff collection
-          const q = query(collection(db, "staff"), where("mobile", "==", email), where("password", "==", password));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-             const staffData = { id: snap.docs[0].id, ...snap.docs[0].data() };
+          // Check Staff table in Supabase
+          const { data, error } = await supabase
+            .from('staff')
+            .select('*')
+            .eq('mobile', email)
+            .eq('password', password)
+            .maybeSingle();
+
+          if (data && !error) {
+             const staffData = {
+                id: data.id,
+                name: data.name,
+                mobile: data.mobile,
+                role: data.role,
+                salary: data.salary,
+                balance: data.balance,
+                status: data.status
+             };
              onLoginSuccess({ role: 'staff', data: staffData });
           } else {
             alert('Unauthorized Access Denied!');
@@ -30,10 +41,20 @@ const Login = ({ onLoginSuccess }) => {
         }
       } else {
         // Customer Login (PPPoE Credentials)
-        const q = query(collection(db, "customers"), where("pppoeUsername", "==", email), where("pppoePassword", "==", password));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const custData = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('pppoe_username', email)
+          .eq('pppoe_password', password)
+          .maybeSingle();
+
+        if (data && !error) {
+          // Map to camelCase for the UI
+          const custData = {};
+          Object.keys(data).forEach(key => {
+            const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+            custData[camelKey] = data[key];
+          });
           onLoginSuccess({ role: 'customer', data: custData });
         } else {
           alert('Invalid PPPoE Credentials!');
@@ -45,6 +66,7 @@ const Login = ({ onLoginSuccess }) => {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="fixed inset-0 bg-[#0F172A] z-[2000] flex items-center justify-center p-6 font-black uppercase">

@@ -463,14 +463,17 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         subscription_type: formData.subscriptionType,
         connection_fee: parseFloat(formData.connectionFee) || 0,
         reference_name: formData.referenceName,
-        reference_mobile: formData.referenceMobile
+        reference_mobile: formData.referenceMobile,
+        assigned_staff_id: formData.assignedStaffId,
+        notes: formData.notes
       };
 
       if (isEditing) {
         const { error } = await supabase.from('customers').update(dbData).eq('id', formData.id);
         if (error) {
           console.error("Supabase Update Error:", error);
-          throw error;
+          alert(`Update Failed: ${error.message}`);
+          return;
         }
         alert("Updated!");
       }
@@ -508,7 +511,8 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
 
         if (custErr) {
           console.error("Supabase Customer Insert Error:", custErr);
-          throw custErr;
+          alert(`Insert Failed: ${custErr.message}`);
+          return;
         }
 
         const newCust = insertedData[0];
@@ -518,7 +522,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
           const invNo = "INV-" + Math.random().toString(36).substr(2, 6).toUpperCase();
 
           // 1. Create Invoice
-          const { error: invErr } = await supabase.from('invoices').insert({
+          await supabase.from('invoices').insert({
             invoice_no: invNo,
             customer_id: newCust.id,
             customer_name: formData.name,
@@ -529,10 +533,9 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
             status: "Unpaid",
             generated_date: joinDate
           });
-          if (invErr) console.error("Invoice Error:", invErr);
 
           // 2. Create Ledger Entry
-          const { error: ledErr } = await supabase.from('ledger_entries').insert({
+          await supabase.from('ledger_entries').insert({
             customer_id: newCust.id,
             date: joinDate,
             time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -542,9 +545,8 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
             description: `${currentMonth} Enrollment Bill Applied`,
             reference_no: invNo
           });
-          if (ledErr) console.error("Ledger Error:", ledErr);
         }
-        alert("Customer Enrolled & Bill Generated Successfully!");
+        alert("Customer Enrolled Successfully!");
       }
       setShowModal(false);
     } catch (err) {
@@ -552,6 +554,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
       alert("Error saving!");
     }
   };
+
 
   const handleDelete = async (id) => {
     if (window.confirm("Delete permanently?")) {
@@ -656,7 +659,18 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                         </span>
                       </td>
                     )}
-                    {visibleColumns.status && <td className="p-3"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>{c.status}</span></td>}
+                    {visibleColumns.status && (
+                      <td className="p-3">
+                        <div className="flex flex-col space-y-1">
+                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>
+                            {c.status}
+                          </span>
+                          <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase ${c.paymentStatus === 'Paid' ? 'bg-teal-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                            {c.paymentStatus}
+                          </span>
+                        </div>
+                      </td>
+                    )}
                     {visibleColumns.online && <td className="p-3 text-center"><div className={`w-3 h-3 rounded-full mx-auto shadow-lg ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-100 dark:ring-emerald-900/30' : 'bg-slate-300'}`}></div></td>}
                     {visibleColumns.actions && (
                       <td className="p-4 relative">

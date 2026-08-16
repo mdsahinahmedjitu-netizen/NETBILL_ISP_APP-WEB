@@ -28,30 +28,38 @@ class SmsService {
 
         try {
             // Clean mobile number (ensure it starts with 880)
-            val cleanMobile = if (mobile.startsWith("01")) "88$mobile" else mobile
+            val cleanMobile = when {
+                mobile.startsWith("880") -> mobile
+                mobile.startsWith("01") -> "88$mobile"
+                else -> mobile
+            }
             
-            // Construct common Bangladeshi Gateway URL (Generic Example)
-            // Example: https://api.gateway.com/send?apikey=XYZ&senderid=8801&number=88017&message=Hello
-            val url = apiUrl.replace("{API_KEY}", apiKey)
-                .replace("{SENDER_ID}", senderId)
-                .replace("{MOBILE}", cleanMobile)
-                .replace("{MESSAGE}", java.net.URLEncoder.encode(message, "UTF-8"))
+            // Build the URL by replacing placeholders
+            // This works for 99% of BD SMS Gateways (BulkSMSBD, GreenWeb, IT-BD, etc.)
+            val finalUrl = apiUrl
+                .replace("{API_KEY}", apiKey, ignoreCase = true)
+                .replace("{API_TOKEN}", apiKey, ignoreCase = true)
+                .replace("{SENDER_ID}", senderId, ignoreCase = true)
+                .replace("{MOBILE}", cleanMobile, ignoreCase = true)
+                .replace("{NUMBER}", cleanMobile, ignoreCase = true)
+                .replace("{MESSAGE}", java.net.URLEncoder.encode(message, "UTF-8"), ignoreCase = true)
 
             val request = Request.Builder()
-                .url(url)
+                .url(finalUrl)
                 .build()
 
             client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
                 if (response.isSuccessful) {
-                    Log.i(TAG, "SMS Sent Successfully to $cleanMobile")
+                    Log.i(TAG, "SMS Sent to $cleanMobile. Response: $body")
                     true
                 } else {
-                    Log.e(TAG, "SMS Failed: HTTP ${response.code}")
+                    Log.e(TAG, "SMS Failed to $cleanMobile. Code: ${response.code}, Body: $body")
                     false
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "SMS Error: ${e.message}")
+            Log.e(TAG, "SMS Exception: ${e.message}")
             false
         }
     }

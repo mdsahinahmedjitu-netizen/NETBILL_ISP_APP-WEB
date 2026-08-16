@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { db } from '../firebaseConfig';
-import { collection, doc, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
+import { supabase } from '../supabaseClient';
 
 const CollectionReport = ({ store, session, t }) => {
   const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'due', 'revenue'
@@ -100,26 +99,38 @@ const CollectionReport = ({ store, session, t }) => {
     setIsDeleting(true);
 
     try {
-      // 1. Update customer's due balance
-      const customerRef = doc(db, "customers", paymentToDelete.customerId);
-      const customer = store.customers.find(c => c.id === paymentToDelete.customerId);
+      // 1. Update customer's balance (Reverse logic)
+      const customer = store.customers.find(c => c.id === paymentToDelete.customer_id || c.id === paymentToDelete.customerId);
       if (customer) {
-        const newDue = (parseFloat(customer.currentDue) || 0) + parseFloat(paymentToDelete.amount);
-        await updateDoc(customerRef, { currentDue: newDue });
+        const pmtAmt = parseFloat(paymentToDelete.amount) || 0;
+        let currentA = parseFloat(customer.advance_balance || customer.advanceBalance || 0);
+        let currentD = parseFloat(customer.current_due || customer.currentDue || 0);
+
+        let newA = currentA;
+        let newD = currentD;
+
+        // If we delete a payment, we first reduce the advance balance
+        if (currentA >= pmtAmt) {
+          newA = currentA - pmtAmt;
+        } else {
+          const remainingToReturnToDue = pmtAmt - currentA;
+          newA = 0;
+          newD = currentD + remainingToReturnToDue;
+        }
+
+        const { error: custErr } = await supabase.from('customers').update({
+          current_due: newD,
+          advance_balance: newA
+        }).eq('id', customer.id);
+
+        if (custErr) throw custErr;
       }
 
       // 2. Delete the payment record
-      await deleteDoc(doc(db, "payments", paymentToDelete.id));
+      await supabase.from('payments').delete().eq('id', paymentToDelete.id);
 
       // 3. Delete from ledger entries
-      const q = query(collection(db, "ledger_entries"), where("referenceNo", "==", paymentToDelete.receiptNo));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        // Delete all matching entries (if any duplicates)
-        for (const d of snap.docs) {
-           await deleteDoc(doc(db, "ledger_entries", d.id));
-        }
-      }
+      await supabase.from('ledger_entries').delete().eq('reference_no', paymentToDelete.receipt_no || paymentToDelete.receiptNo);
 
       setShowDeleteModal(false);
       setPaymentToDelete(null);

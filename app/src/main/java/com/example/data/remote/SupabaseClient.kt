@@ -1,9 +1,10 @@
 package com.example.data.remote
 
-import io.github.jan_tennert.supabase.createSupabaseClient
-import io.github.jan_tennert.supabase.postgrest.Postgrest
-import io.github.jan_tennert.supabase.realtime.Realtime
-import io.github.jan_tennert.supabase.storage.Storage
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.storage.Storage
+import io.github.jan.supabase.auth.Auth
 
 object SupabaseClient {
     // These should ideally be in BuildConfig or Strings
@@ -14,5 +15,8 @@ object SupabaseClient {
         install(Postgrest)
         install(Realtime)
         install(Storage)
+        install(Auth)
     }
 }
+
+

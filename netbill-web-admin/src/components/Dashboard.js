@@ -192,10 +192,10 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
         <div className="space-y-6 md:space-y-10 pt-4">
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[4px] border-b pb-4">{t.breakdown_by_sector}</p>
            <div className="space-y-6 md:space-y-8 font-black uppercase">
-              <BreakdownRow method="Cash" amount={filteredPayments.filter(p=>p.paymentMethod==='Cash').reduce((s,p)=>s+p.amount,0)} color="#10B981" icon="fa-wallet" total={selectedTotal} />
-              <BreakdownRow method="bKash" amount={filteredPayments.filter(p=>p.paymentMethod.includes('bKash')).reduce((s,p)=>s+p.amount,0)} color="#D0006F" icon="fa-mobile-screen-button" total={selectedTotal} />
-              <BreakdownRow method="Nagad" amount={filteredPayments.filter(p=>p.paymentMethod.includes('Nagad')).reduce((s,p)=>s+p.amount,0)} color="#F58220" icon="fa-credit-card" total={selectedTotal} />
-              <BreakdownRow method="Bank Transfer" amount={filteredPayments.filter(p=>p.paymentMethod.includes('Bank')).reduce((s,p)=>s+p.amount,0)} color="#0D9488" icon="fa-building-columns" total={selectedTotal} />
+              <BreakdownRow method="Cash" amount={filteredPayments.filter(p=>(p.paymentMethod || p.payment_method)==='Cash').reduce((s,p)=>s+(parseFloat(p.amount) || 0),0)} color="#10B981" icon="fa-wallet" total={selectedTotal} />
+              <BreakdownRow method="bKash" amount={filteredPayments.filter(p=>(p.paymentMethod || p.payment_method)?.includes('bKash')).reduce((s,p)=>s+(parseFloat(p.amount) || 0),0)} color="#D0006F" icon="fa-mobile-screen-button" total={selectedTotal} />
+              <BreakdownRow method="Nagad" amount={filteredPayments.filter(p=>(p.paymentMethod || p.payment_method)?.includes('Nagad')).reduce((s,p)=>s+(parseFloat(p.amount) || 0),0)} color="#F58220" icon="fa-credit-card" total={selectedTotal} />
+              <BreakdownRow method="Bank Transfer" amount={filteredPayments.filter(p=>(p.paymentMethod || p.payment_method)?.includes('Bank')).reduce((s,p)=>s+(parseFloat(p.amount) || 0),0)} color="#0D9488" icon="fa-building-columns" total={selectedTotal} />
            </div>
         </div>
       </div>

@@ -46,8 +46,18 @@ const Payments = ({ store, session, t }) => {
         .eq('customer_id', selectedCustomerId)
         .order('payment_date', { ascending: false })
         .limit(20);
-      if (!error) setCustomerPayments(data);
+      if (!error && data) {
+        setCustomerPayments(data.map(item => {
+          const newObj = {};
+          Object.keys(item).forEach(key => {
+            const camelKey = key.replace(/(_\w)/g, m => m[1].toUpperCase());
+            newObj[camelKey] = item[key];
+          });
+          return newObj;
+        }));
+      }
     };
+
 
     fetchPayments();
 
@@ -82,8 +92,8 @@ const Payments = ({ store, session, t }) => {
     try {
       const finalRemarks = `${billingMonth} Bill - ${method}`;
       const payAmt = parseFloat(amount);
-      let newDue = (customer.current_due || 0);
-      let newAdvance = (customer.advance_balance || 0);
+      let newDue = (customer.currentDue || 0);
+      let newAdvance = (customer.advanceBalance || 0);
 
       if (payAmt > newDue) {
           const excess = payAmt - newDue;
@@ -96,7 +106,7 @@ const Payments = ({ store, session, t }) => {
       const { data: newPmt, error: pmtErr } = await supabase.from('payments').insert({
         customer_id: selectedCustomerId,
         customer_name: customer.name,
-        customer_code: customer.customer_code,
+        customer_code: customer.customerCode,
         amount: payAmt,
         payment_method: method,
         payment_date: todayISO,
@@ -109,10 +119,15 @@ const Payments = ({ store, session, t }) => {
 
       if (pmtErr) throw pmtErr;
 
-      await supabase.from('customers').update({
+      // Update customer balance and status
+      const { error: custUpdateErr } = await supabase.from('customers').update({
           current_due: newDue,
-          advance_balance: newAdvance
+          advance_balance: newAdvance,
+          payment_status: newDue <= 0 ? 'Paid' : 'Unpaid'
       }).eq('id', selectedCustomerId);
+
+
+      if (custUpdateErr) throw custUpdateErr;
 
       await supabase.from('ledger_entries').insert({
         customer_id: selectedCustomerId,
@@ -161,16 +176,19 @@ const Payments = ({ store, session, t }) => {
       if (pmtErr) throw pmtErr;
 
       // 2. Adjust Customer Due
-      const customer = store.customers.find(c => c.id === editingPayment.customer_id);
+      const customer = store.customers.find(c => c.id === editingPayment.customerId);
       if (customer) {
-        const newDue = (customer.current_due || 0) - diff;
-        await supabase.from('customers').update({ current_due: newDue }).eq('id', customer.id);
+        const newDue = (customer.currentDue || 0) - diff;
+        await supabase.from('customers').update({
+          current_due: newDue,
+          payment_status: newDue <= 0 ? 'Paid' : 'Unpaid'
+        }).eq('id', customer.id);
 
         // 3. Update Ledger Entry
         await supabase
           .from('ledger_entries')
           .update({ amount: newAmount, description: 'Payment (Corrected)' })
-          .eq('reference_no', editingPayment.receipt_no);
+          .eq('reference_no', editingPayment.receiptNo);
       }
 
       alert("Collection updated successfully!");
@@ -182,6 +200,7 @@ const Payments = ({ store, session, t }) => {
       setIsProcessing(false);
     }
   };
+
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 pb-10 uppercase font-black tracking-tighter transition-all">
@@ -327,6 +346,7 @@ const Payments = ({ store, session, t }) => {
                    <p className="text-2xl font-black text-rose-500">৳ {editingPayment.amount}</p>
                 </div>
              </div>
+
 
              <form onSubmit={handleUpdatePayment} className="space-y-8">
                 <div className="space-y-4">

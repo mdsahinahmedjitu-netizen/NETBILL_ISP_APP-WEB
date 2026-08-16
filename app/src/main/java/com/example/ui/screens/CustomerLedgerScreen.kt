@@ -609,7 +609,7 @@ fun SummaryCard(
 }
 
 @Composable
-fun LedgerTimelineItemCard(entry: LedgerEntryEntity, currency: String) {
+fun LedgerTimelineItemCard(entry: com.example.data.entity.LedgerEntity, currency: String) {
     val isCredit = !entry.isDebit
     val color = when (entry.type) {
         "Payment", "Advance", "Refund" -> EmeraldSuccess
@@ -710,7 +710,7 @@ fun LedgerTimelineItemCard(entry: LedgerEntryEntity, currency: String) {
                     text = "Bal: $currency ${entry.runningBalance.toInt()}",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Slate800
+                    color = Slate600
                 )
             }
         }

@@ -64,14 +64,15 @@ const Expenses = ({ store, session, t }) => {
       const matchCat = filterCategory === 'All' || e.category === filterCategory;
       const matchSearch = !search ||
         (e.title || e.item)?.toLowerCase().includes(search.toLowerCase()) ||
-        e.expense_by?.toLowerCase().includes(search.toLowerCase());
+        e.expenseBy?.toLowerCase().includes(search.toLowerCase());
       return matchCat && matchSearch;
-    }).sort((a, b) => new Date(b.expense_date || b.date) - new Date(a.expense_date || a.date));
+    }).sort((a, b) => new Date(b.expenseDate || b.date) - new Date(a.expenseDate || a.date));
   }, [store.expenses, filterCategory, search]);
 
   const totalExpense = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-  const todayExpense = store.expenses?.filter(e => (e.expense_date || e.date) === new Date().toLocaleDateString('en-CA'))
+  const todayExpense = store.expenses?.filter(e => (e.expenseDate || e.date) === new Date().toLocaleDateString('en-CA'))
     .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -173,7 +174,7 @@ const Expenses = ({ store, session, t }) => {
                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                   {filteredExpenses.map(exp => (
                     <tr key={exp.id} className="hover:bg-rose-50/20 transition-all group">
-                       <td className="p-6 text-xs font-black text-slate-500">{exp.expense_date || exp.date}</td>
+                       <td className="p-6 text-xs font-black text-slate-500">{exp.expenseDate || exp.date}</td>
                        <td className="p-6">
                           <p className="text-lg font-black text-slate-800 dark:text-white tracking-tighter leading-none">{exp.title || exp.item}</p>
                           <p className="text-[9px] text-slate-400 mt-1.5 font-bold italic uppercase">{exp.notes || exp.remarks || 'No extra notes'}</p>
@@ -181,9 +182,10 @@ const Expenses = ({ store, session, t }) => {
                        <td className="p-6">
                           <span className="bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl text-[9px] font-black tracking-widest border border-slate-200 dark:border-slate-700">{getCatLabel(exp.category)}</span>
                        </td>
-                       <td className="p-6 text-xs font-black text-indigo-600 uppercase italic">{exp.expense_by || exp.expenseBy}</td>
+                       <td className="p-6 text-xs font-black text-indigo-600 uppercase italic">{exp.expenseBy}</td>
                        <td className="p-6 text-right font-black text-2xl text-rose-500 tracking-tighter">৳ {exp.amount}</td>
                        <td className="p-6 text-center">
+
                           <button
                             onClick={() => handleDelete(exp.id)}
                             className="w-10 h-10 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm"

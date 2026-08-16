@@ -12,6 +12,8 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
     { id: 'inventory', icon: 'fa-box', label: t.inventory_stock },
     { id: 'packages', icon: 'fa-wifi', label: t.service_packages },
     { id: 'infrastructure', icon: 'fa-network-wired', label: t.infrastructure || 'Network Assets', adminOnly: true },
+    { id: 'sms_setup', icon: 'fa-envelope-open-text', label: 'SMS Setup', adminOnly: true },
+    { id: 'sms_logs', icon: 'fa-history', label: 'SMS History', adminOnly: true },
     { id: 'settings', icon: 'fa-cog', label: t.global_settings, adminOnly: true },
   ];
 

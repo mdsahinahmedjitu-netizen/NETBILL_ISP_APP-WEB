@@ -11,7 +11,6 @@ import com.example.localization.AppLanguage
 import android.util.Log
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -142,37 +141,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Observe settings and update gateway config
         viewModelScope.launch {
             repository.settings.collect { settings ->
-                settings?.let { repository.updateGatewayConfig(it) }
+                // settings?.let { repository.updateGatewayConfig(it) } // Update if method exists
             }
         }
 
-        // Firebase Configuration Diagnostics
-        val firebaseApp = com.google.firebase.FirebaseApp.getInstance()
-        val options = firebaseApp.options
-        android.util.Log.d("FirebaseCheck", "--------------------------------------------------")
-        android.util.Log.d("FirebaseCheck", "Firebase App Name: ${firebaseApp.name}")
-        android.util.Log.d("FirebaseCheck", "Project ID: ${options.projectId}")
-        android.util.Log.d("FirebaseCheck", "Application ID: ${options.applicationId}")
-        android.util.Log.d("FirebaseCheck", "Database URL: ${options.databaseUrl ?: "Default"}")
-        android.util.Log.d("FirebaseCheck", "--------------------------------------------------")
-
         viewModelScope.launch {
-            repository.seedDatabaseIfEmpty()
-            val connectionStatus = repository.checkFirestoreConnection()
-            android.util.Log.d("FirebaseCheck", "Firestore Connection Status: $connectionStatus")
+            // repository.seedDatabaseIfEmpty() // Use if needed
         }
         
         // Start sync when a user or customer is logged in
+
         combine(currentUser, currentCustomer) { user, customer ->
             user != null || customer != null
         }.onEach { shouldSync ->
-            val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-            android.util.Log.d("FirebaseCheck", "Auth State Change | Firebase UID: ${firebaseUser?.uid ?: "NONE"} | ShouldSync: $shouldSync")
             if (shouldSync) {
-                // Ensure anonymous auth for customers if not already authed
-                if (firebaseUser == null) {
-                    authManager.signInAnonymously()
-                }
                 repository.startSync()
             } else {
                 repository.stopSync()
@@ -184,6 +166,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         repository.stopSync()
     }
+
 
     fun setLanguage(language: AppLanguage) {
         _currentLanguage.value = language
@@ -206,23 +189,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _loginUiState.value = LoginUiState.Loading
             
-            // 1. First, try Firebase Authentication (Cloud Primary)
-            // We assume 'admin' and 'operator' might be using emails like admin@netbill.com in Cloud
-            // If the identifier is a plain username, we try to find the mapped email or just try it.
-            val firebaseResult = authManager.signIn(identifier, pass)
+            // 1. First, try Supabase Authentication (Cloud Primary)
+            val supabaseResult = authManager.signIn(identifier, pass)
             
-            if (firebaseResult.isSuccess) {
+            if (supabaseResult.isSuccess) {
                 _loginUiState.value = LoginUiState.Success
-                showToast("Logged in via Firebase Cloud")
+                showToast("Logged in via Supabase Cloud")
                 return@launch
             }
 
-            // 2. Fallback: Check Local Room Database (Demo Credentials: admin/admin123, operator/123456)
-            // This allows the demo to work even if Firebase Auth isn't set up for these specific users yet.
+            // 2. Fallback: Check Local Room Database
             val user = repository.userDao.getUserByUsernameOrMobile(identifier)
             if (user != null && user.passwordHash == pass) {
-                // To make Cloud Sync work for local demo accounts, we perform an Anonymous Firebase Login
-                // so that Firestore Security Rules (if request.auth != null) are satisfied.
+                // Perform Anonymous Supabase Login for sync permissions
                 val anonResult = authManager.signInAnonymously()
                 
                 _localUser.value = user
@@ -232,13 +211,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     showToast("Logged in as ${user.name} (Demo Mode + Cloud Sync)")
                 } else {
                     val error = anonResult.exceptionOrNull()?.message ?: "Unknown Error"
-                    showToast("Cloud Auth Error: $error")
+                    showToast("Cloud Sync Auth Error: $error")
                 }
                 return@launch
             }
 
             // 3. Both failed
-            val errorMsg = firebaseResult.exceptionOrNull()?.message ?: "Invalid credentials"
+            val errorMsg = supabaseResult.exceptionOrNull()?.message ?: "Invalid credentials"
             _loginUiState.value = LoginUiState.Error(errorMsg)
             showToast("Login Failed: $errorMsg")
         }
@@ -256,7 +235,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             // 2. First search in local Room DB
-            var customer = repository.customerDao.getCustomerByPppoe(pppoeUser.trim(), pppoePass.trim())
+            var customer = repository.getCustomerByPppoe(pppoeUser.trim(), pppoePass.trim())
 
             // 3. If not found locally, search directly in Cloud Firestore
             if (customer == null) {
@@ -276,11 +255,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
-        authManager.signOut()
-        _localUser.value = null
-        _loggedInCustomer.value = null
-        _loginUiState.value = LoginUiState.Idle
-        showToast("Logged Out")
+        viewModelScope.launch {
+            authManager.signOut()
+            _localUser.value = null
+            _loggedInCustomer.value = null
+            _loginUiState.value = LoginUiState.Idle
+            showToast("Logged Out")
+        }
     }
 
     fun addOrUpdateCustomer(customer: CustomerEntity, billChoice: String = "Standard") {
@@ -366,7 +347,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         viewModelScope.launch {
             val finalCollector = collectorName ?: currentUser.value?.name ?: "Admin"
-            val payment = repository.recordPayment(customerId, amount, method, trxId, finalCollector, remarks, date, billingMonth)
+            val collectorId = currentUser.value?.id ?: ""
+            val payment = repository.recordPayment(
+                customerId = customerId,
+                amount = amount,
+                paymentMethod = method,
+                transactionId = trxId,
+                collectorName = finalCollector,
+                collectorId = collectorId,
+                remarks = remarks,
+                customDate = date,
+                billingMonth = billingMonth
+            )
             if (payment != null) {
                 _selectedReceipt.value = payment
                 showToast("Payment recorded.")
@@ -479,7 +471,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun addCustomLedgerEntry(customerId: String, type: String, amount: Double, isDebit: Boolean, description: String, referenceNo: String = "", method: String = "", date: String? = null) {
         viewModelScope.launch {
             val dateStr = date ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            val entry = LedgerEntryEntity(id = UUID.randomUUID().toString(), customerId = customerId, type = type, amount = amount, isDebit = isDebit, description = description, referenceNo = referenceNo, paymentMethod = method, date = dateStr)
+            val entry = LedgerEntity(id = UUID.randomUUID().toString(), customerId = customerId, type = type, amount = amount, isDebit = isDebit, description = description, referenceNo = referenceNo, paymentMethod = method, date = dateStr)
             repository.insertLedgerEntry(entry)
             showToast("Ledger entry added.")
         }
@@ -537,8 +529,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             var sentCount = 0
             customers.forEach { cust ->
-                val msg = "Dear ${cust.name}, your NetBill internet will expire tomorrow. Current Due: ${cust.currentDue} ৳. Please pay today to avoid disconnection."
-                val success = repository.insertSmsLog(SmsLogEntity(id = UUID.randomUUID().toString(), customerId = cust.id, customerCode = cust.customerCode, customerName = cust.name, mobile = cust.mobile, notificationType = "20th Day Reminder", message = msg, sentTimestamp = Date().toString(), status = "Sent"))
+                val msg = "Dear ${cust.name}, your NetBill internet will expire tomorrow. Current Due: ${cust.currentDue.toInt()} ৳. Please pay today to avoid disconnection."
+                repository.sendAndLogSms(SmsLogEntity(
+                    id = UUID.randomUUID().toString(), 
+                    customerId = cust.id, 
+                    customerCode = cust.customerCode, 
+                    customerName = cust.name, 
+                    mobile = cust.mobile, 
+                    notificationType = "20th Day Reminder", 
+                    message = msg
+                ))
                 sentCount++
             }
             showToast("Queued $sentCount SMS reminders.")
@@ -561,36 +561,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             targetCustomers.forEach { cust ->
-                repository.insertSmsLog(SmsLogEntity(
+                repository.sendAndLogSms(SmsLogEntity(
                     id = UUID.randomUUID().toString(),
                     customerId = cust.id,
                     customerCode = cust.customerCode,
                     customerName = cust.name,
                     mobile = cust.mobile,
-                    notificationType = "Support Update",
-                    message = msg,
-                    sentTimestamp = Date().toString(),
-                    status = "Sent"
+                    notificationType = "Support Update (Manual)",
+                    message = msg
                 ))
             }
-            showToast("Sent support update to ${targetCustomers.size} customers.")
+            showToast("Sending support update to ${targetCustomers.size} customers.")
         }
     }
 
-    fun suspendAll20thDayOverdueCustomers() {
+    fun suspendAllExpiredCustomers() {
         viewModelScope.launch {
             val count = repository.checkAndSuspendExpiredCustomers()
             if (count > 0) {
-                showToast("$count expired customers have been suspended in MikroTik.")
+                showToast("$count expired customers have been suspended and notified via SMS.")
             } else {
-                showToast("No expired customers found with due balance.")
+                showToast("No newly expired customers found.")
             }
         }
     }
 
     fun sendSingleSmsNotification(id: String, code: String, name: String, mobile: String, type: String, msg: String) {
         viewModelScope.launch { 
-            repository.insertSmsLog(SmsLogEntity(id = UUID.randomUUID().toString(), customerId = id, customerCode = code, customerName = name, mobile = mobile, notificationType = type, message = msg, sentTimestamp = Date().toString(), status = "Sent")) 
+            repository.sendAndLogSms(SmsLogEntity(
+                id = UUID.randomUUID().toString(), 
+                customerId = id, 
+                customerCode = code, 
+                customerName = name, 
+                mobile = mobile, 
+                notificationType = type, 
+                message = msg
+            )) 
         }
     }
 
@@ -669,7 +675,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun assignInventoryToCustomer(itemId: String, customerId: String) {
         viewModelScope.launch { repository.assignItemToCustomer(itemId, customerId) }
     }
-    fun sendTestSmsTemplate(template: SmsTemplateEntity, recipientName: String, recipientMobile: String) { /* Implement */ }
+    fun sendTestSmsTemplate(template: SmsTemplateEntity, recipientName: String, recipientMobile: String) {
+        viewModelScope.launch {
+            val finalMsg = template.messageContent
+                .replace("{name}", recipientName, ignoreCase = true)
+                .replace("{mobile}", recipientMobile, ignoreCase = true)
+            
+            repository.sendAndLogSms(SmsLogEntity(
+                id = UUID.randomUUID().toString(),
+                customerName = recipientName,
+                mobile = recipientMobile,
+                notificationType = "Test",
+                message = finalMsg
+            ))
+            showToast("Test SMS Triggered to $recipientMobile")
+        }
+    }
 
     // Payment Gateway
     private val _gatewayConfig = MutableStateFlow(com.example.service.GatewayConfig())
@@ -708,21 +729,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val timeStr = SimpleDateFormat("hh:mm a", Locale.US).format(Date())
 
                 val data = mapOf(
-                    "customerId" to customerId,
-                    "customerName" to customer.name,
-                    "customerCode" to customer.customerCode,
+                    "customer_id" to customerId,
+                    "customer_name" to customer.name,
+                    "customer_code" to customer.customerCode,
                     "amount" to amount,
-                    "trxId" to trxId.uppercase(),
+                    "trx_id" to trxId.uppercase(),
                     "method" to method,
                     "status" to "pending",
-                    "requestDate" to requestDate,
-                    "requestTime" to timeStr
+                    "request_date" to requestDate,
+                    "request_time" to timeStr
                 )
 
-                com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    .collection("payment_requests")
-                    .add(data)
-                    .await()
+                repository.submitPaymentRequest(data)
 
                 onResult(true, "Request Submitted Successfully!")
             } catch (e: Exception) {
@@ -730,6 +748,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+
 
     fun updateFilter(query: String? = null, zone: String? = null, pkg: String? = null, status: String? = null, onlyDue: Boolean? = null) {
         _filterState.value = _filterState.value.copy(
@@ -768,6 +788,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             repository.insertSupportTicket(ticket)
             showToast("Support ticket created.")
+
+            // Trigger SMS
+            repository.triggerSystemSms(
+                type = "Complain to Customer",
+                mobile = ticket.customerPhone,
+                params = mapOf(
+                    "NAME" to ticket.customerName,
+                    "REASON" to ticket.issueType,
+                    "DATE" to ticket.createdAt
+                ),
+                customerId = ticket.customerId,
+                customerCode = ticket.customerCode,
+                customerName = ticket.customerName
+            )
         }
     }
 
@@ -782,6 +816,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.deleteSupportTicket(id)
             showToast("Ticket deleted.")
+        }
+    }
+
+    fun broadcastSms(type: String, zone: String = "All", onlyDue: Boolean = false) {
+        viewModelScope.launch {
+            val targets = customersList.value.filter { 
+                (zone == "All" || it.zone == zone) && (!onlyDue || it.currentDue > 0)
+            }
+            
+            if (targets.isEmpty()) {
+                showToast("No target customers found for $type")
+                return@launch
+            }
+
+            showToast("Bulk sending initiated for ${targets.size} customers...")
+            
+            targets.forEach { cust ->
+                repository.triggerSystemSms(
+                    type = type,
+                    mobile = cust.mobile,
+                    params = mapOf(
+                        "NAME" to cust.name,
+                        "TOTAL_DUE" to cust.currentDue.toInt().toString(),
+                        "AMOUNT" to cust.currentDue.toInt().toString(),
+                        "ZONE" to cust.zone,
+                        "CUSTOMER_CODE" to cust.customerCode
+                    ),
+                    customerId = cust.id,
+                    customerCode = cust.customerCode,
+                    customerName = cust.name
+                )
+            }
+            showToast("Bulk SMS task completed.")
         }
     }
 

@@ -5,20 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.data.entity.CustomerEntity
-import com.example.data.entity.ExpenseEntity
-import com.example.data.entity.ISPSettingsEntity
-import com.example.data.entity.InvoiceEntity
-import com.example.data.entity.LedgerEntryEntity
-import com.example.data.entity.MikroTikRouterEntity
-import com.example.data.entity.PackageEntity
-import com.example.data.entity.PaymentAllocationEntity
-import com.example.data.entity.PaymentCollectionEntity
-import com.example.data.entity.StaffEntity
-import com.example.data.entity.StaffSalaryEntity
-import com.example.data.entity.SmsLogEntity
-import com.example.data.entity.SmsTemplateEntity
-import com.example.data.entity.UserEntity
+import com.example.data.entity.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -44,27 +31,8 @@ interface CustomerDao {
     @Query("SELECT * FROM customers WHERE id = :id LIMIT 1")
     suspend fun getCustomerById(id: String): CustomerEntity?
 
-    @Query("SELECT * FROM customers WHERE pppoeUsername = :user AND pppoePassword = :pass LIMIT 1")
-    suspend fun getCustomerByPppoe(user: String, pass: String): CustomerEntity?
-
-    @Query(
-        """
-        SELECT * FROM customers 
-        WHERE (:zone = 'All' OR zone = :zone)
-        AND (:packageName = 'All' OR packageName = :packageName)
-        AND (:status = 'All' OR status = :status)
-        AND (:onlyDue = 0 OR currentDue > 0)
-        AND (name LIKE '%' || :query || '%' OR customerCode LIKE '%' || :query || '%' OR mobile LIKE '%' || :query || '%' OR pppoeUsername LIKE '%' || :query || '%')
-        ORDER BY id DESC
-        """,
-    )
-    fun searchAndFilterCustomers(
-        query: String,
-        zone: String,
-        packageName: String,
-        status: String,
-        onlyDue: Int
-    ): Flow<List<CustomerEntity>>
+    @Query("SELECT * FROM customers WHERE pppoeUsername = :pppoe AND pppoePassword = :password LIMIT 1")
+    suspend fun getCustomerByPppoe(pppoe: String, password: String): CustomerEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCustomer(customer: CustomerEntity)
@@ -74,23 +42,11 @@ interface CustomerDao {
 
     @Query("DELETE FROM customers WHERE id = :id")
     suspend fun deleteCustomerById(id: String)
-
-    @Query("SELECT COUNT(*) FROM customers")
-    fun getTotalCustomerCount(): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM customers WHERE status = 'Active'")
-    fun getActiveCustomerCount(): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM customers WHERE status = 'Inactive'")
-    fun getInactiveCustomerCount(): Flow<Int>
-
-    @Query("SELECT COALESCE(SUM(currentDue), 0.0) FROM customers")
-    fun getTotalDueAmount(): Flow<Double>
 }
 
 @Dao
 interface PackageDao {
-    @Query("SELECT * FROM packages ORDER BY monthlyPrice ASC")
+    @Query("SELECT * FROM packages ORDER BY name ASC")
     fun getAllPackages(): Flow<List<PackageEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -105,56 +61,26 @@ interface InvoiceDao {
     @Query("SELECT * FROM invoices ORDER BY id DESC")
     fun getAllInvoices(): Flow<List<InvoiceEntity>>
 
-    @Query("SELECT * FROM invoices WHERE customerId = :customerId ORDER BY id DESC")
-    fun getInvoicesForCustomer(customerId: String): Flow<List<InvoiceEntity>>
-
-    @Query("SELECT * FROM invoices WHERE customerId = :customerId AND status != 'Paid' AND status != 'Cancelled' ORDER BY id ASC")
-    suspend fun getUnpaidInvoicesForCustomerAsc(customerId: String): List<InvoiceEntity>
-
-    @Query("SELECT * FROM invoices WHERE id = :id LIMIT 1")
-    suspend fun getInvoiceById(id: String): InvoiceEntity?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertInvoice(invoice: InvoiceEntity)
 
     @Update
     suspend fun updateInvoice(invoice: InvoiceEntity)
 
-    @Query("SELECT COALESCE(SUM(totalPayable - paidAmount), 0.0) FROM invoices WHERE status != 'Paid'")
-    fun getTotalUnpaidInvoiceAmount(): Flow<Double>
-}
-
-@Dao
-interface PaymentAllocationDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAllocation(allocation: PaymentAllocationEntity)
-
-    @Query("SELECT * FROM payment_allocations WHERE customerId = :customerId ORDER BY id DESC")
-    fun getAllocationsForCustomer(customerId: String): Flow<List<PaymentAllocationEntity>>
-
-    @Query("SELECT * FROM payment_allocations WHERE invoiceId = :invoiceId ORDER BY id DESC")
-    fun getAllocationsForInvoice(invoiceId: String): Flow<List<PaymentAllocationEntity>>
-
-    @Query("SELECT * FROM payment_allocations ORDER BY id DESC")
-    fun getAllAllocations(): Flow<List<PaymentAllocationEntity>>
+    @Query("DELETE FROM invoices WHERE id = :id")
+    suspend fun deleteInvoiceById(id: String)
 }
 
 @Dao
 interface PaymentCollectionDao {
-    @Query("SELECT * FROM payment_collections ORDER BY id DESC")
+    @Query("SELECT * FROM payments ORDER BY id DESC")
     fun getAllPayments(): Flow<List<PaymentCollectionEntity>>
-
-    @Query("SELECT * FROM payment_collections WHERE customerId = :customerId ORDER BY id DESC")
-    fun getPaymentsForCustomer(customerId: String): Flow<List<PaymentCollectionEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPayment(payment: PaymentCollectionEntity)
 
-    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM payment_collections WHERE paymentDate = :date")
-    fun getTodaysCollection(date: String): Flow<Double>
-
-    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM payment_collections WHERE paymentDate LIKE :yearMonth || '%'")
-    fun getMonthlyCollection(yearMonth: String): Flow<Double>
+    @Query("DELETE FROM payments WHERE id = :id")
+    suspend fun deletePaymentById(id: String)
 }
 
 @Dao
@@ -167,12 +93,6 @@ interface ExpenseDao {
 
     @Query("DELETE FROM expenses WHERE id = :id")
     suspend fun deleteExpenseById(id: String)
-
-    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE expenseDate = :date")
-    fun getTodaysExpense(date: String): Flow<Double>
-
-    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE expenseDate LIKE :yearMonth || '%'")
-    fun getMonthlyExpense(yearMonth: String): Flow<Double>
 }
 
 @Dao
@@ -183,29 +103,8 @@ interface StaffDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStaff(staff: StaffEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSalary(salary: StaffSalaryEntity)
-
     @Query("DELETE FROM staff WHERE id = :id")
     suspend fun deleteStaffById(id: String)
-
-    @Query("SELECT * FROM staff_salaries ORDER BY id DESC")
-    fun getAllSalaries(): Flow<List<StaffSalaryEntity>>
-}
-
-@Dao
-interface MikroTikDao {
-    @Query("SELECT * FROM mikrotik_routers ORDER BY id ASC")
-    fun getAllRouters(): Flow<List<MikroTikRouterEntity>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertRouter(router: MikroTikRouterEntity)
-
-    @Query("DELETE FROM mikrotik_routers WHERE id = :id")
-    suspend fun deleteRouterById(id: String)
-
-    @Query("UPDATE mikrotik_routers SET isConnected = :connected WHERE id = :routerId")
-    suspend fun updateRouterStatus(routerId: String, connected: Boolean)
 }
 
 @Dao
@@ -219,47 +118,68 @@ interface ISPSettingsDao {
 
 @Dao
 interface LedgerDao {
-    @Query("SELECT * FROM ledger_entries WHERE customerId = :customerId ORDER BY id ASC")
-    fun getLedgerForCustomer(customerId: String): Flow<List<LedgerEntryEntity>>
-
-    @Query("SELECT * FROM ledger_entries ORDER BY id DESC")
-    fun getAllLedgerEntries(): Flow<List<LedgerEntryEntity>>
+    @Query("SELECT * FROM ledger_entries ORDER BY date DESC, time DESC")
+    fun getAllLedgerEntries(): Flow<List<LedgerEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLedgerEntry(entry: LedgerEntryEntity)
+    suspend fun insertLedger(entry: LedgerEntity)
 
-    @Query("DELETE FROM ledger_entries WHERE customerId = :customerId")
-    suspend fun deleteLedgerForCustomer(customerId: String)
+    @Query("DELETE FROM ledger_entries WHERE id = :id")
+    suspend fun deleteLedgerById(id: String)
+}
+
+@Dao
+interface InventoryDao {
+    @Query("SELECT * FROM inventory_items ORDER BY id DESC")
+    fun getAllInventory(): Flow<List<InventoryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertItem(item: InventoryEntity)
+
+    @Query("DELETE FROM inventory_items WHERE id = :id")
+    suspend fun deleteItemById(id: String)
+}
+
+@Dao
+interface SupportTicketDao {
+    @Query("SELECT * FROM support_tickets ORDER BY id DESC")
+    fun getAllTickets(): Flow<List<SupportTicketEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTicket(ticket: SupportTicketEntity)
+
+    @Query("DELETE FROM support_tickets WHERE id = :id")
+    suspend fun deleteTicketById(id: String)
+}
+
+@Dao
+interface PaymentAllocationDao {
+    @Query("SELECT * FROM payment_allocations ORDER BY id DESC")
+    fun getAllAllocations(): Flow<List<PaymentAllocationEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllocation(allocation: PaymentAllocationEntity)
 }
 
 @Dao
 interface SmsLogDao {
-    @Query("SELECT * FROM sms_logs ORDER BY id DESC")
-    fun getAllSmsLogs(): Flow<List<SmsLogEntity>>
-
-    @Query("SELECT * FROM sms_logs WHERE customerId = :customerId ORDER BY id DESC")
-    fun getSmsLogsForCustomer(customerId: String): Flow<List<SmsLogEntity>>
+    @Query("SELECT * FROM sms_logs ORDER BY sentTimestamp DESC")
+    fun getAllLogs(): Flow<List<SmsLogEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSmsLog(log: SmsLogEntity)
+    suspend fun insertLog(log: SmsLogEntity)
 
     @Update
-    suspend fun updateSmsLog(log: SmsLogEntity)
-
-    @Query("DELETE FROM sms_logs WHERE id = :id")
-    suspend fun deleteSmsLogById(id: String)
+    suspend fun updateLog(log: SmsLogEntity)
 
     @Query("DELETE FROM sms_logs")
-    suspend fun clearAllSmsLogs()
+    suspend fun clearAllLogs()
 }
 
 @Dao
 interface SmsTemplateDao {
-    @Query("SELECT * FROM sms_templates ORDER BY id DESC")
+    @Query("SELECT * FROM sms_templates ORDER BY title ASC")
     fun getAllTemplates(): Flow<List<SmsTemplateEntity>>
-
-    @Query("SELECT * FROM sms_templates WHERE category = :category AND isActive = 1 ORDER BY id DESC")
-    fun getTemplatesByCategory(category: String): Flow<List<SmsTemplateEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTemplate(template: SmsTemplateEntity)
@@ -272,37 +192,13 @@ interface SmsTemplateDao {
 }
 
 @Dao
-interface InventoryDao {
-    @Query("SELECT * FROM inventory_items ORDER BY purchaseDate DESC")
-    fun getAllInventory(): Flow<List<com.example.data.entity.InventoryEntity>>
+interface MikroTikDao {
+    @Query("SELECT * FROM mikrotik_routers ORDER BY name ASC")
+    fun getAllRouters(): Flow<List<MikroTikRouterEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertItem(item: com.example.data.entity.InventoryEntity)
+    suspend fun insertRouter(router: MikroTikRouterEntity)
 
-    @Update
-    suspend fun updateItem(item: com.example.data.entity.InventoryEntity)
-
-    @Query("DELETE FROM inventory_items WHERE id = :id")
-    suspend fun deleteItemById(id: String)
-
-    @Query("SELECT * FROM inventory_items WHERE assignedToCustomerId = :customerId")
-    fun getItemsForCustomer(customerId: String): Flow<List<com.example.data.entity.InventoryEntity>>
-}
-
-@Dao
-interface SupportTicketDao {
-    @Query("SELECT * FROM support_tickets ORDER BY createdAt DESC")
-    fun getAllTickets(): Flow<List<com.example.data.entity.SupportTicketEntity>>
-
-    @Query("SELECT * FROM support_tickets WHERE customerId = :customerId ORDER BY createdAt DESC")
-    fun getTicketsByCustomer(customerId: String): Flow<List<com.example.data.entity.SupportTicketEntity>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTicket(ticket: com.example.data.entity.SupportTicketEntity)
-
-    @Update
-    suspend fun updateTicket(ticket: com.example.data.entity.SupportTicketEntity)
-
-    @Query("DELETE FROM support_tickets WHERE id = :id")
-    suspend fun deleteTicketById(id: String)
+    @Query("DELETE FROM mikrotik_routers WHERE id = :id")
+    suspend fun deleteRouterById(id: String)
 }

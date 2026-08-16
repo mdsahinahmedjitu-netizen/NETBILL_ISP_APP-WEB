@@ -17,16 +17,18 @@ import com.example.data.entity.*
         PaymentCollectionEntity::class,
         ExpenseEntity::class,
         StaffEntity::class,
-        StaffSalaryEntity::class,
-        MikroTikRouterEntity::class,
         ISPSettingsEntity::class,
-        LedgerEntryEntity::class,
+        LedgerEntity::class,
         SmsLogEntity::class,
         SmsTemplateEntity::class,
         InventoryEntity::class,
-        SupportTicketEntity::class
+        SupportTicketEntity::class,
+        ZoneEntity::class,
+        SubZoneEntity::class,
+        BoxEntity::class,
+        MikroTikRouterEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
