@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const CollectionReport = ({ store, session, t }) => {
-  const [activeTab, setActiveTab] = useState('collection'); // 'collection', 'due', 'revenue'
+const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
+  const [activeTab, setActiveTab] = useState(initialTab); // 'collection', 'due', 'revenue'
   const [search, setSearch] = useState('');
   const [startDate, setDateStart] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'));
   const [endDate, setDateEnd] = useState(new Date().toLocaleDateString('en-CA'));

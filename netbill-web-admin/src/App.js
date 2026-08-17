@@ -30,10 +30,12 @@ function App() {
   });
 
   const [activePage, setActivePage] = useState('dashboard');
+  const [reportInitialTab, setReportInitialTab] = useState('collection');
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('dark_mode') === 'true');
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'bn');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
+  const [isDirectAddMode, setIsDirectAddMode] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -204,6 +206,11 @@ function App() {
     localStorage.setItem('dark_mode', newMode.toString());
   };
 
+  const navigateToAddCustomer = () => {
+    setIsDirectAddMode(true);
+    setActivePage('new_enrollment');
+  };
+
   if (!session) return <Login onLoginSuccess={handleLoginSuccess} />;
 
   return (
@@ -230,12 +237,13 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-10 scroll-smooth transition-colors font-black">
-          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} />}
+          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} t={t} lang={lang} />}
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
+          {activePage === 'new_enrollment' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
-          {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} />}
+          {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} initialTab={reportInitialTab} />}
           {activePage === 'expenses' && <Expenses store={store} session={session} t={t} />}
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} session={session} t={t} lang={lang} />}
           {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}

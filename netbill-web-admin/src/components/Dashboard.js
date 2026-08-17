@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) => {
+const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigateToAddCustomer, t }) => {
   const [activeFilter, setActiveFilter] = useState('today');
   const [customDate, setCustomDate] = useState(new Date().toLocaleDateString('en-CA'));
 
@@ -163,12 +163,12 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-7 font-black uppercase tracking-widest leading-none">
         <FeatureCard title={t.grid_collection} icon="fa-hand-holding-dollar" grad="grad-collection" onClick={() => setActivePage('payments')} />
-        <FeatureCard title={t.grid_report} icon="fa-chart-column" grad="grad-invoices" onClick={() => setActivePage('reports')} />
+        <FeatureCard title="Collection Report" icon="fa-chart-column" grad="grad-invoices" onClick={() => { setReportInitialTab('collection'); setActivePage('reports'); }} />
         <FeatureCard title={t.grid_crm} icon="fa-users-viewfinder" grad="grad-subscribers" onClick={() => setActivePage('customers')} />
         <FeatureCard title={t.grid_tickets} icon="fa-ticket" grad="grad-tickets" onClick={() => setActivePage('crm_tickets')} />
         <FeatureCard title={t.grid_add} icon="fa-user-plus" grad="grad-create" onClick={navigateToAddCustomer} />
         <FeatureCard title={t.grid_search} icon="fa-magnifying-glass-chart" grad="grad-search" onClick={() => setActivePage('customers')} />
-        <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => setActivePage('customers')} />
+        <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => { setReportInitialTab('due'); setActivePage('reports'); }} />
         <FeatureCard title={t.grid_summary} icon="fa-chart-pie" grad="grad-summary" onClick={() => {}} />
       </div>
 

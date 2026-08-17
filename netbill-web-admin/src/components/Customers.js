@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId }) => {
+const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId, isDirectMode }) => {
   const [search, setSearch] = useState('');
   const [selectedCust, setSelectedCust] = useState(null);
   const [ledger, setLedger] = useState([]);
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(autoOpenModal || false);
   const [isEditing, setIsEditing] = useState(false);
 
   // Selection & UI States
@@ -658,6 +658,11 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
 
   return (
     <div className="w-full px-4 space-y-6 pb-10 uppercase font-black tracking-tighter transition-all">
+      {isDirectMode ? (
+        <div className="flex items-center justify-center py-20 animate-pulse">
+           <p className="text-2xl text-slate-400 font-black tracking-[10px]">OPENING CLOUD ENROLLMENT...</p>
+        </div>
+      ) : (<>
       {/* Header & Stats Row */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
         <div className="space-y-1">
@@ -806,6 +811,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
             </table>
           </div>
       </div>
+      </>)}
 
       {/* DYNAMIC IMPORT MODAL */}
       <ActionModals
@@ -855,7 +861,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[500] flex items-start justify-center p-6 overflow-y-auto animate-fadeIn font-black scroll-smooth">
           <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-[96%] my-10 p-16 shadow-2xl space-y-14 relative overflow-hidden border-2 border-slate-100">
-            <div className="flex justify-between items-center border-b-2 border-slate-50 pb-10"><div className="flex items-center space-x-6"><div className="w-20 h-20 bg-teal-600 text-white rounded-[28px] flex items-center justify-center shadow-2xl shadow-teal-500/40"><i className="fas fa-user-plus text-4xl"></i></div><h3 className="text-6xl font-black uppercase tracking-tighter">{isEditing ? t.update_identity : t.new_enrollment}</h3></div><button onClick={() => setShowModal(false)} className="w-20 h-20 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl group"><i className="fas fa-times text-3xl group-hover:rotate-90 transition-transform"></i></button></div>
+            <div className="flex justify-between items-center border-b-2 border-slate-50 pb-10"><div className="flex items-center space-x-6"><div className="w-20 h-20 bg-teal-600 text-white rounded-[28px] flex items-center justify-center shadow-2xl shadow-teal-500/40"><i className="fas fa-user-plus text-4xl"></i></div><h3 className="text-6xl font-black uppercase tracking-tighter">{isEditing ? t.update_identity : t.new_enrollment}</h3></div><button onClick={() => { if(isDirectMode) setActivePage('dashboard'); else setShowModal(false); }} className="w-20 h-20 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl group"><i className="fas fa-times text-3xl group-hover:rotate-90 transition-transform"></i></button></div>
             <form onSubmit={handleSave} className="space-y-14">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
                 <Section title={t.router_zone_info} color="blue" bgColor="bg-blue-50 dark:bg-blue-900/10" borderColor="border-blue-100" shadowColor="shadow-blue-500/20">
