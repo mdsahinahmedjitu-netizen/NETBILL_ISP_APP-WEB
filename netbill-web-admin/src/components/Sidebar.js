@@ -4,6 +4,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
   const menuItems = [
     { id: 'dashboard', icon: 'fa-th-large', label: t.dashboard_overview },
     { id: 'customers', icon: 'fa-users', label: t.subscribers_crm },
+    { id: 'crm_tickets', icon: 'fa-headset', label: 'Support Tickets' },
     { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center },
     { id: 'reports', icon: 'fa-chart-pie', label: t.collection_report },
     { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title },

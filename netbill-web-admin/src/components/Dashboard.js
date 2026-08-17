@@ -17,12 +17,15 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
   const todayStr = new Date().toLocaleDateString('en-CA');
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
+  const tomorrowISO = tomorrow.toLocaleDateString('en-CA');
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const tomorrowCustom = `${tomorrow.getDate().toString().padStart(2, '0')}-${months[tomorrow.getMonth()]}-${tomorrow.getFullYear()}`;
 
-  // Expiry Alert Logic: Only customers expiring TOMORROW
+  // Expiry Alert Logic: Analyzes all customers daily (Supports multiple date formats)
   const expiringTomorrow = store.customers.filter(c => {
-    if (!c.expireDate || c.status !== 'Active') return false;
-    return c.expireDate === tomorrowStr;
+    const eDate = c.expireDate || c.expire_date;
+    if (!eDate || c.status !== 'Active') return false;
+    return eDate === tomorrowISO || eDate === tomorrowCustom;
   });
 
   const yesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
@@ -108,23 +111,23 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
   return (
     <div className="max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-widest transition-all relative">
 
-      {/* TOP NOTIFICATION BAR - APP STYLE */}
-      {expiringTomorrow.length > 0 && (
+      {/* TOP NOTIFICATION BAR - CUSTOMER COMPLAINTS / TICKETS */}
+      {store.tickets?.filter(t => t.status === 'Open' || t.status === 'Pending').length > 0 && (
         <div
-          onClick={() => window.openExpiryModal()}
-          className="bg-rose-600 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all animate-pulse border-b-4 border-rose-900"
+          onClick={() => setActivePage('crm_tickets')}
+          className="bg-amber-500 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all border-b-4 border-amber-700"
         >
            <div className="flex items-center space-x-5">
               <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl relative">
-                 <i className="fas fa-bell"></i>
-                 <span className="absolute -top-1 -right-1 bg-white text-rose-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-rose-600 shadow-sm">{expiringTomorrow.length}</span>
+                 <i className="fas fa-headset"></i>
+                 <span className="absolute -top-1 -right-1 bg-white text-amber-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-amber-600 shadow-sm">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length}</span>
               </div>
               <div>
-                 <h4 className="text-xl font-black uppercase tracking-tighter leading-none">Attention: Expiry Alert</h4>
-                 <p className="text-[10px] font-bold opacity-80 mt-1 uppercase tracking-widest">{expiringTomorrow.length} Customers will expire tomorrow. Click to see list.</p>
+                 <h4 className="text-xl font-black uppercase tracking-tighter leading-none">Attention: Customer Complaints</h4>
+                 <p className="text-[10px] font-bold opacity-80 mt-1 uppercase tracking-widest">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length} Pending support tickets found. Click to resolve.</p>
               </div>
            </div>
-           <div className="w-12 h-12 bg-white text-rose-600 rounded-full flex items-center justify-center text-xl font-black">
+           <div className="w-12 h-12 bg-white text-amber-600 rounded-full flex items-center justify-center text-xl font-black">
               <i className="fas fa-chevron-right"></i>
            </div>
         </div>
@@ -162,7 +165,7 @@ const Dashboard = ({ store, session, setActivePage, navigateToAddCustomer, t }) 
         <FeatureCard title={t.grid_collection} icon="fa-hand-holding-dollar" grad="grad-collection" onClick={() => setActivePage('payments')} />
         <FeatureCard title={t.grid_report} icon="fa-chart-column" grad="grad-invoices" onClick={() => setActivePage('reports')} />
         <FeatureCard title={t.grid_crm} icon="fa-users-viewfinder" grad="grad-subscribers" onClick={() => setActivePage('customers')} />
-        <FeatureCard title={t.grid_tickets} icon="fa-ticket" grad="grad-tickets" onClick={() => {}} />
+        <FeatureCard title={t.grid_tickets} icon="fa-ticket" grad="grad-tickets" onClick={() => setActivePage('crm_tickets')} />
         <FeatureCard title={t.grid_add} icon="fa-user-plus" grad="grad-create" onClick={navigateToAddCustomer} />
         <FeatureCard title={t.grid_search} icon="fa-magnifying-glass-chart" grad="grad-search" onClick={() => setActivePage('customers')} />
         <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => setActivePage('customers')} />
