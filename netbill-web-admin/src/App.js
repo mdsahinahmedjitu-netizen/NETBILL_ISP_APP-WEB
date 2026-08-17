@@ -33,6 +33,8 @@ function App() {
   const [reportInitialTab, setReportInitialTab] = useState('collection');
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [showSummarySearch, setShowSummarySearch] = useState(false);
+  const [summaryCustomer, setSummaryCustomer] = useState(null);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('dark_mode') === 'true');
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'bn');
@@ -239,7 +241,7 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-10 scroll-smooth transition-colors font-black">
-          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} t={t} lang={lang} />}
+          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />}
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
           {activePage === 'new_enrollment' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
@@ -418,6 +420,86 @@ function App() {
                     )}
                   </div>
                </div>
+            </div>
+          </div>
+        )}
+
+        {/* SUMMARY & PAYMENT DETAILS MODAL */}
+        {showSummarySearch && (
+          <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
+            <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-2xl p-12 shadow-2xl border-4 border-emerald-500/20 space-y-10 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-3 bg-emerald-600"></div>
+               <div className="flex justify-between items-center border-b pb-6">
+                  <h3 className="text-4xl font-black tracking-tighter uppercase">{summaryCustomer ? 'Payment Summary' : 'Quick Summary Search'}</h3>
+                  <button onClick={() => { setShowSummarySearch(false); setSummaryCustomer(null); setGlobalSearchQuery(''); }} className="text-rose-500 text-3xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+               </div>
+
+               {!summaryCustomer ? (
+                 <div className="space-y-6">
+                    <div className="relative group">
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Search Customer for Summary..."
+                        value={globalSearchQuery}
+                        onChange={e => setGlobalSearchQuery(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-900 p-8 rounded-[36px] font-black text-2xl outline-none border-2 border-transparent focus:border-emerald-500 shadow-inner"
+                      />
+                      <i className="fas fa-chart-pie absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 text-3xl"></i>
+                    </div>
+                    <div className="max-h-[350px] overflow-y-auto pr-4 custom-scrollbar space-y-4">
+                      {globalSearchQuery.length > 0 && store.customers.filter(c =>
+                        c.name?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                        c.customerCode?.toLowerCase().includes(globalSearchQuery.toLowerCase())
+                      ).slice(0, 5).map(c => (
+                        <div key={c.id} onClick={() => setSummaryCustomer(c)} className="bg-slate-50 dark:bg-slate-900 p-6 rounded-[32px] border-2 border-transparent hover:border-emerald-500 cursor-pointer flex justify-between items-center">
+                           <div><p className="text-xl font-black text-slate-800 dark:text-white">{c.name}</p><p className="text-[10px] text-slate-400">ID: {c.customerCode}</p></div>
+                           <i className="fas fa-chevron-right text-emerald-600"></i>
+                        </div>
+                      ))}
+                    </div>
+                 </div>
+               ) : (
+                 <div className="space-y-8 animate-fadeIn">
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-8 rounded-[40px] flex justify-between items-center border-2 border-emerald-100">
+                       <div className="space-y-1">
+                          <p className="text-[10px] text-emerald-600 font-bold tracking-[4px]">CLIENT NAME</p>
+                          <h4 className="text-4xl font-black text-slate-800 dark:text-white leading-none tracking-tighter uppercase">{summaryCustomer.name}</h4>
+                          <p className="text-sm font-black text-slate-400 mt-2">ID: {summaryCustomer.customerCode} • PPPOE: {summaryCustomer.pppoeUsername}</p>
+                       </div>
+                       <div className="text-right space-y-1">
+                          <p className="text-[10px] text-slate-400 font-bold">TOTAL DUE</p>
+                          <p className="text-5xl font-black text-rose-500 leading-none">৳{Math.floor(summaryCustomer.currentDue || summaryCustomer.current_due || 0)}</p>
+                       </div>
+                    </div>
+
+                    <div className="space-y-4">
+                       <p className="text-xs text-slate-400 font-black ml-4 tracking-[5px]">LAST PAID TRANSACTIONS</p>
+                       <div className="max-h-[300px] overflow-y-auto pr-4 custom-scrollbar space-y-3">
+                          {store.payments.filter(p => p.customerId === summaryCustomer.id || p.customer_id === summaryCustomer.id).slice(0, 5).map(p => (
+                            <div key={p.id} className="bg-white dark:bg-slate-800 p-6 rounded-[32px] border-2 border-slate-50 flex justify-between items-center shadow-sm">
+                               <div className="flex items-center space-x-5">
+                                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-xl"><i className="fas fa-receipt"></i></div>
+                                  <div>
+                                     <p className="text-lg font-black text-slate-800 dark:text-white leading-none">৳{p.amount}</p>
+                                     <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">{p.paymentDate || p.payment_date} • {p.paymentMethod || 'Cash'}</p>
+                                  </div>
+                               </div>
+                               <span className="bg-emerald-500 text-white px-4 py-1.5 rounded-xl text-[9px] font-black uppercase shadow-lg shadow-emerald-500/20">SUCCESS</span>
+                            </div>
+                          ))}
+                          {store.payments.filter(p => p.customerId === summaryCustomer.id || p.customer_id === summaryCustomer.id).length === 0 && (
+                            <p className="text-center py-10 text-slate-300 font-black italic tracking-widest">No payment records found.</p>
+                          )}
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                       <button onClick={() => setSummaryCustomer(null)} className="bg-slate-100 text-slate-500 py-6 rounded-[32px] font-black uppercase text-xs tracking-[4px]">SEARCH ANOTHER</button>
+                       <button onClick={() => { setSelectedProfileId(summaryCustomer.id); setActivePage('customer_profile'); setShowSummarySearch(false); setSummaryCustomer(null); }} className="bg-indigo-600 text-white py-6 rounded-[32px] font-black uppercase text-xs tracking-[4px] shadow-xl">VIEW FULL PROFILE</button>
+                    </div>
+                 </div>
+               )}
             </div>
           </div>
         )}

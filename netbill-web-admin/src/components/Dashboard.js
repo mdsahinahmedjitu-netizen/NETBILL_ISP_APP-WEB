@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigateToAddCustomer, openSearch, t }) => {
+const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigateToAddCustomer, openSearch, openSummary, t }) => {
   const [activeFilter, setActiveFilter] = useState('today');
   const [customDate, setCustomDate] = useState(new Date().toLocaleDateString('en-CA'));
 
@@ -169,7 +169,7 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
         <FeatureCard title={t.grid_add} icon="fa-user-plus" grad="grad-create" onClick={navigateToAddCustomer} />
         <FeatureCard title={t.grid_search} icon="fa-magnifying-glass-chart" grad="grad-search" onClick={openSearch} />
         <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => { setReportInitialTab('due'); setActivePage('reports'); }} />
-        <FeatureCard title={t.grid_summary} icon="fa-chart-pie" grad="grad-summary" onClick={() => {}} />
+        <FeatureCard title={t.grid_summary} icon="fa-chart-pie" grad="grad-summary" onClick={openSummary} />
       </div>
 
       {/* Collection Breakdown Card */}
