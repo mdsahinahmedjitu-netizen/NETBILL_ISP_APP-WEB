@@ -107,16 +107,16 @@ const SupportTickets = ({ store, session, t }) => {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-            {/* NEW ISSUE PRESET ADDER IN HEADER */}
+            {/* NEW ISSUE PRESET ADDER IN HEADER - NOW ALWAYS UPPERCASE */}
             <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-2 rounded-[32px] border-2 border-indigo-500/20 shadow-inner">
                <input
                   type="text"
-                  placeholder="New Issue Preset..."
+                  placeholder="NEW ISSUE PRESET..."
                   value={customIssueInput}
-                  onChange={e => setCustomIssueInput(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[10px] font-black w-32 ml-4"
+                  onChange={e => setCustomIssueInput(e.target.value.toUpperCase())}
+                  className="bg-transparent border-none outline-none text-[10px] font-black w-40 ml-4 uppercase placeholder:text-slate-300"
                />
-               <button onClick={addQuickIssue} className="bg-indigo-600 text-white px-4 py-2 rounded-2xl text-[9px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all">ADD PRESET</button>
+               <button onClick={addQuickIssue} className="bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all">ADD PRESET</button>
             </div>
 
             <button onClick={() => setShowAddModal(true)} className="bg-emerald-600 text-white px-8 py-4 rounded-3xl font-black text-xs shadow-xl hover:scale-105 transition-all flex items-center space-x-3"><i className="fas fa-plus-circle"></i><span>NEW COMPLAINT</span></button>

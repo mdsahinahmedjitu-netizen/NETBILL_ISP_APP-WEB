@@ -13,6 +13,8 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsMessage, setSmsMessage] = useState('');
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [smsProgress, setSmsProgress] = useState({ current: 0, total: 0 });
 
   // Quick Zone Change States
   const [showZoneChangeModal, setShowZoneChangeModal] = useState(false);
@@ -362,8 +364,82 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
     const targets = getTargetCustomers();
     if (targets.length === 0) return alert("No customers selected!");
     if (!smsMessage) return alert("Type a message!");
-    alert(`Broadcasting SMS to ${targets.length} subscribers...\nMessage: ${smsMessage}`);
-    setShowSmsModal(false); setSmsMessage('');
+
+    const settings = store.settings || {};
+    const apiUrl = settings.smsApiUrl || settings.sms_api_url;
+    const apiKey = settings.smsApiKey || settings.sms_api_key;
+    const senderId = settings.smsSenderId || settings.sms_sender_id;
+
+    if (!apiUrl || !apiKey) {
+      return alert("SMS Gateway is not configured in Settings!");
+    }
+
+    if (!window.confirm(`Broadcasting SMS to ${targets.length} subscribers. Proceed?`)) return;
+
+    setIsSendingSms(true);
+    setSmsProgress({ current: 0, total: targets.length });
+
+    let successCount = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const customer = targets[i];
+      const mobile = customer.mobile;
+      if (!mobile) continue;
+
+      // 1. SMART TAG REPLACEMENT (Replaces all tags)
+      let cleanMessage = smsMessage
+        .replace(/{NAME}/g, customer.name || '')
+        .replace(/{CUSTOMER_CODE}/g, customer.customerCode || customer.customer_code || '')
+        .replace(/{AMOUNT}/g, Math.floor(customer.currentDue || customer.current_due || 0))
+        .replace(/{DUE}/g, Math.floor(customer.currentDue || customer.current_due || 0))
+        .replace(/{TOTAL_DUE}/g, Math.floor(customer.currentDue || customer.current_due || 0));
+
+      try {
+        // 2. CLEAN MOBILE (11 Digits)
+        let cleanMobile = mobile.replace(/[^0-9]/g, "");
+        if (cleanMobile.startsWith('880')) cleanMobile = cleanMobile.substring(2);
+        if (!cleanMobile.startsWith('0')) cleanMobile = '0' + cleanMobile;
+
+        if (cleanMobile.length === 11) {
+            const isUnicode = /[\u0980-\u09FF]/.test(cleanMessage);
+            const typeParam = isUnicode ? "&type=unicode" : "";
+
+            // 3. CONSTRUCT FINAL URL
+            const finalUrl = apiUrl
+                .replace(/{API_KEY}/g, apiKey)
+                .replace(/{SENDER_ID}/g, senderId || '1234')
+                .replace(/{MOBILE}/g, cleanMobile)
+                .replace(/{NUMBER}/g, cleanMobile)
+                .replace(/{MESSAGE}/g, encodeURIComponent(cleanMessage)) + typeParam;
+
+            // 4. DISPATCH USING DYNAMIC IMAGE (The most reliable bypass)
+            const ping = new Image();
+            ping.src = finalUrl;
+
+            successCount++;
+
+            // 5. LOG TO SUPABASE
+            await supabase.from('sms_logs').insert({
+              id: `LOG-${Date.now()}-${i}`,
+              customer_id: customer.id,
+              customer_name: customer.name,
+              mobile: cleanMobile,
+              notification_type: 'Manual Broadcast',
+              message: cleanMessage,
+              status: 'Sent',
+              sent_timestamp: new Date().toISOString()
+            });
+        }
+      } catch (e) {
+        console.error("SMS Send Error:", e);
+      }
+
+      setSmsProgress({ current: i + 1, total: targets.length });
+    }
+
+    setIsSendingSms(false);
+    setShowSmsModal(false);
+    setSmsMessage('');
+    alert(`Broadcast Task Completed! Total Sent: ${successCount}`);
   };
 
   const handleBulkDelete = async () => {
@@ -743,6 +819,8 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
         setSmsMessage={setSmsMessage}
         selectedIds={selectedIds}
         sendSms={sendSms}
+        isSendingSms={isSendingSms}
+        smsProgress={smsProgress}
         showImportModal={showImportModal}
         setShowImportModal={setShowImportModal}
         importStep={importStep}
@@ -865,6 +943,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
 const ActionModals = ({
   showColumnSelector, setShowColumnSelector, visibleColumns, setVisibleColumns,
   showSmsModal, setShowSmsModal, smsMessage, setSmsMessage, selectedIds, sendSms,
+  isSendingSms, smsProgress,
   showImportModal, setShowImportModal, importStep, setImportStep, handleFileUpload,
   dbFields, csvHeaders, mapping, setMapping, importStatus, startBulkImport, t,
   showFilterDrawer, setShowFilterDrawer, filters, setFilters, store,
@@ -883,12 +962,52 @@ const ActionModals = ({
       )}
 
       {showSmsModal && (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[300] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
-          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl space-y-10 border-2 border-slate-100">
-             <div className="flex justify-between items-center"><h3 className="text-4xl font-black uppercase tracking-tighter">{t.sms_send}</h3><button onClick={() => setShowSmsModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button></div>
-             <p className="text-sm font-black text-slate-400">Target Recipients: <span className="text-teal-600">{selectedIds.length || 'All filtered'}</span></p>
-             <textarea value={smsMessage} onChange={(e) => setSmsMessage(e.target.value)} placeholder="Type message..." className="w-full h-60 bg-slate-50 dark:bg-slate-900 p-8 rounded-[48px] border-none font-black text-2xl" />
-             <button onClick={sendSms} className="w-full bg-indigo-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl">Broadcast Launch</button>
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[300] flex items-center justify-center p-6 animate-fadeIn font-black uppercase text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl space-y-10 border-2 border-slate-100 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-indigo-600"></div>
+
+             <div className="flex justify-between items-center">
+                <h3 className="text-4xl font-black uppercase tracking-tighter leading-none">SMS Broadcast</h3>
+                <button onClick={() => !isSendingSms && setShowSmsModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
+             </div>
+
+             {isSendingSms ? (
+                <div className="py-10 space-y-6">
+                   <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-4xl animate-spin border-4 border-dashed border-indigo-200">
+                      <i className="fas fa-paper-plane"></i>
+                   </div>
+                   <h4 className="text-2xl font-black">{smsProgress.current} / {smsProgress.total} COMPLETED</h4>
+                   <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-600 transition-all duration-300" style={{ width: `${(smsProgress.current / smsProgress.total) * 100}%` }}></div>
+                   </div>
+                </div>
+             ) : (
+                <>
+                   <div className="space-y-1">
+                      <p className="text-[10px] text-slate-400 tracking-[4px]">TARGET RECIPIENTS</p>
+                      <p className="text-2xl font-black text-indigo-600">{selectedIds.length || store.customers.length} SUBSCRIBERS</p>
+                   </div>
+
+                   <div className="space-y-4">
+                      <textarea
+                        value={smsMessage}
+                        onChange={(e) => setSmsMessage(e.target.value)}
+                        placeholder="Type your message here..."
+                        className="w-full h-48 bg-slate-50 dark:bg-slate-900 p-8 rounded-[48px] border-none font-black text-lg shadow-inner outline-none"
+                      />
+                      <div className="bg-teal-50 text-teal-600 p-3 rounded-2xl text-[9px] font-bold tracking-widest border border-teal-100">
+                         USE {"{NAME}"} TAG TO PERSONALIZE
+                      </div>
+                   </div>
+
+                   <button
+                      onClick={sendSms}
+                      className="w-full bg-indigo-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all border-b-8 border-indigo-900"
+                   >
+                      LAUNCH BROADCAST
+                   </button>
+                </>
+             )}
           </div>
         </div>
       )}

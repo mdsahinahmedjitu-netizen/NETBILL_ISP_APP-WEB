@@ -11,19 +11,16 @@ const CollectionReport = ({ store, session, t }) => {
   const [selectedStaff, setSelectedStaff] = useState(isStaff ? session.data.name : 'All Collectors');
   const [selectedMethod, setSelectedMethod] = useState('All Methods');
 
-  // Printable Columns State
   const [printableColumns, setPrintableColumns] = useState({
     sl: true, id: true, customer: true, address: true, method: true, date: true, collector: true, amount: true
   });
   const [showColumnSelector, setShowColumnSelector] = useState(false);
 
-  // Deletion States
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // New State for Changing Collector
   const [showCollectorModal, setShowCollectorModal] = useState(false);
   const [targetCustomer, setTargetCustomer] = useState(null);
   const [targetPayment, setTargetPayment] = useState(null);
@@ -32,35 +29,20 @@ const CollectionReport = ({ store, session, t }) => {
 
   const filteredPayments = useMemo(() => {
     return store.payments?.filter(p => {
-      const pDate = p.paymentDate;
+      const pDate = p.paymentDate || p.payment_date;
       const dateMatch = pDate >= startDate && pDate <= endDate;
-
-      let staffMatch = false;
-      if (isStaff) {
-        staffMatch = p.collectedBy === session.data.name || p.collectedById === session.data.id;
-      } else {
-        staffMatch = selectedStaff === 'All Collectors' || p.collectedBy === selectedStaff || p.collectedById === selectedStaff;
-      }
-
-      const methodMatch = selectedMethod === 'All Methods' || p.paymentMethod?.includes(selectedMethod);
-
-      const customer = store.customers.find(c => c.id === p.customerId || c.customerCode === p.customerCode);
-      const searchMatch = !search ||
-        p.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-        p.customerCode?.includes(search) ||
-        p.transactionId?.includes(search) ||
-        customer?.pppoeUsername?.toLowerCase().includes(search.toLowerCase());
-
+      let staffMatch = isStaff ? (p.collectedBy === session.data.name || p.collectedById === session.data.id) : (selectedStaff === 'All Collectors' || p.collectedBy === selectedStaff || p.collectedById === selectedStaff);
+      const methodMatch = selectedMethod === 'All Methods' || p.paymentMethod?.includes(selectedMethod) || p.payment_method?.includes(selectedMethod);
+      const customer = store.customers.find(c => c.id === p.customerId || c.id === p.customer_id || c.customerCode === p.customerCode);
+      const searchMatch = !search || p.customerName?.toLowerCase().includes(search.toLowerCase()) || p.customerCode?.includes(search) || p.transactionId?.includes(search) || customer?.pppoeUsername?.toLowerCase().includes(search.toLowerCase());
       return dateMatch && staffMatch && methodMatch && searchMatch;
-    }).sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
+    }).sort((a, b) => new Date(b.paymentDate || b.payment_date) - new Date(a.paymentDate || a.payment_date));
   }, [store.payments, store.customers, startDate, endDate, selectedStaff, selectedMethod, search, isStaff, session?.data]);
 
   const totalAmount = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const accessibleCustomers = useMemo(() => {
-    if (isStaff) {
-      return store.customers.filter(c => (c.assignedStaffId || c.assigned_staff_id) === session.data.id || (c.assignedStaffId || c.assigned_staff_id) === session.data.name);
-    }
+    if (isStaff) return store.customers.filter(c => (c.assignedStaffId || c.assigned_staff_id) === session.data.id || (c.assignedStaffId || c.assigned_staff_id) === session.data.name);
     return store.customers;
   }, [store.customers, isStaff, session?.data]);
 
@@ -83,13 +65,8 @@ const CollectionReport = ({ store, session, t }) => {
       const hasDue = parseFloat(c.currentDue || c.current_due) > 0;
       let staffMatch = false;
       const sid = c.assignedStaffId || c.assigned_staff_id;
-      if (isStaff) {
-        staffMatch = sid === session.data.id || sid === session.data.name;
-      } else {
-        staffMatch = selectedStaff === 'All Collectors' ||
-                     sid === selectedStaff ||
-                     store.staff?.find(s => s.name === selectedStaff)?.id === sid;
-      }
+      if (isStaff) staffMatch = sid === session.data.id || sid === session.data.name;
+      else staffMatch = selectedStaff === 'All Collectors' || sid === selectedStaff || store.staff?.find(s => s.name === selectedStaff)?.id === sid;
       return hasDue && staffMatch;
     }).sort((a,b) => (b.currentDue || b.current_due) - (a.currentDue || a.current_due));
   }, [store.customers, store.staff, selectedStaff, isStaff, session?.data]);
@@ -101,160 +78,54 @@ const CollectionReport = ({ store, session, t }) => {
     setIsUpdatingCollector(true);
     try {
       if (targetPayment) {
-        const { error: pmtErr } = await supabase
-          .from('payments')
-          .update({ collected_by: newCollector })
-          .eq('id', targetPayment.id);
-        if (pmtErr) throw pmtErr;
+        const { error } = await supabase.from('payments').update({ collected_by: newCollector }).eq('id', targetPayment.id);
+        if (error) throw error;
       } else {
-        const { error: custErr } = await supabase
-          .from('customers')
-          .update({ assigned_staff_id: newCollector })
-          .eq('id', targetCustomer.id);
-        if (custErr) throw custErr;
+        const { error } = await supabase.from('customers').update({ assigned_staff_id: newCollector }).eq('id', targetCustomer.id);
+        if (error) throw error;
       }
-
-      alert("Collector Updated Successfully!");
+      alert("Updated Successfully!");
       setShowCollectorModal(false);
       setTargetPayment(null);
-    } catch (e) {
-      console.error(e);
-      alert("Update Failed!");
-    } finally {
-      setIsUpdatingCollector(false);
-    }
-  };
-
-  const handleDeleteClick = (payment) => {
-    setPaymentToDelete(payment);
-    setShowDeleteModal(true);
+    } catch (e) { alert("Failed!"); }
+    finally { setIsUpdatingCollector(false); }
   };
 
   const confirmDelete = async () => {
     if (!paymentToDelete) return;
     setIsDeleting(true);
-
     try {
       const customer = store.customers.find(c => c.id === paymentToDelete.customer_id || c.id === paymentToDelete.customerId);
       if (customer) {
         const pmtAmt = parseFloat(paymentToDelete.amount) || 0;
         let currentA = parseFloat(customer.advance_balance || customer.advanceBalance || 0);
         let currentD = parseFloat(customer.current_due || customer.currentDue || 0);
-
         let newA = currentA >= pmtAmt ? currentA - pmtAmt : 0;
         let newD = currentA >= pmtAmt ? currentD : currentD + (pmtAmt - currentA);
-
-        const { error: custErr } = await supabase.from('customers').update({
-          current_due: newD, advance_balance: newA
-        }).eq('id', customer.id);
-        if (custErr) throw custErr;
+        await supabase.from('customers').update({ current_due: newD, advance_balance: newA }).eq('id', customer.id);
       }
-
       await supabase.from('payments').delete().eq('id', paymentToDelete.id);
       await supabase.from('ledger_entries').delete().eq('reference_no', paymentToDelete.receipt_no || paymentToDelete.receiptNo);
-
       setShowDeleteModal(false);
       setPaymentToDelete(null);
-      alert("Payment removed and due adjusted.");
-    } catch (error) {
-      console.error("Delete Error:", error);
-      alert("Failed to delete record.");
-    } finally {
-      setIsDeleting(false);
-    }
+      alert("Record Removed!");
+    } catch (error) { alert("Delete Failed!"); }
+    finally { setIsDeleting(false); }
   };
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const nowTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
-
+    const today = new Date().toLocaleDateString();
     const tableRows = filteredPayments.map((p) => {
       const customer = store.customers.find(c => c.id === p.customerId || c.id === p.customer_id || c.customerCode === p.customerCode);
       const displayName = customer?.name || p.customerName || '---';
       const displayAddress = customer?.address || customer?.zone || '---';
-      return `
-        <tr>
-          <td>${displayName}</td>
-          <td>${displayAddress}</td>
-          <td>${p.paymentDate}</td>
-          <td>${p.collectedBy || 'Admin'}</td>
-          <td align="right">৳${(p.amount || 0).toLocaleString()}</td>
-        </tr>
-      `;
+      return `<tr><td>${displayName}</td><td>${displayAddress}</td><td>${p.paymentDate || p.payment_date}</td><td>${p.collectedBy}</td><td align="right">৳${(p.amount || 0).toLocaleString()}</td></tr>`;
     }).join('');
-
-    const printHtml = `
-      <html>
-        <head>
-          <title>NetBill ISP - Collection Report</title>
-          <style>
-            @page { size: portrait; margin: 15mm; }
-            body { font-family: 'Inter', sans-serif; color: #1a1a1a; margin: 0; padding: 20px; -webkit-print-color-adjust: exact; }
-            .header { text-align: center; margin-bottom: 40px; }
-            .header h1 { font-size: 32px; font-weight: 800; margin: 0; letter-spacing: 1px; color: #2d3748; }
-            .header p { font-size: 13px; color: #718096; margin-top: 8px; font-weight: 600; }
-
-            .summary-container { display: flex; flex-direction: column; gap: 15px; max-width: 600px; margin: 0 auto 40px auto; }
-            .summary-box { border: 1px solid #edf2f7; border-radius: 12px; padding: 15px; text-align: center; background: #fff; }
-            .summary-label { font-size: 10px; font-weight: 800; color: #a0aec0; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
-            .summary-value { font-size: 24px; font-weight: 800; color: #2d3748; }
-
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th { text-align: left; padding: 12px 15px; font-size: 11px; font-weight: 800; color: #718096; text-transform: uppercase; border-bottom: 2px solid #edf2f7; border-top: 1px solid #edf2f7; background-color: #ffffff; }
-            td { padding: 12px 15px; font-size: 12px; font-weight: 600; color: #2d3748; border-bottom: 1px solid #edf2f7; }
-            tr:last-child td { border-bottom: 2px solid #edf2f7; }
-
-            .footer { margin-top: 60px; text-align: right; border-top: 1px solid #edf2f7; padding-top: 10px; }
-            .footer p { font-size: 10px; color: #a0aec0; font-weight: 700; margin: 0; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>NETBILL ISP - COLLECTION REPORT</h1>
-            <p>Date Range: ${startDate} to ${endDate} | Filter: ${selectedStaff} / ${selectedMethod}</p>
-          </div>
-
-          <div class="summary-container">
-            <div class="summary-box">
-              <div class="summary-label">TOTAL ENTRIES</div>
-              <div class="summary-value">${filteredPayments.length}</div>
-            </div>
-            <div class="summary-box">
-              <div class="summary-label">TOTAL COLLECTED</div>
-              <div class="summary-value">৳${totalAmount.toLocaleString()}</div>
-            </div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th width="25%">CUSTOMER</th>
-                <th width="35%">ADDRESS / ZONE</th>
-                <th width="15%">DATE</th>
-                <th width="15%">COLLECTOR</th>
-                <th width="10%" align="right">AMOUNT</th>
-              </tr>
-            </thead>
-            <tbody>${tableRows}</tbody>
-          </table>
-
-          <div class="footer">
-            <p>Generated on ${today}, ${nowTime}</p>
-          </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(() => { window.close(); }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `;
-
+    const printHtml = `<html><head><title>Collection Report</title><style>body { font-family: sans-serif; padding: 20px; } .header { text-align: center; margin-bottom: 30px; } .summary { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; } .box { border: 1px solid #eee; padding: 15px; border-radius: 10px; text-align: center; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #eee; padding: 12px 8px; text-align: left; font-size: 12px; } th { background: #f9f9f9; }</style></head><body><div class="header"><h1>NETBILL ISP - COLLECTION REPORT</h1><p>Date Range: ${startDate} to ${endDate}</p></div><div class="summary"><div class="box"><b>TOTAL ENTRIES</b><br/>${filteredPayments.length}</div><div class="box"><b>TOTAL COLLECTED</b><br/>৳${totalAmount.toLocaleString()}</div></div><table><thead><tr><th>CUSTOMER</th><th>ADDRESS / ZONE</th><th>DATE</th><th>COLLECTOR</th><th align="right">AMOUNT</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
     printWindow.document.write(printHtml);
     printWindow.document.close();
+    printWindow.print();
   };
 
   return (
@@ -267,7 +138,7 @@ const CollectionReport = ({ store, session, t }) => {
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-5 rounded-[32px] shadow-lg border border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-4">
-        <input type="text" placeholder="Search customer, ID or TrxID..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[200px] p-3 bg-slate-50 dark:bg-slate-900 rounded-xl outline-none font-black text-sm" />
+        <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[200px] p-3 bg-slate-50 dark:bg-slate-900 rounded-xl outline-none font-black text-sm" />
         <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-900 px-5 py-3 rounded-xl border">
            <input type="date" value={startDate} onChange={e => setDateStart(e.target.value)} className="bg-transparent border-none text-xs font-black outline-none" />
            <span className="text-slate-300">/</span>
@@ -277,12 +148,15 @@ const CollectionReport = ({ store, session, t }) => {
           <option>All Collectors</option><option>Admin / Direct</option>
           {store.staff?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
         </select>
+        <select value={selectedMethod} onChange={e => setSelectedMethod(e.target.value)} className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 px-5 py-3 rounded-xl border border-emerald-100 text-xs font-black outline-none">
+          <option>All Methods</option><option>Cash</option><option>bKash</option><option>Nagad</option><option>Bank</option>
+        </select>
       </div>
 
       <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[24px] w-fit shadow-inner overflow-x-auto max-w-full">
-         <button onClick={() => setActiveTab('collection')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'collection' ? 'bg-white dark:bg-slate-800 text-teal-600' : 'text-slate-400'}`}>COLLECTION</button>
-         <button onClick={() => setActiveTab('due')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'due' ? 'bg-white dark:bg-slate-800 text-rose-500' : 'text-slate-400'}`}>DUE LIST</button>
-         <button onClick={() => setActiveTab('revenue')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600' : 'text-slate-400'}`}>REVENUE</button>
+         <button onClick={() => setActiveTab('collection')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'collection' ? 'bg-white dark:bg-slate-800 text-teal-600 shadow' : 'text-slate-400'}`}>COLLECTION</button>
+         <button onClick={() => setActiveTab('due')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'due' ? 'bg-white dark:bg-slate-800 text-rose-500 shadow' : 'text-slate-400'}`}>DUE LIST</button>
+         <button onClick={() => setActiveTab('revenue')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow' : 'text-slate-400'}`}>REVENUE</button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-700 p-6 md:p-10 min-h-[600px] relative overflow-hidden">
@@ -294,53 +168,56 @@ const CollectionReport = ({ store, session, t }) => {
         </div>
 
         {activeTab === 'collection' && (
-           <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                 <thead>
-                    <tr className="text-[11px] text-slate-400 border-b-2 border-slate-50 dark:border-slate-700 font-black uppercase">
-                       <th className="pb-5 w-12 text-center">#</th>
-                       <th className="pb-5">CUST. ID</th>
-                       <th className="pb-5">SUBSCRIBER DETAILS</th>
-                       <th className="pb-5">ADDRESS / ZONE</th>
-                       <th className="pb-5">PAY METHOD</th>
-                       <th className="pb-5 text-center">DATE</th>
-                       <th className="pb-5">COLLECTOR</th>
-                       <th className="pb-5 text-right">AMOUNT</th>
-                       <th className="pb-5 text-center">ACTION</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                    {filteredPayments.map((p, idx) => {
-                       const customer = store.customers.find(c => c.id === p.customerId || c.id === p.customer_id || c.customerCode === p.customerCode);
-                       return (
-                        <tr key={p.id} className="group hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-all cursor-pointer">
-                           <td className="py-6 text-center text-xs text-slate-300 font-black">{idx + 1}</td>
-                           <td className="py-6 text-sm font-black text-indigo-600 dark:text-indigo-400">
-                              {p.customerCode || customer?.customerCode || customer?.customer_code || '---'}
-                           </td>
-                           <td className="py-6">
-                              <p className="text-base font-black text-slate-800 dark:text-white leading-none uppercase tracking-tighter">
-                                 {customer?.name || p.customerName || '---'}
-                              </p>
-                              <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-widest italic">
-                                 {customer?.pppoeUsername || customer?.pppoe_username || '---'}
-                              </p>
-                           </td>
-                           <td className="py-6 text-sm text-slate-600 dark:text-slate-300 font-black leading-tight uppercase">
-                              {customer?.address || customer?.zone || '---'}
-                           </td>
-                           <td className="py-6"><span className={`px-4 py-1.5 rounded-xl text-[9px] font-black border-2 uppercase ${p.paymentMethod?.includes('bKash') ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>{p.paymentMethod || 'Cash'}</span></td>
-                           <td className="py-6 text-xs text-slate-800 dark:text-slate-300 font-black text-center">{p.paymentDate}</td>
-                           <td className="py-6 text-xs text-slate-500 font-black uppercase italic tracking-wider">
-                              <span onClick={() => { if(customer) { setTargetCustomer(customer); setTargetPayment(p); setNewCollector(p.collectedBy || ''); setShowCollectorModal(true); } }} className="bg-slate-100 dark:bg-slate-900 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all">{p.collectedBy || 'Admin'}</span>
-                           </td>
-                           <td className="py-6 text-right font-black text-emerald-600 text-xl">৳{p.amount}</td>
-                           <td className="py-6 text-center"><button onClick={(e) => { e.stopPropagation(); setPaymentToDelete(p); setShowDeleteModal(true); }} className="text-rose-300 hover:text-rose-600 transition-colors"><i className="fas fa-trash-alt"></i></button></td>
-                        </tr>
-                       );
-                    })}
-                 </tbody>
-              </table>
+           <div className="space-y-8">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-end border-b pb-8">
+                 <div className="flex items-center space-x-6">
+                    <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 rounded-3xl border shadow-inner">
+                       <p className="text-[9px] text-slate-400 font-black mb-1">TOTAL ENTRIES</p>
+                       <p className="text-3xl font-black text-slate-800 dark:text-white">{filteredPayments.length}</p>
+                    </div>
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 px-6 py-4 rounded-3xl border border-emerald-100 shadow-inner">
+                       <p className="text-[9px] text-emerald-600/60 font-black mb-1">TOTAL REVENUE</p>
+                       <p className="text-3xl font-black text-emerald-600">৳{totalAmount.toLocaleString()}</p>
+                    </div>
+                 </div>
+                 <div className="space-y-3">
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[4px]">Collector Summary</p>
+                    <div className="flex flex-wrap gap-2">
+                       {staffStats.map(([name, data], idx) => (
+                         <div key={name} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl border-2 border-indigo-100 flex items-center space-x-3 shadow-sm">
+                            <span className="text-[11px] font-black uppercase">{name}</span>
+                            <span className="text-[11px] font-black">৳{data.amount.toLocaleString()}</span>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                    <thead>
+                       <tr className="text-[11px] text-slate-400 border-b-2 font-black uppercase"><th>#</th><th>CUST. ID</th><th>SUBSCRIBER DETAILS</th><th>ADDRESS / ZONE</th><th>PAY METHOD</th><th>DATE</th><th>COLLECTOR</th><th className="text-right">AMOUNT</th><th className="text-center">ACTION</th></tr>
+                    </thead>
+                    <tbody className="divide-y">
+                       {filteredPayments.map((p, idx) => {
+                          const customer = store.customers.find(c => c.id === p.customerId || c.id === p.customer_id || c.customerCode === p.customerCode);
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50 transition-all">
+                               <td className="py-6 text-xs font-black">{idx + 1}</td>
+                               <td className="py-6 text-sm font-black text-indigo-600">{p.customerCode || customer?.customerCode || '---'}</td>
+                               <td className="py-6"><p className="text-base font-black text-slate-800 dark:text-white leading-none uppercase">{customer?.name || p.customerName}</p><p className="text-[10px] text-slate-400 font-bold mt-1 uppercase italic">{customer?.pppoeUsername || '---'}</p></td>
+                               <td className="py-6 text-sm text-slate-600 font-black uppercase">{customer?.address || customer?.zone || '---'}</td>
+                               <td className="py-6"><span className="px-4 py-1.5 bg-slate-100 rounded-xl text-[9px] font-black uppercase">{p.paymentMethod || 'Cash'}</span></td>
+                               <td className="py-6 text-xs font-black">{p.paymentDate || p.payment_date}</td>
+                               <td className="py-6 text-xs font-black uppercase italic"><span onClick={() => { if(customer) { setTargetCustomer(customer); setTargetPayment(p); setNewCollector(p.collectedBy || ''); setShowCollectorModal(true); } }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all">{p.collectedBy || 'Admin'}</span></td>
+                               <td className="py-6 text-right font-black text-emerald-600 text-xl">৳{p.amount}</td>
+                               <td className="py-6 text-center"><button onClick={() => { setPaymentToDelete(p); setShowDeleteModal(true); }} className="text-rose-400 hover:text-rose-600"><i className="fas fa-trash-alt"></i></button></td>
+                            </tr>
+                          );
+                       })}
+                    </tbody>
+                 </table>
+              </div>
            </div>
         )}
 
@@ -350,15 +227,15 @@ const CollectionReport = ({ store, session, t }) => {
                  <thead>
                     <tr className="text-[11px] text-slate-400 border-b-2 font-black uppercase"><th>CUSTOMER</th><th>ZONE</th><th>COLLECTOR</th><th className="text-right">BILL</th><th className="text-right">DUE</th></tr>
                  </thead>
-                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                 <tbody className="divide-y">
                     {filteredDueCustomers.map(c => (
                        <tr key={c.id} className="hover:bg-rose-50/20 transition-all">
                           <td className="py-5 font-black uppercase">{c.name} <span className="block text-[10px] text-slate-400">#{c.customerCode}</span></td>
                           <td className="py-5 text-sm font-black text-indigo-600">{c.zone || 'Global'}</td>
-                          <td className="py-5 text-sm font-black text-slate-500 uppercase italic">
-                             <span onClick={() => { setTargetCustomer(c); setTargetPayment(null); setNewCollector(c.assignedStaffId || ''); setShowCollectorModal(true); }} className="bg-slate-100 dark:bg-slate-900 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all border border-slate-200">{store.staff?.find(s => s.id === (c.assignedStaffId || c.assigned_staff_id) || s.name === (c.assignedStaffId || c.assigned_staff_id))?.name || c.assignedStaffId || c.assigned_staff_id || '---'}</span>
+                          <td className="py-5 text-sm font-black">
+                             <span onClick={() => { setTargetCustomer(c); setTargetPayment(null); setNewCollector(c.assignedStaffId || ''); setShowCollectorModal(true); }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all border border-slate-200">{store.staff?.find(s => s.id === (c.assignedStaffId || c.assigned_staff_id) || s.name === (c.assignedStaffId || c.assigned_staff_id))?.name || c.assignedStaffId || c.assigned_staff_id || '---'}</span>
                           </td>
-                          <td className="py-5 text-right font-black text-slate-700 dark:text-slate-300 text-lg">৳{Math.floor(c.monthlyBill || 0)}</td>
+                          <td className="py-5 text-right font-black text-slate-700 text-lg">৳{Math.floor(c.monthlyBill || 0)}</td>
                           <td className="py-5 text-right font-black text-rose-500 text-xl">৳{Math.floor(c.currentDue || c.current_due)}</td>
                        </tr>
                     ))}
@@ -371,13 +248,13 @@ const CollectionReport = ({ store, session, t }) => {
       {showCollectorModal && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[7000] flex items-center justify-center p-6 font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-md p-12 shadow-2xl border-4 border-indigo-500/20 space-y-8">
-             <h3 className="text-3xl font-black uppercase tracking-tighter">Change Collector</h3>
-             <select value={newCollector} onChange={e => setNewCollector(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black outline-none border-none shadow-inner text-indigo-600">
+             <h3 className="text-3xl font-black uppercase">Change Collector</h3>
+             <select value={newCollector} onChange={e => setNewCollector(e.target.value)} className="w-full bg-slate-50 p-5 rounded-3xl font-black outline-none border-none shadow-inner">
                 <option value="">No Collector</option>
                 {store.staff?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
              </select>
-             <button onClick={handleUpdateCollector} disabled={isUpdatingCollector} className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-2xl active:scale-95 transition-all">CONFIRM CHANGE</button>
-             <button onClick={() => setShowCollectorModal(false)} className="w-full text-rose-500 font-black text-xs tracking-widest">CANCEL</button>
+             <button onClick={handleUpdateCollector} disabled={isUpdatingCollector} className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black">CONFIRM CHANGE</button>
+             <button onClick={() => setShowCollectorModal(false)} className="w-full text-rose-500 font-black">CANCEL</button>
           </div>
         </div>
       )}
@@ -385,11 +262,10 @@ const CollectionReport = ({ store, session, t }) => {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[5000] flex items-center justify-center p-6 font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-md p-12 shadow-2xl text-center space-y-8">
-             <div className="w-24 h-24 bg-rose-50 rounded-[32px] flex items-center justify-center mx-auto text-5xl text-rose-500 shadow-inner border-2 border-rose-100"><i className="fas fa-exclamation-triangle"></i></div>
-             <h3 className="text-3xl font-black tracking-tighter">Confirm Delete?</h3>
+             <h3 className="text-3xl font-black">Confirm Delete?</h3>
              <div className="flex space-x-4">
-                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-slate-100 dark:bg-slate-700 py-5 rounded-2xl font-black text-slate-500">CANCEL</button>
-                <button onClick={confirmDelete} disabled={isDeleting} className="flex-1 bg-rose-600 text-white py-5 rounded-2xl font-black shadow-xl">YES, DELETE</button>
+                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-slate-100 py-5 rounded-2xl font-black text-slate-500">CANCEL</button>
+                <button onClick={confirmDelete} disabled={isDeleting} className="flex-1 bg-rose-600 text-white py-5 rounded-2xl font-black">DELETE</button>
              </div>
           </div>
         </div>
@@ -401,8 +277,8 @@ const CollectionReport = ({ store, session, t }) => {
 const StatCardSmall = ({ label, value, icon, color }) => (
   <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border shadow-sm flex flex-col space-y-2 relative overflow-hidden">
      <div className="absolute top-4 right-4 text-slate-100 dark:text-slate-700 text-3xl"><i className={`fas ${icon}`}></i></div>
-     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-     <p className={`text-2xl font-black ${color} tracking-tighter`}>{value}</p>
+     <p className="text-[10px] font-black text-slate-400 uppercase">{label}</p>
+     <p className={`text-2xl font-black ${color}`}>{value}</p>
   </div>
 );
 
