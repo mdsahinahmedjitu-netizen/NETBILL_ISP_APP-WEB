@@ -32,6 +32,8 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [reportInitialTab, setReportInitialTab] = useState('collection');
   const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('dark_mode') === 'true');
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'bn');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
@@ -237,7 +239,7 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-10 scroll-smooth transition-colors font-black">
-          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} t={t} lang={lang} />}
+          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} t={t} lang={lang} />}
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
           {activePage === 'new_enrollment' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
@@ -348,6 +350,73 @@ function App() {
                <div className="grid grid-cols-2 gap-4">
                   <button onClick={() => setShowQuickDateModal(false)} className="bg-slate-100 py-5 rounded-3xl font-black text-slate-500">CANCEL</button>
                   <button onClick={handleQuickDateUpdate} className="bg-teal-600 text-white py-5 rounded-3xl font-black shadow-xl shadow-teal-500/20">SAVE CHANGE</button>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* GLOBAL SEARCH MODAL */}
+        {showGlobalSearch && (
+          <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
+            <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-2xl p-12 shadow-2xl border-4 border-indigo-500/20 space-y-10 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-3 bg-indigo-600"></div>
+               <div className="flex justify-between items-center border-b pb-6">
+                  <h3 className="text-4xl font-black tracking-tighter">Subscriber Search</h3>
+                  <button onClick={() => { setShowGlobalSearch(false); setGlobalSearchQuery(''); }} className="text-rose-500 text-3xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+               </div>
+
+               <div className="space-y-6">
+                  <div className="relative group">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Type Name, ID, Phone or PPPoE..."
+                      value={globalSearchQuery}
+                      onChange={e => setGlobalSearchQuery(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-900 p-8 rounded-[36px] font-black text-2xl outline-none border-2 border-transparent focus:border-indigo-500 shadow-inner"
+                    />
+                    <i className="fas fa-search absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 text-3xl"></i>
+                  </div>
+
+                  <div className="max-h-[350px] overflow-y-auto pr-4 custom-scrollbar space-y-4">
+                    {globalSearchQuery.length > 0 && store.customers.filter(c =>
+                      c.name?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                      c.customerCode?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                      c.mobile?.includes(globalSearchQuery) ||
+                      c.pppoeUsername?.toLowerCase().includes(globalSearchQuery.toLowerCase())
+                    ).slice(0, 8).map(c => (
+                      <div
+                        key={c.id}
+                        onClick={() => {
+                          setSelectedProfileId(c.id);
+                          setActivePage('customer_profile');
+                          setShowGlobalSearch(false);
+                          setGlobalSearchQuery('');
+                        }}
+                        className="bg-white dark:bg-slate-900/50 p-6 rounded-[32px] border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer flex justify-between items-center group"
+                      >
+                         <div className="space-y-1">
+                            <h4 className="text-xl font-black text-slate-800 dark:text-white leading-none">{c.name}</h4>
+                            <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">ID: {c.customerCode} • PPPOE: {c.pppoeUsername}</p>
+                         </div>
+                         <div className="text-right">
+                            <p className="text-xs font-black text-emerald-600">{c.mobile}</p>
+                            <span className="text-[9px] font-black text-slate-300 uppercase group-hover:text-indigo-600">Open Profile <i className="fas fa-arrow-right ml-1"></i></span>
+                         </div>
+                      </div>
+                    ))}
+                    {globalSearchQuery.length > 0 && store.customers.filter(c =>
+                      c.name?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                      c.customerCode?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                      c.mobile?.includes(globalSearchQuery) ||
+                      c.pppoeUsername?.toLowerCase().includes(globalSearchQuery.toLowerCase())
+                    ).length === 0 && (
+                      <div className="text-center py-10 opacity-30">
+                        <i className="fas fa-user-slash text-6xl mb-4"></i>
+                        <p className="text-sm font-black tracking-widest">No Subscriber Found</p>
+                      </div>
+                    )}
+                  </div>
                </div>
             </div>
           </div>
