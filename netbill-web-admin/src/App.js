@@ -247,7 +247,11 @@ function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-10 scroll-smooth transition-colors font-black">
-          {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />}
+          {activePage === 'dashboard' && (
+            session.role === 'customer'
+              ? <CustomerPortal store={store} customer={session.data} t={t} />
+              : <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />
+          )}
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
           {activePage === 'new_enrollment' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
@@ -263,14 +267,21 @@ function App() {
           {activePage === 'sms_setup' && <SmsSetup store={store} t={t} />}
           {activePage === 'sms_logs' && <SmsLogs store={store} />}
           {activePage === 'crm_tickets' && <SupportTickets store={store} session={session} t={t} />}
-          {activePage === 'billing_summary' && <BillingSummary store={store} initialCustomerId={selectedSummaryId} />}
+          {activePage === 'billing_summary' && (
+            <BillingSummary
+              store={store}
+              t={t}
+              initialCustomerId={session.role === 'customer' ? session.data.id : selectedSummaryId}
+              isCustomerView={session.role === 'customer'}
+            />
+          )}
           {activePage === 'settings' && session.role === 'admin' && <Settings store={store} t={t} lang={lang} />}
         </main>
 
-        {/* FLOATING NOTIFICATION ICON */}
+        {/* FLOATING NOTIFICATION ICON (HIDDEN FOR CUSTOMERS) */}
         <div
           onClick={() => setShowExpiryModal(true)}
-          className={`fixed bottom-10 right-10 w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-2xl cursor-pointer hover:scale-110 active:scale-95 transition-all z-[100] animate-bounce ${expiringTomorrow.length > 0 ? 'flex' : 'hidden'}`}
+          className={`fixed bottom-10 right-10 w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-2xl cursor-pointer hover:scale-110 active:scale-95 transition-all z-[100] animate-bounce ${expiringTomorrow.length > 0 && session?.role !== 'customer' ? 'flex' : 'hidden'}`}
         >
            <i className="fas fa-bell text-2xl"></i>
            <span className="absolute -top-1 -right-1 bg-white text-rose-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-rose-600 shadow-sm">{expiringTomorrow.length}</span>

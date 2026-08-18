@@ -29,6 +29,11 @@ const SupportTickets = ({ store, session, t }) => {
   });
 
   const filteredTickets = store.tickets?.filter(tk => {
+    // Role-based filtering: Customers only see their own tickets
+    if (session.role === 'customer') {
+      return (tk.customerId === session.data.id || tk.customer_id === session.data.id);
+    }
+
     if (activeTab === 'All') return true;
     return tk.status === activeTab;
   }).sort((a, b) => new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at)) || [];

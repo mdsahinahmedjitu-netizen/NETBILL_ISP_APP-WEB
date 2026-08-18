@@ -1,26 +1,39 @@
 import React from 'react';
 
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, onLogout, t, role }) => {
-  const menuItems = [
-    { id: 'dashboard', icon: 'fa-th-large', label: t.dashboard_overview },
-    { id: 'customers', icon: 'fa-users', label: t.subscribers_crm },
-    { id: 'crm_tickets', icon: 'fa-headset', label: 'Support Tickets' },
-    { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center },
-    { id: 'reports', icon: 'fa-chart-pie', label: t.collection_report },
-    { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title },
-    { id: 'staff', icon: 'fa-user-tie', label: t.staff_team, adminOnly: true },
-    { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: t.salary_ledger },
-    { id: 'inventory', icon: 'fa-box', label: t.inventory_stock },
-    { id: 'packages', icon: 'fa-wifi', label: t.service_packages },
-    { id: 'infrastructure', icon: 'fa-network-wired', label: t.infrastructure || 'Network Assets', adminOnly: true },
-    { id: 'sms_setup', icon: 'fa-envelope-open-text', label: 'SMS Setup', adminOnly: true },
-    { id: 'sms_logs', icon: 'fa-history', label: 'SMS History', adminOnly: true },
-    { id: 'settings', icon: 'fa-cog', label: t.global_settings, adminOnly: true },
-  ];
+
+  // Define menu items based on role
+  const getMenuItems = () => {
+    if (role === 'customer') {
+      return [
+        { id: 'dashboard', icon: 'fa-th-large', label: 'My Dashboard' },
+        { id: 'billing_summary', icon: 'fa-file-invoice-dollar', label: 'Billing Summary' },
+        { id: 'settings', icon: 'fa-user-circle', label: 'My Profile' },
+      ];
+    }
+
+    return [
+      { id: 'dashboard', icon: 'fa-th-large', label: t.dashboard_overview },
+      { id: 'customers', icon: 'fa-users', label: t.subscribers_crm },
+      { id: 'crm_tickets', icon: 'fa-headset', label: 'Support Tickets' },
+      { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center },
+      { id: 'reports', icon: 'fa-chart-pie', label: t.collection_report },
+      { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title },
+      { id: 'staff', icon: 'fa-user-tie', label: t.staff_team, adminOnly: true },
+      { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: t.salary_ledger },
+      { id: 'inventory', icon: 'fa-box', label: t.inventory_stock },
+      { id: 'packages', icon: 'fa-wifi', label: t.service_packages },
+      { id: 'infrastructure', icon: 'fa-network-wired', label: t.infrastructure || 'Network Assets', adminOnly: true },
+      { id: 'sms_setup', icon: 'fa-envelope-open-text', label: 'SMS Setup', adminOnly: true },
+      { id: 'sms_logs', icon: 'fa-history', label: 'SMS History', adminOnly: true },
+      { id: 'settings', icon: 'fa-cog', label: t.global_settings, adminOnly: true },
+    ];
+  };
+
+  const menuItems = getMenuItems();
 
   return (
     <>
-      {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
@@ -29,7 +42,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
       )}
 
       <aside
-        className={`${role === 'admin' ? 'bg-[#0F172A]' : 'bg-[#1e1b4b]'} text-white flex flex-col shrink-0 shadow-2xl z-50 uppercase font-black tracking-widest transition-all duration-300 ease-in-out fixed lg:relative h-full ${
+        className={`${role === 'admin' ? 'bg-[#0F172A]' : role === 'customer' ? 'bg-[#064e3b]' : 'bg-[#1e1b4b]'} text-white flex flex-col shrink-0 shadow-2xl z-50 uppercase font-black tracking-widest transition-all duration-300 ease-in-out fixed lg:relative h-full ${
           isSidebarOpen ? 'w-72 p-6 left-0' : 'w-0 p-0 overflow-hidden -left-72 lg:left-0'
         }`}
       >
@@ -47,7 +60,6 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
 
       <nav className={`flex-1 space-y-2 overflow-y-auto pr-2 text-[12px] tracking-[2px] transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
         {menuItems.map((item) => {
-          // Role-based Access Control
           if (item.adminOnly && role !== 'admin') return null;
 
           return (

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const BillingSummary = ({ store, initialCustomerId = null }) => {
+const BillingSummary = ({ store, initialCustomerId = null, isCustomerView = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCust, setSelectedCust] = useState(() => {
     return store.customers.find(c => c.id === initialCustomerId) || null;
@@ -92,16 +92,18 @@ const BillingSummary = ({ store, initialCustomerId = null }) => {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-10 pb-20 font-sans tracking-tight no-print">
 
-      {/* SEARCH INTERFACE - MATCHING IMAGE STYLE */}
-      <div className="bg-white dark:bg-slate-800 p-12 rounded-[48px] shadow-2xl border-2 border-slate-50 dark:border-slate-700 text-center space-y-8">
-        <div className="max-w-2xl mx-auto p-12 bg-slate-50 dark:bg-slate-900 rounded-[32px] border-2 border-slate-100 dark:border-slate-800 space-y-4 shadow-inner">
-           <input type="text" placeholder="Enter Mobile / IP / Name / ID" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSelectedCust(null); }} className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white dark:bg-slate-800 outline-none font-bold text-center text-lg" />
-           <select className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white dark:bg-slate-800 outline-none font-bold text-center text-slate-400" value={selectedCust?.id || ''} onChange={(e) => { const cust = store.customers.find(c => c.id === e.target.value); if (cust) { setSelectedCust(cust); setSearchQuery(cust.name); } }}>
-                <option value="">Select Customer</option>
-                {searchedCustomers.map(c => <option key={c.id} value={c.id}>{c.name} (#{c.customerCode})</option>)}
-           </select>
+      {/* SEARCH INTERFACE - HIDDEN FOR CUSTOMERS */}
+      {!isCustomerView && (
+        <div className="bg-white dark:bg-slate-800 p-12 rounded-[48px] shadow-2xl border-2 border-slate-50 dark:border-slate-700 text-center space-y-8">
+          <div className="max-w-2xl mx-auto p-12 bg-slate-50 dark:bg-slate-900 rounded-[32px] border-2 border-slate-100 dark:border-slate-800 space-y-4 shadow-inner">
+             <input type="text" placeholder="Enter Mobile / IP / Name / ID" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSelectedCust(null); }} className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white dark:bg-slate-800 outline-none font-bold text-center text-lg" />
+             <select className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white dark:bg-slate-800 outline-none font-bold text-center text-slate-400" value={selectedCust?.id || ''} onChange={(e) => { const cust = store.customers.find(c => c.id === e.target.value); if (cust) { setSelectedCust(cust); setSearchQuery(cust.name); } }}>
+                  <option value="">Select Customer</option>
+                  {searchedCustomers.map(c => <option key={c.id} value={c.id}>{c.name} (#{c.customerCode})</option>)}
+             </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {selectedCust && (
         <div id="printable-summary" className="bg-white dark:bg-slate-900 p-12 md:p-20 rounded-[64px] shadow-2xl border space-y-12 animate-fadeIn relative overflow-hidden">
@@ -126,12 +128,14 @@ const BillingSummary = ({ store, initialCustomerId = null }) => {
           </div>
 
           <div className="flex justify-end items-center space-x-4 no-print border-t border-slate-100 dark:border-slate-800 pt-8">
-             <div className="relative">
-                <input type="file" accept=".csv" onChange={handleHistoryImport} className="hidden" id="history-csv-final" />
-                <label htmlFor="history-csv-final" className="bg-[#f39c12] text-white px-8 py-3 rounded-xl font-black text-[10px] shadow-lg cursor-pointer hover:bg-amber-600 transition-all uppercase tracking-widest border-b-8 border-amber-800">
-                   <i className="fas fa-file-import mr-2"></i> {isImporting ? 'Processing...' : 'IMPORT OLD HISTORY (CSV)'}
-                </label>
-             </div>
+             {!isCustomerView && (
+               <div className="relative">
+                  <input type="file" accept=".csv" onChange={handleHistoryImport} className="hidden" id="history-csv-final" />
+                  <label htmlFor="history-csv-final" className="bg-[#f39c12] text-white px-8 py-3 rounded-xl font-black text-[10px] shadow-lg cursor-pointer hover:bg-amber-600 transition-all uppercase tracking-widest border-b-8 border-amber-800">
+                     <i className="fas fa-file-import mr-2"></i> {isImporting ? 'Processing...' : 'IMPORT OLD HISTORY (CSV)'}
+                  </label>
+               </div>
+             )}
              <button className="bg-[#20879e] text-white px-8 py-3 rounded-xl font-black text-[10px] shadow-lg border-b-8 border-[#16667a] uppercase tracking-widest">Download Excel</button>
              <button onClick={handlePrint} className="bg-[#20879e] text-white px-10 py-3 rounded-xl font-black text-[10px] shadow-lg border-b-8 border-[#16667a] uppercase tracking-widest">Print</button>
           </div>
