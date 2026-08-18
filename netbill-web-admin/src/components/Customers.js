@@ -859,35 +859,41 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
       />
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[500] flex items-start justify-center p-6 overflow-y-auto animate-fadeIn font-black scroll-smooth">
-          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-[96%] my-10 p-16 shadow-2xl space-y-14 relative overflow-hidden border-2 border-slate-100">
-            <div className="flex justify-between items-center border-b-2 border-slate-50 pb-10"><div className="flex items-center space-x-6"><div className="w-20 h-20 bg-teal-600 text-white rounded-[28px] flex items-center justify-center shadow-2xl shadow-teal-500/40"><i className="fas fa-user-plus text-4xl"></i></div><h3 className="text-6xl font-black uppercase tracking-tighter">{isEditing ? t.update_identity : t.new_enrollment}</h3></div><button onClick={() => { if(isDirectMode) setActivePage('dashboard'); else setShowModal(false); }} className="w-20 h-20 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl group"><i className="fas fa-times text-3xl group-hover:rotate-90 transition-transform"></i></button></div>
-            <form onSubmit={handleSave} className="space-y-14">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[500] flex items-start justify-center p-4 md:p-6 overflow-y-auto animate-fadeIn font-black scroll-smooth">
+          <div className="bg-white dark:bg-slate-800 rounded-[32px] md:rounded-[72px] w-full max-w-[98%] md:max-w-[96%] my-4 md:my-10 p-6 md:p-16 shadow-2xl space-y-8 md:space-y-14 relative overflow-hidden border-2 border-slate-100">
+            <div className="flex justify-between items-center border-b-2 border-slate-50 pb-6 md:pb-10">
+              <div className="flex items-center space-x-3 md:space-x-6">
+                <div className="w-12 h-12 md:w-20 md:h-20 bg-teal-600 text-white rounded-2xl md:rounded-[28px] flex items-center justify-center shadow-2xl shadow-teal-500/40"><i className="fas fa-user-plus text-xl md:text-4xl"></i></div>
+                <h3 className="text-2xl md:text-6xl font-black uppercase tracking-tighter">{isEditing ? t.update_identity : t.new_enrollment}</h3>
+              </div>
+              <button onClick={() => { if(isDirectMode) setActivePage('dashboard'); else setShowModal(false); }} className="w-12 h-12 md:w-20 md:h-20 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl group"><i className="fas fa-times text-xl md:text-3xl group-hover:rotate-90 transition-transform"></i></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-8 md:space-y-14">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
                 <Section title={t.router_zone_info} color="blue" bgColor="bg-blue-50 dark:bg-blue-900/10" borderColor="border-blue-100" shadowColor="shadow-blue-500/20">
                   <Field label={t.mikrotik_router} value={formData.routerId} onChange={v => setFormData({...formData, routerId: v})} type="select" options={['MikroTik Core 01']} color="blue" />
                   <Field label={t.package} value={formData.packageName} onChange={v => setFormData({...formData, packageName: v})} type="select" options={['No Package', ...store.packages?.map(p => p.name)]} color="blue" />
 
                   <div className="space-y-3 uppercase font-black relative">
-                    <label className="text-[12px] text-slate-600 dark:text-slate-300 ml-2 tracking-widest uppercase leading-none">{t.zone}</label>
+                    <label className="text-[10px] md:text-[12px] text-slate-600 dark:text-slate-300 ml-2 tracking-widest uppercase leading-none">{t.zone}</label>
                     <div className="relative group">
                       <input
                         type="text"
                         placeholder="Search or Select Zone..."
                         value={formData.zone}
                         onChange={e => setFormData({...formData, zone: e.target.value, subZone: '', boxId: ''})}
-                        className="w-full bg-white dark:bg-slate-800 p-6 rounded-[24px] border-2 border-transparent focus:border-teal-500 text-lg font-black shadow-lg outline-none transition-all uppercase"
+                        className="w-full bg-white dark:bg-slate-800 p-4 md:p-6 rounded-2xl md:rounded-[24px] border-2 border-transparent focus:border-teal-500 text-base md:text-lg font-black shadow-lg outline-none transition-all uppercase"
                       />
-                      <i className="fas fa-search absolute right-6 top-6 text-slate-300"></i>
+                      <i className="fas fa-search absolute right-5 md:right-6 top-5 md:top-6 text-slate-300"></i>
 
                       {/* Suggestion Dropdown */}
                       {store.zones?.filter(z => z.name.toLowerCase().includes(formData.zone?.toLowerCase())).length > 0 && formData.zone !== '' && !store.zones.some(z => z.name === formData.zone) && (
-                        <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[1000] overflow-hidden max-h-60 overflow-y-auto">
+                        <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[1000] overflow-hidden max-h-60 overflow-y-auto">
                           {store.zones.filter(z => z.name.toLowerCase().includes(formData.zone.toLowerCase())).map(z => (
                             <div
                               key={z.id}
                               onClick={() => setFormData({...formData, zone: z.name, subZone: '', boxId: ''})}
-                              className="p-5 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b last:border-0 font-black text-sm"
+                              className="p-4 md:p-5 hover:bg-teal-50 dark:hover:bg-teal-900/20 cursor-pointer border-b last:border-0 font-black text-xs md:text-sm"
                             >
                               {z.name}
                             </div>
@@ -923,18 +929,18 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                   <Field label="Bill *" value={formData.monthlyBill} onChange={v => setFormData({...formData, monthlyBill: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Fee" value={formData.connectionFee} onChange={v => setFormData({...formData, connectionFee: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Date" value={formData.connectionDate} onChange={v => setFormData({...formData, connectionDate: v})} type="date" color="cyan" />
-                  <div className="pt-8 border-t-2 border-cyan-200">
+                  <div className="pt-4 md:pt-8 border-t-2 border-cyan-200">
                     <Field label={t.assigned_staff} value={formData.assignedStaffId} onChange={v => setFormData({...formData, assignedStaffId: v})} type="select" options={['No Staff', ...store.staff?.map(s => s.name)]} color="cyan" />
                   </div>
-                  <div className="bg-white dark:bg-slate-900 p-6 rounded-[40px] space-y-5 shadow-inner">
-                    <p className="text-[11px] text-slate-400 font-black text-center tracking-[4px]">REF</p>
-                    <input type="text" placeholder={t.ref_name} value={formData.referenceName} onChange={e => setFormData({...formData, referenceName: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-none text-xs w-full font-black uppercase" />
-                    <input type="text" placeholder={t.ref_mobile} value={formData.referenceMobile} onChange={e => setFormData({...formData, referenceMobile: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-none text-xs w-full font-black uppercase" />
+                  <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[24px] md:rounded-[40px] space-y-4 md:space-y-5 shadow-inner">
+                    <p className="text-[10px] md:text-[11px] text-slate-400 font-black text-center tracking-[2px] md:tracking-[4px]">REF</p>
+                    <input type="text" placeholder={t.ref_name} value={formData.referenceName} onChange={e => setFormData({...formData, referenceName: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-3 md:p-4 rounded-xl md:rounded-2xl border-none text-[10px] md:text-xs w-full font-black uppercase" />
+                    <input type="text" placeholder={t.ref_mobile} value={formData.referenceMobile} onChange={e => setFormData({...formData, referenceMobile: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-3 md:p-4 rounded-xl md:rounded-2xl border-none text-[10px] md:text-xs w-full font-black uppercase" />
                   </div>
                 </Section>
               </div>
-              <div className="flex justify-center pt-10">
-                <button type="submit" className="bg-[#0D9488] text-white px-32 py-10 rounded-[64px] font-black uppercase tracking-[15px] shadow-[0_30px_70px_rgba(13,148,136,0.5)] hover:scale-105 active:scale-95 transition-all border-b-8 border-teal-900">{t.commit_cloud}</button>
+              <div className="flex justify-center pt-6 md:pt-10">
+                <button type="submit" className="bg-[#0D9488] text-white px-12 py-6 md:px-32 md:py-10 rounded-[32px] md:rounded-[64px] font-black uppercase tracking-[5px] md:tracking-[15px] shadow-[0_20px_50px_rgba(13,148,136,0.3)] hover:scale-105 active:scale-95 transition-all border-b-4 md:border-b-8 border-teal-900 text-sm md:text-base">{t.commit_cloud}</button>
               </div>
             </form>
           </div>
@@ -1294,9 +1300,9 @@ const ActionModals = ({
 );
 
 const Section = ({ title, color, bgColor, borderColor, shadowColor, children }) => (
-  <div className={`${bgColor} p-10 rounded-[56px] space-y-8 border-2 ${borderColor} shadow-2xl`}>
-    <div className={`bg-${color}-600 text-white p-6 rounded-3xl text-center text-xs font-black uppercase tracking-[5px] shadow-xl ${shadowColor}`}>{title}</div>
-    <div className="space-y-8">{children}</div>
+  <div className={`${bgColor} p-6 md:p-10 rounded-[32px] md:rounded-[56px] space-y-6 md:space-y-8 border-2 ${borderColor} shadow-2xl`}>
+    <div className={`bg-${color}-600 text-white p-4 md:p-6 rounded-2xl md:rounded-3xl text-center text-[10px] md:text-xs font-black uppercase tracking-[2px] md:tracking-[5px] shadow-xl ${shadowColor}`}>{title}</div>
+    <div className="space-y-6 md:space-y-8">{children}</div>
   </div>
 );
 
@@ -1330,26 +1336,26 @@ const StatCard = ({ label, value, color }) => {
 };
 
 const Field = ({ label, value, onChange, placeholder, type = 'text', options = [], disabled = false, color }) => (
-  <div className="space-y-3 uppercase font-black">
-    <label className="text-[12px] text-slate-600 dark:text-slate-300 ml-2 tracking-widest uppercase leading-none">{label}</label>
+  <div className="space-y-2 md:space-y-3 uppercase font-black">
+    <label className="text-[10px] md:text-[12px] text-slate-600 dark:text-slate-300 ml-2 tracking-widest uppercase leading-none">{label}</label>
     {type === 'select' ? (
-      <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className={`w-full bg-white dark:bg-slate-800 p-6 rounded-[24px] border-2 border-transparent focus:border-teal-500 text-sm font-black shadow-lg outline-none transition-all cursor-pointer`}>
+      <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className={`w-full bg-white dark:bg-slate-800 p-4 md:p-6 rounded-xl md:rounded-[24px] border-2 border-transparent focus:border-teal-500 text-xs md:text-sm font-black shadow-lg outline-none transition-all cursor-pointer`}>
         {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
       </select>
     ) : type === 'radio' ? (
-      <div className="flex flex-col space-y-4 bg-white dark:bg-slate-800 p-6 rounded-[24px] shadow-lg border-2 border-transparent">
+      <div className="flex flex-col space-y-3 md:space-y-4 bg-white dark:bg-slate-800 p-4 md:p-6 rounded-xl md:rounded-[24px] shadow-lg border-2 border-transparent">
          {options.map(opt => (
-           <label key={opt} className="flex items-center space-x-4 cursor-pointer group">
-              <div className={`w-7 h-7 rounded-full border-4 flex items-center justify-center transition-all ${value === opt ? 'border-teal-500 bg-teal-50' : 'border-slate-100 dark:border-slate-700'}`}>
-                {value === opt && <div className="w-3.5 h-3.5 rounded-full bg-teal-500 shadow-lg"></div>}
+           <label key={opt} className="flex items-center space-x-3 md:space-x-4 cursor-pointer group">
+              <div className={`w-5 h-5 md:w-7 md:h-7 rounded-full border-2 md:border-4 flex items-center justify-center transition-all ${value === opt ? 'border-teal-500 bg-teal-50' : 'border-slate-100 dark:border-slate-700'}`}>
+                {value === opt && <div className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 rounded-full bg-teal-500 shadow-lg"></div>}
               </div>
               <input type="radio" className="hidden" checked={value === opt} onChange={() => onChange(opt)} />
-              <span className={`text-[12px] font-black ${value === opt ? 'text-teal-600' : 'text-slate-400'}`}>{opt}</span>
+              <span className={`text-[10px] md:text-[12px] font-black ${value === opt ? 'text-teal-600' : 'text-slate-400'}`}>{opt}</span>
            </label>
          ))}
       </div>
     ) : (
-      <input type={type} disabled={disabled} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={`w-full bg-white dark:bg-slate-800 p-6 rounded-[24px] border-2 border-transparent focus:border-teal-500 text-lg font-black shadow-lg outline-none transition-all ${disabled ? 'opacity-50' : ''}`} />
+      <input type={type} disabled={disabled} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={`w-full bg-white dark:bg-slate-800 p-4 md:p-6 rounded-xl md:rounded-[24px] border-2 border-transparent focus:border-teal-500 text-base md:text-lg font-black shadow-lg outline-none transition-all ${disabled ? 'opacity-50' : ''}`} />
     )}
   </div>
 );
