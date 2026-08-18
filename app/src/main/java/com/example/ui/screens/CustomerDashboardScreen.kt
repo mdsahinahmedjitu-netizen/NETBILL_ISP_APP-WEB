@@ -258,7 +258,7 @@ fun BillingActionCard(due: Double, advance: Double, onPayClick: () -> Unit) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("Current Outstanding", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate600)
+                    Text("মোট বকেয়া (Due)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CoralWarning)
                     Text("৳ ${due.toInt()}", fontSize = 36.sp, fontWeight = FontWeight.Black, color = if(due > 0) CoralWarning else EmeraldSuccess)
                 }
                 Button(onClick = onPayClick, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = BkashPink), modifier = Modifier.height(50.dp).padding(horizontal = 4.dp)) {

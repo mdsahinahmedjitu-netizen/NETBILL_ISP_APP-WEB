@@ -188,8 +188,8 @@ const CustomerPortal = ({ customer, store, t, onLogout }) => {
          <div className="lg:col-span-2 bg-[#0D9488] p-12 rounded-[64px] text-white shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -mr-20 -mt-20"></div>
             <div className="relative z-10 space-y-10">
-               <p className="text-sm font-black tracking-[8px] opacity-80 uppercase">Total Outstanding Balance</p>
-               <h3 className="text-8xl md:text-9xl font-black tracking-tighter leading-none">{currency} {Math.floor(customer.currentDue)}</h3>
+               <p className="text-sm font-black tracking-[8px] opacity-100 uppercase text-rose-200">মোট বকেয়া (Total Due)</p>
+               <h3 className="text-8xl md:text-9xl font-black tracking-tighter leading-none text-rose-500">{currency} {Math.floor(customer.currentDue)}</h3>
                <div className="flex flex-wrap gap-x-16 gap-y-8 pt-6 font-black uppercase">
                   <div><p className="text-[10px] font-black opacity-60 tracking-[4px]">MONTHLY BILL</p><p className="text-2xl font-black">{currency} {customer.monthlyBill}</p></div>
                   <div className="w-px h-12 bg-white/20 hidden md:block"></div>
