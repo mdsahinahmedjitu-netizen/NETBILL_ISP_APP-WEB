@@ -99,72 +99,80 @@ const SupportTickets = ({ store, session, t }) => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-10 pb-20 uppercase font-black tracking-tighter transition-all">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
-        <div className="space-y-2">
-          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">Complaints</h3>
-          <p className="text-xs text-amber-600 tracking-widest font-black uppercase italic">Enterprise Support System</p>
+    <div className="w-full max-w-7xl mx-auto space-y-6 pb-20 uppercase font-black tracking-tighter transition-all">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4">
+        <div className="space-y-1">
+          <h3 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">Complaints</h3>
+          <p className="text-[10px] text-amber-600 tracking-widest font-black uppercase italic">Support System</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
             {/* NEW ISSUE PRESET ADDER IN HEADER - NOW ALWAYS UPPERCASE */}
-            <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-2 rounded-[32px] border-2 border-indigo-500/20 shadow-inner">
+            <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[24px] border-2 border-indigo-500/10 shadow-inner">
                <input
                   type="text"
-                  placeholder="NEW ISSUE PRESET..."
+                  placeholder="NEW PRESET..."
                   value={customIssueInput}
                   onChange={e => setCustomIssueInput(e.target.value.toUpperCase())}
-                  className="bg-transparent border-none outline-none text-[10px] font-black w-40 ml-4 uppercase placeholder:text-slate-300"
+                  className="bg-transparent border-none outline-none text-[9px] font-black w-32 ml-3 uppercase placeholder:text-slate-300"
                />
-               <button onClick={addQuickIssue} className="bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all">ADD PRESET</button>
+               <button onClick={addQuickIssue} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[9px] font-black shadow-md hover:scale-105 active:scale-95 transition-all">ADD</button>
             </div>
 
-            <button onClick={() => setShowAddModal(true)} className="bg-emerald-600 text-white px-8 py-4 rounded-3xl font-black text-xs shadow-xl hover:scale-105 transition-all flex items-center space-x-3"><i className="fas fa-plus-circle"></i><span>NEW COMPLAINT</span></button>
+            <button onClick={() => setShowAddModal(true)} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] shadow-lg hover:scale-105 transition-all flex items-center space-x-2"><i className="fas fa-plus-circle"></i><span>NEW</span></button>
 
-            <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-2 rounded-[28px] shadow-inner">
-               {['Open', 'Pending', 'Resolved', 'All'].map(tab => (<button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2.5 rounded-2xl text-[9px] font-black transition-all ${activeTab === tab ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-lg' : 'text-slate-400'}`}>{tab}</button>))}
+            <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[20px] shadow-inner">
+               {['Open', 'Pending', 'Resolved', 'All'].map(tab => (<button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[8px] font-black transition-all ${activeTab === tab ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-md' : 'text-slate-400'}`}>{tab}</button>))}
             </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-4">
         {filteredTickets.map(tk => {
           const customer = store.customers?.find(c => c.id === tk.customerId || c.id === tk.customer_id);
           return (
-            <div key={tk.id} className="bg-white dark:bg-slate-800 p-8 rounded-[48px] shadow-xl border border-slate-100 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-center gap-8 group hover:border-amber-500/30 transition-all">
-               <div className="flex-1 flex flex-col md:flex-row items-center md:items-center gap-8 text-center md:text-left">
-                  <div className={`w-24 h-24 shrink-0 rounded-[36px] flex items-center justify-center text-4xl shadow-inner border-2 ${tk.status === 'Resolved' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'}`}><i className={`fas ${tk.status === 'Resolved' ? 'fa-check-circle' : 'fa-headset'}`}></i></div>
-                  <div className="space-y-4 flex-1">
-                     <div className="flex items-center justify-center md:justify-start space-x-3">
-                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black border-2 ${getPriorityColor(tk.priority || 'Normal')}`}>{tk.priority || 'Normal'} PRIORITY</span>
-                        <p className="text-[11px] text-slate-400 font-bold tracking-widest bg-slate-50 dark:bg-slate-900 px-3 py-1 rounded-lg border">#{tk.customerCode || customer?.customerCode}</p>
+            <div key={tk.id} className="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-lg border border-slate-100 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-center gap-6 group hover:border-amber-500/30 transition-all">
+               {/* LEFT SIDE: Subscriber Info & Actions (WIDER & LARGER TEXT) */}
+               <div className="xl:w-1/3 w-full bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[32px] border-2 border-slate-100 dark:border-slate-800 space-y-4 shadow-inner text-center md:text-left">
+                  <div className="space-y-1">
+                     <span className="text-[12px] text-indigo-600 font-black uppercase tracking-[4px]">Subscriber</span>
+                     <h3 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{customer?.name || 'Unknown Client'}</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                     <div className="space-y-1">
+                        <span className="text-[14px] text-slate-400 font-black uppercase tracking-widest">Zone</span>
+                        <p className="text-[18px] font-black text-slate-700 dark:text-slate-200 leading-tight">{customer?.zone || 'Global'}</p>
                      </div>
                      <div className="space-y-1">
-                        <h4 className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter leading-tight uppercase">{tk.subject || 'No Subject'}</h4>
-                        <p className="text-sm font-black text-slate-400 normal-case tracking-normal max-w-2xl">{tk.description || 'No detailed description provided.'}</p>
+                        <span className="text-[14px] text-slate-400 font-black uppercase tracking-widest">Phone</span>
+                        <p className="text-[18px] font-black text-emerald-600 leading-none">{customer?.mobile || 'No Mobile'}</p>
                      </div>
-                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
-                        <p className="text-xs font-black text-slate-600 dark:text-slate-300"><i className="far fa-calendar-alt mr-1"></i> {new Date(tk.createdAt || tk.created_at).toLocaleDateString()}</p>
-                        <div className="w-px h-8 bg-slate-100 dark:bg-slate-700 hidden sm:block"></div>
-                        <p className="text-xs font-black text-indigo-600 italic">Logged By: {tk.createdBy || tk.created_by || 'Admin'}</p>
-                     </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200/50">
+                    {tk.status !== 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Resolved')} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">RESOLVE</button>)}
+                    {tk.status === 'Open' && (<button onClick={() => updateTicketStatus(tk.id, 'Pending')} className="flex-1 bg-amber-500 text-white py-4 rounded-2xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">PENDING</button>)}
+                    {tk.status === 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Open')} className="flex-1 bg-slate-800 text-white py-4 rounded-2xl font-black text-xs hover:bg-amber-600 transition-all">RE-OPEN</button>)}
+                    <button onClick={async () => { if(window.confirm("Delete?")) await supabase.from('support_tickets').delete().eq('id', tk.id); }} className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-md"><i className="fas fa-trash-alt text-lg"></i></button>
                   </div>
                </div>
 
-               <div className="xl:w-1/3 w-full bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[40px] border-2 border-slate-100 dark:border-slate-800 space-y-4 shadow-inner text-center md:text-left">
-                  <div className="space-y-1">
-                     <span className="text-[10px] text-indigo-600 font-black uppercase tracking-[4px]">Subscriber</span>
-                     <h3 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{customer?.name || 'Unknown Client'}</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                     <div className="space-y-1"><span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Zone / Area</span><p className="text-sm font-black text-slate-700 dark:text-slate-200">{customer?.zone || 'Global'}</p></div>
-                     <div className="space-y-1"><span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Phone Number</span><p className="text-sm font-black text-emerald-600">{customer?.mobile || 'No Mobile'}</p></div>
-                  </div>
-                  <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200/50">
-                    {tk.status !== 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Resolved')} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black text-[10px] shadow-lg hover:scale-105 active:scale-95 transition-all">RESOLVE</button>)}
-                    {tk.status === 'Open' && (<button onClick={() => updateTicketStatus(tk.id, 'Pending')} className="flex-1 bg-amber-500 text-white py-4 rounded-2xl font-black text-[10px] shadow-lg hover:scale-105 active:scale-95 transition-all">PENDING</button>)}
-                    {tk.status === 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Open')} className="flex-1 bg-slate-800 text-white py-4 rounded-2xl font-black text-[10px] hover:bg-amber-600 transition-all">RE-OPEN</button>)}
-                    <button onClick={async () => { if(window.confirm("Delete?")) await supabase.from('support_tickets').delete().eq('id', tk.id); }} className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all"><i className="fas fa-trash-alt"></i></button>
+               {/* LEFT SIDE MOVED TO RIGHT: Ticket Details */}
+               <div className="flex-1 flex flex-col md:flex-row items-center md:items-center gap-6 text-center md:text-left">
+                  <div className={`w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center text-2xl shadow-inner border-2 ${tk.status === 'Resolved' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'}`}><i className={`fas ${tk.status === 'Resolved' ? 'fa-check-circle' : 'fa-headset'}`}></i></div>
+                  <div className="space-y-2 flex-1">
+                     <div className="flex items-center justify-center md:justify-start space-x-3">
+                        <span className={`px-3 py-1 rounded-lg text-[8px] font-black border-2 ${getPriorityColor(tk.priority || 'Normal')}`}>{tk.priority || 'Normal'} PRIORITY</span>
+                        <p className="text-[10px] text-slate-400 font-bold tracking-widest bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded-lg border">#{tk.customerCode || customer?.customerCode}</p>
+                     </div>
+                     <div className="space-y-0.5">
+                        <h4 className="text-xl font-black text-slate-800 dark:text-white tracking-tighter leading-tight uppercase">{tk.subject || 'No Subject'}</h4>
+                        <p className="text-xs font-black text-slate-400 normal-case tracking-normal max-w-2xl">{tk.description || 'No detailed description provided.'}</p>
+                     </div>
+                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-1">
+                        <p className="text-[10px] font-black text-slate-600 dark:text-slate-300"><i className="far fa-calendar-alt mr-1"></i> {new Date(tk.createdAt || tk.created_at).toLocaleDateString()}</p>
+                        <div className="w-px h-4 bg-slate-100 dark:bg-slate-700 hidden sm:block"></div>
+                        <p className="text-[10px] font-black text-indigo-600 italic">Logged By: {tk.createdBy || tk.created_by || 'Admin'}</p>
+                     </div>
                   </div>
                </div>
             </div>

@@ -225,17 +225,20 @@ function App() {
       <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} activePage={activePage} setActivePage={setActivePage} onLogout={handleLogout} t={t} role={session.role} />
 
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300`}>
-        <header className={`h-20 border-b flex justify-between items-center px-10 shrink-0 z-10 transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
-          <div className="flex items-center space-x-6">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm"><i className={`fas ${isSidebarOpen ? 'fa-indent' : 'fa-outdent'} text-xl`}></i></button>
-            <h2 className="text-xl font-black uppercase tracking-tighter leading-none">NetBill ISP | <span className="text-teal-600">{activePage}</span></h2>
+        <header className={`h-16 md:h-20 border-b flex justify-between items-center px-4 md:px-10 shrink-0 z-10 transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
+          <div className="flex items-center space-x-2 md:space-x-6">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 dark:bg-slate-900 rounded-xl md:rounded-2xl flex items-center justify-center text-teal-600 shadow-sm"><i className={`fas ${isSidebarOpen ? 'fa-indent' : 'fa-outdent'} text-lg md:text-xl`}></i></button>
+            <h2 className="text-sm md:text-xl font-black uppercase tracking-tighter leading-none whitespace-nowrap">NetBill <span className="hidden sm:inline">ISP | </span><span className="text-teal-600 truncate max-w-[100px] sm:max-w-none inline-block">{activePage}</span></h2>
           </div>
-          <div className="flex items-center space-x-10">
-            <button onClick={toggleLang} className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-slate-700"><i className="fas fa-globe text-teal-600"></i><span className="text-[10px] font-black uppercase tracking-widest">{lang === 'en' ? 'বাংলা' : 'ENGLISH'}</span></button>
-            <button onClick={toggleDarkMode} className="text-teal-600 text-2xl transition-transform"><i className={`fas ${isDarkMode ? 'fa-sun text-amber-400' : 'fa-moon'}`}></i></button>
-            <div className="flex items-center space-x-4">
-              <img src={`https://ui-avatars.com/api/?name=${session.data.name}&background=0D9488&color=fff&bold=true`} className="w-10 h-10 rounded-xl" alt="Admin" />
-              <div className="text-left leading-none space-y-1">
+          <div className="flex items-center space-x-3 md:space-x-10">
+            <button onClick={toggleLang} className="flex items-center space-x-1 bg-slate-50 dark:bg-slate-900 px-2 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-slate-100 dark:border-slate-700">
+               <i className="fas fa-globe text-teal-600 text-xs md:text-sm"></i>
+               <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest">{lang === 'en' ? 'বাংলা' : 'EN'}</span>
+            </button>
+            <button onClick={toggleDarkMode} className="text-teal-600 text-xl md:text-2xl transition-transform"><i className={`fas ${isDarkMode ? 'fa-sun text-amber-400' : 'fa-moon'}`}></i></button>
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <img src={`https://ui-avatars.com/api/?name=${session.data.name}&background=0D9488&color=fff&bold=true`} className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl" alt="Admin" />
+              <div className="hidden sm:block text-left leading-none space-y-1">
                 <p className="text-xs font-black uppercase text-slate-900 dark:text-white">{session.data.name}</p>
                 <p className="text-[9px] text-teal-600 font-bold uppercase tracking-widest italic">{session.role === 'admin' ? t.super_admin : 'Field Staff'}</p>
               </div>
@@ -243,7 +246,7 @@ function App() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-10 scroll-smooth transition-colors font-black">
+        <main className="flex-1 overflow-y-auto p-4 md:p-10 scroll-smooth transition-colors font-black">
           {activePage === 'dashboard' && <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />}
           {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}

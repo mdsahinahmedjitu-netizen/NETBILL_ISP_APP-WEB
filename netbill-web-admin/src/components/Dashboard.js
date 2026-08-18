@@ -163,7 +163,7 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-7 font-black uppercase tracking-widest leading-none">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-7 font-black uppercase tracking-widest leading-none">
         <FeatureCard title={t.grid_collection} icon="fa-hand-holding-dollar" grad="grad-collection" onClick={() => setActivePage('payments')} />
         <FeatureCard title="Collection Report" icon="fa-chart-column" grad="grad-invoices" onClick={() => { setReportInitialTab('collection'); setActivePage('reports'); }} />
         <FeatureCard title={t.grid_crm} icon="fa-users-viewfinder" grad="grad-subscribers" onClick={() => setActivePage('customers')} />
@@ -211,14 +211,14 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
         <div className="flex flex-col md:flex-row justify-between items-start relative z-10 font-black tracking-widest leading-none uppercase gap-8">
           <div className="space-y-6 md:space-y-12 w-full leading-none">
             <p className="text-[10px] md:text-sm font-black opacity-90 tracking-[5px] uppercase">{t.financial_total}</p>
-            <h2 className="text-5xl md:text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString()}</h2>
-            <div className="flex flex-col md:flex-row md:space-x-24 gap-8 md:gap-0 pt-6 md:pt-10 font-black tracking-widest uppercase">
-               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px]">{t.target_plan}</p><p className="text-xl md:text-3xl font-black">৳ {targetPlan.toLocaleString()}</p></div>
+            <h2 className="text-3xl sm:text-5xl md:text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString()}</h2>
+            <div className="flex flex-col md:flex-row md:space-x-24 gap-6 md:gap-0 pt-6 md:pt-10 font-black tracking-widest uppercase">
+               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px]">{t.target_plan}</p><p className="text-lg md:text-3xl font-black">৳ {targetPlan.toLocaleString()}</p></div>
                <div className="hidden md:block w-px h-20 bg-white/20"></div>
-               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-xl md:text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString()}</p></div>
+               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-lg md:text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString()}</p></div>
             </div>
           </div>
-          <div className="w-16 h-16 md:w-24 md:h-24 bg-white/10 rounded-2xl md:rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12"><i className="fas fa-chart-line text-2xl md:text-4xl text-white"></i></div>
+          <div className="w-12 h-12 md:w-24 md:h-24 bg-white/10 rounded-xl md:rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12 self-end md:self-start"><i className="fas fa-chart-line text-xl md:text-4xl text-white"></i></div>
         </div>
       </div>
 
@@ -227,28 +227,28 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
 };
 
 const FeatureCard = ({ title, icon, grad, onClick }) => (
-  <div onClick={onClick} className={`feature-card ${grad} h-40 rounded-[44px] p-8 flex flex-col justify-center text-white cursor-pointer transition-all hover:-translate-y-2 hover:brightness-110 shadow-lg font-black uppercase tracking-widest`}>
-    <i className={`fas ${icon} text-4xl mb-3 opacity-90`}></i>
-    <span className="font-black text-[12px] uppercase tracking-widest leading-none uppercase">{title}</span>
+  <div onClick={onClick} className={`feature-card ${grad} h-32 md:h-40 rounded-[24px] md:rounded-[44px] p-4 md:p-8 flex flex-col justify-center text-white cursor-pointer transition-all hover:-translate-y-1 hover:brightness-110 shadow-lg font-black uppercase tracking-widest`}>
+    <i className={`fas ${icon} text-2xl md:text-4xl mb-2 md:mb-3 opacity-90`}></i>
+    <span className="font-black text-[9px] md:text-[12px] uppercase tracking-widest leading-tight uppercase">{title}</span>
   </div>
 );
 
 const BreakdownRow = ({ method, amount, color, icon, total }) => {
   const p = total > 0 ? Math.floor((amount / total) * 100) : 0;
   return (
-    <div className="flex items-center space-x-8 group transition-all uppercase font-black uppercase">
-      <div className="w-18 h-18 rounded-[28px] bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-3xl shrink-0 shadow-sm" style={{ color }}>
+    <div className="flex items-center space-x-4 md:space-x-8 group transition-all uppercase font-black uppercase">
+      <div className="w-12 h-12 md:w-18 md:h-18 rounded-2xl md:rounded-[28px] bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-lg md:text-3xl shrink-0 shadow-sm" style={{ color }}>
           <i className={`fas ${icon}`}></i>
       </div>
-      <div className="flex-1 space-y-4">
+      <div className="flex-1 space-y-2 md:space-y-4">
           <div className="flex justify-between items-end uppercase font-black uppercase">
-              <span className="text-slate-800 dark:text-slate-200 text-xl tracking-tighter uppercase font-black uppercase">{method}</span>
-              <div className="flex items-center space-x-10 uppercase font-black uppercase">
-                  <span className="text-slate-400 text-lg font-black">{p}%</span>
-                  <span className="text-slate-900 dark:text-white text-3xl font-black uppercase tracking-tighter leading-none">৳ {Math.floor(amount).toLocaleString()}</span>
+              <span className="text-slate-800 dark:text-slate-200 text-sm md:text-xl tracking-tighter uppercase font-black uppercase">{method}</span>
+              <div className="flex items-center space-x-4 md:space-x-10 uppercase font-black uppercase">
+                  <span className="text-slate-400 text-xs md:text-lg font-black">{p}%</span>
+                  <span className="text-slate-900 dark:text-white text-base md:text-3xl font-black uppercase tracking-tighter leading-none">৳ {Math.floor(amount).toLocaleString()}</span>
               </div>
           </div>
-          <div className="h-2.5 w-full bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden shadow-inner uppercase font-black">
+          <div className="h-2 md:h-2.5 w-full bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden shadow-inner uppercase font-black">
              <div className="h-full rounded-full shadow-lg duration-1000" style={{ width: `${p}%`, background: color }}></div>
           </div>
       </div>

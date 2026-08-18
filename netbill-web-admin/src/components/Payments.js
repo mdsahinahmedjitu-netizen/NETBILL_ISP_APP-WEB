@@ -26,8 +26,11 @@ const Payments = ({ store, session, t }) => {
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    return `${day}-${month}-${year}`;
+    if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+       const [year, month, day] = dateStr.split('-');
+       return `${day}-${month}-${year}`;
+    }
+    return dateStr;
   };
 
   const months = useMemo(() => {
@@ -170,7 +173,7 @@ const Payments = ({ store, session, t }) => {
       await supabase.from('ledger_entries').insert({
         customer_id: custId, date: todayISO, time: timeStr, type: "Payment",
         description: `Payment for ${billingMonth}`, amount: payAmt, is_debit: false,
-        reference_no: newPmt.receipt_no, running_balance: newDue, collector_name: selectedCollector.name,
+        reference_no: pmtErr ? `ERR-${Date.now()}` : newPmt.receipt_no, running_balance: newDue, collector_name: selectedCollector.name,
         paid_amount: payAmt, total_due_balance: newDue
       });
 
@@ -205,34 +208,34 @@ const Payments = ({ store, session, t }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 pb-10 uppercase font-black tracking-tighter transition-all">
-      <div className="space-y-0.5"><h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase leading-none">{t.payment_center}</h3><p className="text-[9px] text-teal-600 tracking-[3px] font-black uppercase italic opacity-70">Collection Hub</p></div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-700 font-black h-fit">
-           <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-3xl border-2 border-indigo-100 flex items-center justify-between">
-              <label className="text-[10px] font-black text-indigo-600 uppercase tracking-[2px] ml-2">Collector:</label>
-              <select value={selectedCollector.id} onChange={(e) => { const id = e.target.value; const name = e.target.options[e.target.selectedIndex].text; setSelectedCollector({ id, name }); }} className="bg-white dark:bg-slate-800 border-none px-4 py-2 rounded-xl font-black text-[11px] uppercase shadow-sm outline-none cursor-pointer min-w-[200px]">
+    <div className="max-w-6xl mx-auto space-y-4 pb-10 uppercase font-black tracking-tighter transition-all px-2 sm:px-4">
+      <div className="space-y-0.5"><h3 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white uppercase leading-none">{t.payment_center}</h3><p className="text-[8px] sm:text-[9px] text-teal-600 tracking-[2px] sm:tracking-[3px] font-black uppercase italic opacity-70">Collection Hub</p></div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 items-start">
+        <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-[32px] sm:rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-700 font-black h-fit">
+           <div className="mb-4 sm:mb-6 bg-indigo-50 dark:bg-indigo-900/20 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 border-indigo-100 flex items-center justify-between">
+              <label className="text-[9px] sm:text-[10px] font-black text-indigo-600 uppercase tracking-[2px] ml-1 sm:ml-2">Collector:</label>
+              <select value={selectedCollector.id} onChange={(e) => { const id = e.target.value; const name = e.target.options[e.target.selectedIndex].text; setSelectedCollector({ id, name }); }} className="bg-white dark:bg-slate-800 border-none px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-[11px] uppercase shadow-sm outline-none cursor-pointer min-w-[150px] sm:min-w-[200px]">
                 <option value={session?.data?.id || 'admin'}>{session?.data?.name || 'Super Admin'} (YOU)</option>
                 {store.staff?.filter(s => s.id !== session?.data?.id).map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
               </select>
            </div>
-           <form onSubmit={handlePayment} className="space-y-6">
-              <div className="space-y-3">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[3px] ml-4">{t.find_subscriber}</label>
-                <div className="relative space-y-3">
-                  <input type="text" placeholder={t.search_placeholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-xl shadow-inner outline-none" />
-                  <select value={selectedCustomerId} size={searchTerm.length > 0 ? 5 : 1} onChange={(e) => { const id = e.target.value; setSelectedCustomerId(id); const cust = store.customers.find(c => c.id === id); if (cust) { setAmount(Math.floor(cust.currentDue || cust.current_due || 0).toString()); setSearchTerm(''); } }} className="w-full bg-white dark:bg-slate-800 border-4 border-teal-500/10 p-4 rounded-[28px] font-black text-lg uppercase shadow-xl outline-none cursor-pointer">
+           <form onSubmit={handlePayment} className="space-y-4 sm:space-y-6">
+              <div className="space-y-2 sm:space-y-3">
+                <label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[2px] sm:tracking-[3px] ml-3 sm:ml-4">{t.find_subscriber}</label>
+                <div className="relative space-y-2 sm:space-y-3">
+                  <input type="text" placeholder={t.search_placeholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-4 sm:p-5 rounded-[20px] sm:rounded-[28px] font-black text-lg sm:text-xl shadow-inner outline-none" />
+                  <select value={selectedCustomerId} size={searchTerm.length > 0 ? 5 : 1} onChange={(e) => { const id = e.target.value; setSelectedCustomerId(id); const cust = store.customers.find(c => c.id === id); if (cust) { setAmount(Math.floor(cust.currentDue || cust.current_due || 0).toString()); setSearchTerm(''); } }} className="w-full bg-white dark:bg-slate-800 border-4 border-teal-500/10 p-3 sm:p-4 rounded-[20px] sm:rounded-[28px] font-black text-base sm:text-lg uppercase shadow-xl outline-none cursor-pointer">
                     <option value="">-- {filteredCustomers.length} Results --</option>
-                    {filteredCustomers.map(c => (<option key={c.id} value={c.id}>{c.name} - {c.zone || 'Global'} - DUE: ৳{Math.floor(c.currentDue || c.current_due || 0)}</option>))}
+                    {filteredCustomers.map(c => (<option key={c.id} value={c.id} className="p-2 border-b">{c.name} - {c.zone || 'Global'} - DUE: ৳{Math.floor(c.currentDue || c.current_due || 0)}</option>))}
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                 <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 uppercase tracking-[3px] ml-4">{t.billing_month}</label><select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-4 rounded-2xl font-black uppercase text-xs cursor-pointer shadow-inner">{months.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                 <div className="space-y-3"><label className="text-[11px] font-black text-slate-400 uppercase tracking-[3px] ml-4">{t.method}</label><select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-4 rounded-2xl font-black uppercase text-xs cursor-pointer shadow-inner"><option value="Cash">Cash</option><option value="bKash">bKash</option><option value="Nagad">Nagad</option><option value="Rocket">Rocket</option><option value="Bank">Bank</option></select></div>
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                 <div className="space-y-2 sm:space-y-3"><label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[2px] sm:tracking-[3px] ml-3 sm:ml-4">{t.billing_month}</label><select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-3 sm:p-4 rounded-xl sm:rounded-2xl font-black uppercase text-[10px] sm:text-xs cursor-pointer shadow-inner">{months.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                 <div className="space-y-2 sm:space-y-3"><label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[2px] sm:tracking-[3px] ml-3 sm:ml-4">{t.method}</label><select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-3 sm:p-4 rounded-xl sm:rounded-2xl font-black uppercase text-[10px] sm:text-xs cursor-pointer shadow-inner"><option value="Cash">Cash</option><option value="bKash">bKash</option><option value="Nagad">Nagad</option><option value="Rocket">Rocket</option><option value="Bank">Bank</option></select></div>
               </div>
-              <div className="space-y-3"><label className="text-[11px] text-slate-400 uppercase tracking-[4px] ml-4">ENTER AMOUNT (৳)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-100 dark:bg-slate-900 border-none p-8 rounded-[40px] font-black text-6xl text-teal-600 tracking-tighter shadow-inner text-center" required /></div>
-              <button type="submit" disabled={isProcessing} className={`w-full py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl transition-all ${isProcessing ? 'bg-slate-400' : 'bg-[#0D9488] text-white border-b-8 border-teal-900 shadow-teal-500/30'}`}>{isProcessing ? 'COMMITING...' : 'COMMIT PAYMENT'}</button>
+              <div className="space-y-2 sm:space-y-3"><label className="text-[10px] sm:text-[11px] text-slate-400 uppercase tracking-[3px] sm:tracking-[4px] ml-3 sm:ml-4">ENTER AMOUNT (৳)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-100 dark:bg-slate-900 border-none p-6 sm:p-8 rounded-[32px] sm:rounded-[40px] font-black text-4xl sm:text-6xl text-teal-600 tracking-tighter shadow-inner text-center" required /></div>
+              <button type="submit" disabled={isProcessing} className={`w-full py-6 sm:py-8 rounded-[32px] sm:rounded-[40px] font-black uppercase tracking-[5px] sm:tracking-[10px] shadow-2xl transition-all ${isProcessing ? 'bg-slate-400' : 'bg-[#0D9488] text-white border-b-4 sm:border-b-8 border-teal-900 shadow-teal-500/30'}`}>{isProcessing ? 'COMMITING...' : 'COMMIT PAYMENT'}</button>
            </form>
         </div>
         <div className="space-y-6 font-black uppercase">
@@ -269,6 +272,7 @@ const Payments = ({ store, session, t }) => {
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[5000] flex items-center justify-center p-6 font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-xl p-12 shadow-2xl border-4 border-rose-500/20 space-y-10 relative overflow-hidden">
              <div className="absolute top-0 left-0 w-full h-4 bg-rose-600 shadow-lg"></div>
+
              <div className="text-center space-y-2">
                 <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto text-4xl text-rose-500 shadow-inner mb-4 animate-pulse"><i className="fas fa-plug-circle-xmark"></i></div>
                 <h3 className="text-3xl font-black tracking-tighter">Connection Inactive</h3>
@@ -287,7 +291,12 @@ const Payments = ({ store, session, t }) => {
              </div>
              <div className="grid grid-cols-1 gap-4">
                 <button onClick={() => commitFinalPayment(extensionData.customerId, extensionData.amount, extensionData.newDue, extensionData.newAdvance, extensionData.nextExpire)} className="w-full bg-emerald-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">CONFIRM & ACTIVATE</button>
-                <button onClick={() => { setShowExtensionModal(false); setIsProcessing(false); }} className="text-slate-400 text-xs font-black tracking-widest hover:text-rose-500">CANCEL TRANSACTION</button>
+                <button
+                  onClick={() => { setShowExtensionModal(false); setIsProcessing(false); }}
+                  className="text-slate-400 text-xs font-black tracking-widest hover:text-rose-500"
+                >
+                  CANCEL TRANSACTION
+                </button>
              </div>
           </div>
         </div>
