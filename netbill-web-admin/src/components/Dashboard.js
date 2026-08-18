@@ -21,10 +21,12 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const tomorrowCustom = `${tomorrow.getDate().toString().padStart(2, '0')}-${months[tomorrow.getMonth()]}-${tomorrow.getFullYear()}`;
 
-  // Expiry Alert Logic: Analyzes all customers daily (Supports multiple date formats)
+  // Expiry Alert Logic: Analyzes all customers daily (Filters only UNPAID customers)
   const expiringTomorrow = store.customers.filter(c => {
     const eDate = c.expireDate || c.expire_date;
-    if (!eDate || c.status !== 'Active') return false;
+    const isDue = (parseFloat(c.currentDue || c.current_due || 0) > 0);
+
+    if (!eDate || c.status !== 'Active' || !isDue) return false;
     return eDate === tomorrowISO || eDate === tomorrowCustom;
   });
 
