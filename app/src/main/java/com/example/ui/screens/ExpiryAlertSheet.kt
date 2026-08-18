@@ -220,7 +220,7 @@ fun ExpiryCustomerCard(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = customer.address.ifEmpty { "N/A" },
+                    text = customer.address.orEmpty().ifEmpty { "N/A" },
                     fontSize = 12.sp,
                     color = Slate600
                 )
@@ -275,7 +275,7 @@ fun ExpiryCustomerCard(
                         color = Slate500
                     )
                     Text(
-                        text = "${customer.expireDate} ${customer.expireTime.ifEmpty { "11:59 PM" }}",
+                        text = "${customer.expireDate} ${customer.expireTime.orEmpty().ifEmpty { "11:59 PM" }}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
@@ -322,8 +322,8 @@ fun ExtendExpiryDialog(
     onDismiss: () -> Unit,
     onSave: (newDate: String, newTime: String) -> Unit
 ) {
-    var newDate by remember { mutableStateOf(customer.expireDate.ifEmpty { "2026-08-31" }) }
-    var newTime by remember { mutableStateOf(customer.expireTime.ifEmpty { "11:59 PM" }) }
+    var newDate by remember { mutableStateOf(customer.expireDate.orEmpty().ifEmpty { "2026-08-31" }) }
+    var newTime by remember { mutableStateOf(customer.expireTime.orEmpty().ifEmpty { "11:59 PM" }) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

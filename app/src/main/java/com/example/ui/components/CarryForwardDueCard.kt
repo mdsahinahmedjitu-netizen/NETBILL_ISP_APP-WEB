@@ -413,7 +413,7 @@ fun CarryForwardDueCard(
                         var tempRemaining = simAmount
 
                         customerUnpaidInvoices.forEachIndexed { index, inv ->
-                            val invDue = inv.totalPayable - inv.paidAmount
+                            val invDue = inv.dueAmount
                             val simAllocated = if (tempRemaining > 0) Math.min(tempRemaining, invDue) else 0.0
                             val simDueAfter = (invDue - simAllocated).coerceAtLeast(0.0)
                             val simStatus = when {

@@ -132,7 +132,7 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text("Zone / Area", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Bold)
-                                Text(cust.zone.ifEmpty { "Global" }, fontSize = 16.sp, fontWeight = FontWeight.Black, color = Slate900)
+                                Text(cust.zone.orEmpty().ifEmpty { "Global" }, fontSize = 16.sp, fontWeight = FontWeight.Black, color = Slate900)
                             }
                         }
                     }
@@ -144,7 +144,7 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
                     status = cust.status, 
                     up = liveTrafficUp, 
                     down = liveTrafficDown,
-                    expireDate = cust.expireDate
+                    expireDate = cust.expireDate ?: ""
                 )
             }
 

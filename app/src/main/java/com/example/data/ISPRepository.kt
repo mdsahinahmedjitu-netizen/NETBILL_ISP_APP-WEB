@@ -126,13 +126,13 @@ class ISPRepository(private val db: AppDatabase) {
                 if (!allParams.containsKey("TOTAL_DUE")) allParams["TOTAL_DUE"] = c.currentDue.toInt().toString()
                 if (!allParams.containsKey("AMOUNT")) allParams["AMOUNT"] = c.currentDue.toInt().toString()
                 if (!allParams.containsKey("PACKAGE_NAME")) allParams["PACKAGE_NAME"] = c.packageName
-                if (!allParams.containsKey("EXPIRY_DATE")) allParams["EXPIRY_DATE"] = c.expireDate
+                if (!allParams.containsKey("EXPIRY_DATE")) allParams["EXPIRY_DATE"] = c.expireDate ?: ""
             }
         }
         
         // Global Company Info
         settingsDao.getSettings().firstOrNull()?.let { s ->
-            if (!allParams.containsKey("COMPANY_NAME")) allParams["COMPANY_NAME"] = s.companyName
+            if (!allParams.containsKey("COMPANY_NAME")) allParams["COMPANY_NAME"] = s.ispName
             if (!allParams.containsKey("SUPPORT_PHONE")) allParams["SUPPORT_PHONE"] = s.supportNumber
         }
 
@@ -271,7 +271,7 @@ class ISPRepository(private val db: AppDatabase) {
     suspend fun checkAndSuspendExpiredCustomers(): Int { 
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val expiredCustomers = customerDao.getAllCustomers().first().filter { 
-            it.status == "Active" && it.expireDate.isNotBlank() && it.expireDate < todayStr
+            it.status == "Active" && it.expireDate?.let { date -> date.isNotBlank() && date < todayStr } == true
         }
 
         expiredCustomers.forEach { customer ->
@@ -308,6 +308,7 @@ class ISPRepository(private val db: AppDatabase) {
                         or {
                             eq("pppoe_username", identifier)
                             eq("customer_code", identifier)
+                            eq("mobile", identifier)
                         }
                         eq("pppoe_password", password)
                     }
@@ -315,7 +316,7 @@ class ISPRepository(private val db: AppDatabase) {
                 .decodeSingleOrNull<CustomerEntity>()
             response
         } catch (e: Exception) {
-            Log.e("ISPRepository", "Cloud Customer search failed", e)
+            Log.e("ISPRepository", "Cloud Customer search failed for $identifier", e)
             null
         }
     }

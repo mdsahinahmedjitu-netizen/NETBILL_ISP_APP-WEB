@@ -1060,7 +1060,7 @@ fun NewCustomersDashboardDialog(
             it.name.contains(query, ignoreCase = true) ||
             it.customerCode.contains(query, ignoreCase = true) ||
             it.mobile.contains(query, ignoreCase = true) ||
-            it.zone.contains(query, ignoreCase = true)
+            it.zone.orEmpty().contains(query, ignoreCase = true)
         }
     }
 
@@ -1520,7 +1520,7 @@ fun ComplaintsDashboardDialog(
                                                             color = MaterialTheme.colorScheme.onSurface
                                                         )
                                                     }
-                                                    if (ticket.scheduledDate.isNotEmpty()) {
+                                                    if (ticket.scheduledDate.orEmpty().isNotEmpty()) {
                                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                                             Icon(Icons.Default.Schedule, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(13.dp))
                                                             Spacer(modifier = Modifier.width(4.dp))
@@ -1825,13 +1825,13 @@ fun ComplaintsDashboardDialog(
                     Text("ভিজিট / সমাধানের তারিখ ও সময়:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ReadonlyDateField(
-                            value = editSchedDate,
+                            value = editSchedDate.orEmpty(),
                             label = "তারিখ",
                             onDateSelected = { editSchedDate = it },
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
-                            value = editSchedTime,
+                            value = editSchedTime.orEmpty(),
                             onValueChange = { editSchedTime = it },
                             label = { Text("সময় (HH:MM AM/PM)") },
                             modifier = Modifier.weight(1f),

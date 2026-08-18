@@ -178,7 +178,7 @@ fun InventoryItemCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (item.itemName.contains("Cable", true)) Icons.Default.LinearScale else Icons.Default.Router,
+                            imageVector = if (item.name.contains("Cable", true)) Icons.Default.LinearScale else Icons.Default.Router,
                             contentDescription = null,
                             tint = statusColor,
                             modifier = Modifier.size(20.dp)
@@ -186,7 +186,7 @@ fun InventoryItemCard(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(item.itemName, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                        Text(item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
                         Text("${item.brand} • SN: ${item.serialNumber}", fontSize = 11.sp, color = Slate600)
                     }
                 }
@@ -250,12 +250,13 @@ fun AddEditInventoryDialog(
     onDismiss: () -> Unit,
     onSave: (InventoryEntity) -> Unit
 ) {
-    var name by remember { mutableStateOf(item?.itemName ?: "") }
-    var brand by remember { mutableStateOf(item?.brand ?: "") }
-    var sn by remember { mutableStateOf(item?.serialNumber ?: "") }
-    var price by remember { mutableStateOf(item?.costPrice?.toString() ?: "") }
+    var name by remember { mutableStateOf(item?.name ?: "") }
     var category by remember { mutableStateOf(item?.category ?: "ONU") }
-    var purchaseDate by remember { mutableStateOf(item?.purchaseDate?.ifEmpty { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) } ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
+    var brand by remember { mutableStateOf(item?.brand ?: "") }
+    var serialNumber by remember { mutableStateOf(item?.serialNumber ?: "") }
+    var costPrice by remember { mutableStateOf(item?.costPrice?.toString() ?: "0") }
+    var quantity by remember { mutableStateOf(item?.quantity?.toString() ?: "1") }
+    var purchaseDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -263,9 +264,16 @@ fun AddEditInventoryDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Item Name (e.g. ONU, Router)") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = brand, onValueChange = { brand = it }, label = { Text("Brand / Manufacturer") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = sn, onValueChange = { sn = it }, label = { Text("Serial Number / MAC") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Cost Price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = brand, onValueChange = { brand = it }, label = { Text("Brand") }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = serialNumber, onValueChange = { serialNumber = it }, label = { Text("Serial No") }, modifier = Modifier.weight(1f))
+                }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = costPrice, onValueChange = { costPrice = it }, label = { Text("Cost Price") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
+                }
                 
                 ReadonlyDateField(
                     value = purchaseDate,
@@ -289,8 +297,22 @@ fun AddEditInventoryDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(item?.copy(itemName = name, brand = brand, serialNumber = sn, costPrice = price.toDoubleOrNull() ?: 0.0, category = category, purchaseDate = purchaseDate)
-                        ?: InventoryEntity(id = UUID.randomUUID().toString(), itemName = name, brand = brand, serialNumber = sn, costPrice = price.toDoubleOrNull() ?: 0.0, category = category, purchaseDate = purchaseDate))
+                    onSave(item?.copy(
+                        name = name, 
+                        category = category, 
+                        brand = brand,
+                        serialNumber = serialNumber,
+                        costPrice = costPrice.toDoubleOrNull() ?: 0.0,
+                        quantity = quantity.toIntOrNull() ?: 1
+                    ) ?: InventoryEntity(
+                        id = UUID.randomUUID().toString(), 
+                        name = name, 
+                        category = category, 
+                        brand = brand,
+                        serialNumber = serialNumber,
+                        costPrice = costPrice.toDoubleOrNull() ?: 0.0,
+                        quantity = quantity.toIntOrNull() ?: 1
+                    ))
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Teal600)
             ) {
@@ -316,7 +338,7 @@ fun AssignInventoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Assign ${item.itemName} to Customer", fontWeight = FontWeight.Bold) },
+        title = { Text("Assign ${item.name} to Customer", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text("Assign Serial: ${item.serialNumber}", fontSize = 12.sp, color = Slate600)

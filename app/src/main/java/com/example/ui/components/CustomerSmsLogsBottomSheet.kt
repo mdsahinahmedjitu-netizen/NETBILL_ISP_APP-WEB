@@ -160,14 +160,14 @@ fun CustomerSmsLogsBottomSheet(
                         if (lastSms != null) {
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
-                                color = if (lastSms.status == "Delivered") Teal600 else Color(0xFFE11D48)
+                                color = if (lastSms.status == "Sent") Teal600 else Color(0xFFE11D48)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        if (lastSms.status == "Delivered") Icons.Default.CheckCircle else Icons.Default.Error,
+                                        if (lastSms.status == "Sent") Icons.Default.CheckCircle else Icons.Default.Error,
                                         contentDescription = null,
                                         tint = Color.White,
                                         modifier = Modifier.size(12.dp)
@@ -227,7 +227,7 @@ fun CustomerSmsLogsBottomSheet(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Report: ${lastSms.deliveryReport}",
+                            text = "Status: ${lastSms.status}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = if (lastSms.status == "Failed") Color(0xFFE11D48) else Teal600
@@ -342,7 +342,7 @@ fun CustomerSmsItemCard(
     log: SmsLogEntity,
     onResend: () -> Unit
 ) {
-    val isDelivered = log.status == "Delivered"
+    val isDelivered = log.status == "Sent"
     val isFailed = log.status == "Failed"
 
     Card(
@@ -409,7 +409,7 @@ fun CustomerSmsItemCard(
                         color = Slate500
                     )
                     Text(
-                        text = log.deliveryReport,
+                        text = "Notification Type: ${log.notificationType}",
                         fontSize = 10.sp,
                         color = if (isFailed) Color(0xFFE11D48) else Teal600,
                         maxLines = 1,

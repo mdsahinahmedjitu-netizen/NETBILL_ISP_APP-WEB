@@ -73,7 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.InvoiceEntity
-import com.example.data.entity.LedgerEntryEntity
+import com.example.data.entity.LedgerEntity
 import com.example.data.entity.PaymentCollectionEntity
 import com.example.util.AppUtils
 import com.example.localization.AppTranslation
@@ -207,7 +207,7 @@ fun CustomerLedgerScreen(
                                     color = Slate900
                                 )
                                 Text(
-                                    text = "Mobile: ${customer.mobile} | User: ${customer.username.ifEmpty { customer.pppoeUsername }}",
+                                    text = "Mobile: ${customer.mobile} | User: ${customer.pppoeUsername}",
                                     fontSize = 12.sp,
                                     color = Slate600
                                 )
@@ -252,7 +252,7 @@ fun CustomerLedgerScreen(
                             Column {
                                 Text("Zone / Sub Zone / Box", fontSize = 11.sp, color = Slate600)
                                 Text(
-                                    "${customer.zone} • ${customer.subZone.ifEmpty { "Main" }}",
+                                    "${customer.zone ?: "N/A"} • ${customer.subZone?.ifEmpty { "Main" } ?: "Main"}",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Slate900
@@ -261,7 +261,7 @@ fun CustomerLedgerScreen(
                             Column {
                                 Text("Joined Date", fontSize = 11.sp, color = Slate600)
                                 Text(
-                                    customer.joinDate,
+                                    customer.joinDate ?: "",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Slate900
@@ -609,7 +609,7 @@ fun SummaryCard(
 }
 
 @Composable
-fun LedgerTimelineItemCard(entry: com.example.data.entity.LedgerEntity, currency: String) {
+fun LedgerTimelineItemCard(entry: LedgerEntity, currency: String) {
     val isCredit = !entry.isDebit
     val color = when (entry.type) {
         "Payment", "Advance", "Refund" -> EmeraldSuccess
@@ -766,7 +766,7 @@ fun BillHistoryItemCard(invoice: InvoiceEntity, currency: String) {
                 }
                 Column {
                     Text("Paid Amount", fontSize = 10.sp, color = Slate600)
-                    Text("$currency ${invoice.paidAmount.toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                    Text("$currency ${(invoice.totalPayable - invoice.dueAmount).toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
                 }
                 Column {
                     Text("Remaining Due", fontSize = 10.sp, color = Slate600)
@@ -774,7 +774,7 @@ fun BillHistoryItemCard(invoice: InvoiceEntity, currency: String) {
                 }
                 Column {
                     Text("Due Date", fontSize = 10.sp, color = Slate600)
-                    Text(AppUtils.formatDateForDisplay(invoice.dueDate), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                    Text(AppUtils.formatDateForDisplay(invoice.generatedDate), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
                 }
             }
         }

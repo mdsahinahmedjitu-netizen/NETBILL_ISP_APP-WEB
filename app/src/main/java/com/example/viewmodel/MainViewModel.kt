@@ -79,7 +79,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedReceipt: StateFlow<PaymentCollectionEntity?> = _selectedReceipt.asStateFlow()
 
     val customersList = repository.allCustomers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val packagesList = repository.allPackages.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val packagesList = combine(repository.allPackages, customersList) { pkgs, custs ->
+        pkgs.map { pkg ->
+            pkg.apply { activeUserCount = custs.count { it.packageName == pkg.name && it.status == "Active" } }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val invoicesList = repository.allInvoices.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val paymentsList = repository.allPayments.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val expensesList = repository.allExpenses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -104,7 +108,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     cust.name.contains(filter.searchQuery, ignoreCase = true) ||
                     cust.mobile.contains(filter.searchQuery, ignoreCase = true) ||
                     cust.pppoeUsername.contains(filter.searchQuery, ignoreCase = true) ||
-                    cust.address.contains(filter.searchQuery, ignoreCase = true)
+                    cust.address.orEmpty().contains(filter.searchQuery, ignoreCase = true)
 
             val matchZone = filter.selectedZone == "All" || cust.zone == filter.selectedZone
             val matchPkg = filter.selectedPackage == "All" || cust.packageName == filter.selectedPackage
@@ -133,7 +137,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             monthlyExpense = exps.filter { it.expenseDate.startsWith(yearMonthStr) }.sumOf { it.amount },
             activeCustomers = custs.count { it.status == "Active" },
             expiredCustomers = custs.count { com.example.util.ExpiryUtils.isExpired(it) },
-            newCustomers = custs.count { it.joinDate.startsWith(yearMonthStr) }
+            newCustomers = custs.count { it.joinDate.orEmpty().startsWith(yearMonthStr) }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats())
 
@@ -225,29 +229,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _loginUiState.value = LoginUiState.Loading
             
-            // 1. Perform Anonymous Auth for permissions
-            val authResult = authManager.signInAnonymously()
-            if (authResult.isFailure) {
-                _loginUiState.value = LoginUiState.Error("Internet Connection Failed")
-                return@launch
-            }
+            try {
+                // 1. First search in local Room DB (Quickest & works offline)
+                var customer = repository.getCustomerByLogin(identifier.trim(), pass.trim())
 
-            // 2. First search in local Room DB (Name, PPPoE or ID)
-            var customer = repository.getCustomerByLogin(identifier.trim(), pass.trim())
+                // 2. If not found locally, try Cloud search
+                if (customer == null) {
+                    customer = repository.findCustomerByLoginInCloud(identifier.trim(), pass.trim())
+                }
 
-            // 3. If not found locally, search directly in Cloud
-            if (customer == null) {
-                customer = repository.findCustomerByLoginInCloud(identifier.trim(), pass.trim())
-            }
-
-            if (customer != null) {
-                _loggedInCustomer.value = customer
-                _loginUiState.value = LoginUiState.Success
-                repository.startSync() 
-                showToast("Welcome ${customer.name}!")
-            } else {
-                _loginUiState.value = LoginUiState.Error("Invalid Customer ID or Password")
-                showToast("Login Failed: Customer not found")
+                if (customer != null) {
+                    _loggedInCustomer.value = customer
+                    _loginUiState.value = LoginUiState.Success
+                    
+                    // Attempt background sync permissions (Doesn't block login)
+                    launch { authManager.signInAnonymously() }
+                    
+                    repository.startSync() 
+                    showToast("Welcome ${customer.name}!")
+                } else {
+                    _loginUiState.value = LoginUiState.Error("Invalid Credentials or User Not Found")
+                    showToast("Login Failed")
+                }
+            } catch (e: Exception) {
+                _loginUiState.value = LoginUiState.Error("Server Connection Failed")
+                Log.e("Login", "Customer Login Error", e)
             }
         }
     }
@@ -487,7 +493,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         waUrl: String = "",
         waToken: String = "",
         adminWa: String = "",
-        waAlerts: Boolean = false
+        waAlerts: Boolean = false,
+        personalBkash: String = "017XXXXXXXX",
+        personalNagad: String = "018XXXXXXXX"
     ) {
         viewModelScope.launch {
             val current = settingsState.value ?: ISPSettingsEntity()
@@ -503,7 +511,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 whatsappApiUrl = waUrl,
                 whatsappToken = waToken,
                 adminWhatsappNumber = adminWa,
-                isWhatsappAlertEnabled = waAlerts
+                isWhatsappAlertEnabled = waAlerts,
+                personalBkashNo = personalBkash,
+                personalNagadNo = personalNagad
             ))
             showToast("Settings updated.")
         }
@@ -838,7 +848,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         "NAME" to cust.name,
                         "TOTAL_DUE" to cust.currentDue.toInt().toString(),
                         "AMOUNT" to cust.currentDue.toInt().toString(),
-                        "ZONE" to cust.zone,
+                        "ZONE" to cust.zone.orEmpty(),
                         "CUSTOMER_CODE" to cust.customerCode
                     ),
                     customerId = cust.id,

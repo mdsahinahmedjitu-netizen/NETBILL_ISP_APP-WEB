@@ -103,7 +103,7 @@ fun BillingScreen(viewModel: MainViewModel) {
 
     // Summary calculations
     val totalBilled = invoices.sumOf { it.totalPayable }
-    val totalCollected = invoices.sumOf { it.paidAmount }
+    val totalCollected = invoices.sumOf { it.totalPayable - it.dueAmount }
     val totalOutstanding = invoices.sumOf { it.dueAmount }
     val unpaidCount = invoices.count { (it.status == "Unpaid") || (it.status == "Partial") }
 
@@ -555,7 +555,7 @@ fun InvoiceCard(
                 }
                 Column {
                     Text("Paid Amount", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Medium)
-                    Text("$currency ${invoice.paidAmount.toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                    Text("$currency ${(invoice.totalPayable - invoice.dueAmount).toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Total Payable", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Medium)
@@ -833,7 +833,7 @@ fun PrintReceiptDialog(
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Amount Paid:", fontSize = 11.sp, color = Slate600)
-                        Text("$currency ${invoice.paidAmount.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                        Text("$currency ${(invoice.totalPayable - invoice.dueAmount).toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))

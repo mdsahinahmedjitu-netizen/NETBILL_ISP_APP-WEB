@@ -371,10 +371,8 @@ fun NotificationScreen(
                                     zone = "General",
                                     packageName = "Standard",
                                     monthlyBill = 800.0,
-                                    discount = 0.0,
                                     connectionFee = 0.0,
                                     joinDate = "2026-01-01",
-                                    joinDayOfMonth = 1,
                                     billingType = "Postpaid",
                                     currentDue = 0.0,
                                     advanceBalance = 0.0,
@@ -553,7 +551,7 @@ fun SmsDeliveryLogCard(
                         color = Slate500
                     )
                     Text(
-                        text = log.deliveryReport,
+                        text = "Status: ${log.status}",
                         fontSize = 10.sp,
                         color = if (isFailed) Color(0xFFE11D48) else Teal600,
                         fontWeight = FontWeight.Medium,

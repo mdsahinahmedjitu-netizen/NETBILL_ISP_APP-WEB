@@ -80,7 +80,7 @@ class MikroTikApiService {
         val cmd = if (enable) "/ppp/secret/enable" else "/ppp/secret/disable"
         // First we find the internal .id of the user
         val findResult = executeCommand(
-            router.ipAddress, router.apiPort, router.username, router.password,
+            router.host, router.port, router.apiUser, router.apiPass,
             "/ppp/secret/print", mapOf(".proplist" to ".id", "?name" to pppoeUser)
         )
 
@@ -90,7 +90,7 @@ class MikroTikApiService {
             
             if (internalId.isNotEmpty()) {
                 val actionResult = executeCommand(
-                    router.ipAddress, router.apiPort, router.username, router.password,
+                    router.host, router.port, router.apiUser, router.apiPass,
                     cmd, mapOf(".id" to internalId)
                 )
                 actionResult.isSuccess
@@ -109,7 +109,7 @@ class MikroTikApiService {
         staticIp: String = ""
     ): Boolean {
         val findResult = executeCommand(
-            router.ipAddress, router.apiPort, router.username, router.password,
+            router.host, router.port, router.apiUser, router.apiPass,
             "/ppp/secret/print", mapOf(".proplist" to ".id", "?name" to pppoeUser)
         )
 
@@ -123,7 +123,7 @@ class MikroTikApiService {
                 if (staticIp.isNotBlank()) params["remote-address"] = staticIp
 
                 val updateResult = executeCommand(
-                    router.ipAddress, router.apiPort, router.username, router.password,
+                    router.host, router.port, router.apiUser, router.apiPass,
                     "/ppp/secret/set", params
                 )
                 updateResult.isSuccess
@@ -134,7 +134,7 @@ class MikroTikApiService {
                 if (staticIp.isNotBlank()) params["remote-address"] = staticIp
 
                 val createResult = executeCommand(
-                    router.ipAddress, router.apiPort, router.username, router.password,
+                    router.host, router.port, router.apiUser, router.apiPass,
                     "/ppp/secret/add", params
                 )
                 createResult.isSuccess
@@ -150,7 +150,7 @@ class MikroTikApiService {
         pppoeUser: String
     ): Pair<Double, Double>? {
         val result = executeCommand(
-            router.ipAddress, router.apiPort, router.username, router.password,
+            router.host, router.port, router.apiUser, router.apiPass,
             "/ppp/active/print", mapOf(".proplist" to "rx-bits-per-second,tx-bits-per-second", "?name" to pppoeUser)
         )
 

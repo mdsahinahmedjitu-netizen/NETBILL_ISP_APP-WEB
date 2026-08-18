@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
-    @Query("SELECT * FROM users WHERE (username = :identifier OR mobile = :identifier) AND active = 1 LIMIT 1")
+    @Query("SELECT * FROM users WHERE (username = :identifier OR mobile = :identifier) AND status = 'Active' LIMIT 1")
     suspend fun getUserByUsernameOrMobile(identifier: String): UserEntity?
 
     @Query("SELECT * FROM users ORDER BY name ASC")
@@ -31,7 +31,7 @@ interface CustomerDao {
     @Query("SELECT * FROM customers WHERE id = :id LIMIT 1")
     suspend fun getCustomerById(id: String): CustomerEntity?
 
-    @Query("SELECT * FROM customers WHERE (pppoeUsername = :identifier OR customerCode = :identifier) AND pppoePassword = :password LIMIT 1")
+    @Query("SELECT * FROM customers WHERE (pppoeUsername = :identifier OR customerCode = :identifier OR mobile = :identifier) AND pppoePassword = :password LIMIT 1")
     suspend fun getCustomerByIdentifier(identifier: String, password: String): CustomerEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

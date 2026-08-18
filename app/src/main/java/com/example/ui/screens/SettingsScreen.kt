@@ -80,6 +80,8 @@ fun SettingsScreen(
     var address by remember(settings) { mutableStateOf(settings?.address ?: "Uttara, Dhaka-1230, Bangladesh") }
     var mobile by remember(settings) { mutableStateOf(settings?.mobileNumber ?: "01711000000") }
     var helpline by remember(settings) { mutableStateOf(settings?.supportNumber ?: "01711000000") }
+    var personalBkash by remember(settings) { mutableStateOf(settings?.personalBkashNo ?: "017XXXXXXXX") }
+    var personalNagad by remember(settings) { mutableStateOf(settings?.personalNagadNo ?: "018XXXXXXXX") }
 
     // SMS Gateway Local State
     var smsApiUrl by remember(settings) { mutableStateOf(settings?.smsApiUrl ?: "https://api.greenweb.com.bd/api.php?json&apikey={API_KEY}&to={MOBILE}&senderid={SENDER_ID}&message={MESSAGE}") }
@@ -90,7 +92,7 @@ fun SettingsScreen(
     // WhatsApp Configuration State
     var adminWhatsapp by remember(settings) { mutableStateOf(settings?.adminWhatsappNumber ?: "") }
     var waUrl by remember(settings) { mutableStateOf(settings?.whatsappApiUrl ?: "") }
-    var waInstance by remember(settings) { mutableStateOf(settings?.whatsappInstanceId ?: "") }
+    var waInstance by remember(settings) { mutableStateOf("") } // whatsappInstanceId is missing from entity
     var waToken by remember(settings) { mutableStateOf(settings?.whatsappToken ?: "") }
     var isWaEnabled by remember(settings) { mutableStateOf(settings?.isWhatsappAlertEnabled ?: false) }
 
@@ -258,7 +260,7 @@ fun SettingsScreen(
                     OutlinedTextField(value = smsSenderId, onValueChange = { smsSenderId = it }, label = { Text("Sender ID / Masking") }, modifier = Modifier.fillMaxWidth())
 
                     Button(
-                        onClick = { viewModel.saveISPSettings(ispName, address, mobile, helpline, smsApiUrl, smsApiKey, smsSenderId, isAutoSmsEnabled) },
+                        onClick = { viewModel.saveISPSettings(ispName, address, mobile, helpline, smsApiUrl, smsApiKey, smsSenderId, isAutoSmsEnabled, waUrl, waToken, adminWhatsapp, isWaEnabled, personalBkash, personalNagad) },
                         colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -320,7 +322,9 @@ fun SettingsScreen(
                                 smsUrl = smsApiUrl,
                                 smsKey = smsApiKey,
                                 smsSender = smsSenderId,
-                                autoSms = isAutoSmsEnabled
+                                autoSms = isAutoSmsEnabled,
+                                personalBkash = personalBkash,
+                                personalNagad = personalNagad
                             ) 
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
@@ -354,8 +358,12 @@ fun SettingsScreen(
                     OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Primary Contact Number") }, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = helpline, onValueChange = { helpline = it }, label = { Text("24/7 Support Helpline") }, modifier = Modifier.fillMaxWidth())
 
+                    Text("Personal Payment Numbers (For Manual Pay)", fontWeight = FontWeight.Bold, color = com.example.ui.theme.Teal600, fontSize = 14.sp)
+                    OutlinedTextField(value = personalBkash, onValueChange = { personalBkash = it }, label = { Text("Personal bKash Number") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = personalNagad, onValueChange = { personalNagad = it }, label = { Text("Personal Nagad Number") }, modifier = Modifier.fillMaxWidth())
+
                     Button(
-                        onClick = { viewModel.saveISPSettings(ispName, address, mobile, helpline) },
+                        onClick = { viewModel.saveISPSettings(ispName, address, mobile, helpline, smsApiUrl, smsApiKey, smsSenderId, isAutoSmsEnabled, waUrl, waToken, adminWhatsapp, isWaEnabled, personalBkash, personalNagad) },
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()

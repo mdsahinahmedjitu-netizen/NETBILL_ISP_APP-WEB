@@ -50,7 +50,7 @@ class ReportsViewModel(application: Application) : AndroidViewModel(application)
 
         val zones = custs.groupBy { it.zone }.map { (zone, list) ->
             ZoneReport(
-                zoneName = zone.ifEmpty { "Unknown" },
+                zoneName = zone.orEmpty().ifEmpty { "Unknown" },
                 customerCount = list.size,
                 monthlyRevenue = list.sumOf { it.monthlyBill }
             )

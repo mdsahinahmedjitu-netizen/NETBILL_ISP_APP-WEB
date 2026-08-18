@@ -338,37 +338,17 @@ fun CustomerCard(
                     .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (customer.billingType.isNotBlank()) {
+                if (customer.billingType.orEmpty().isNotBlank()) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .background(Teal600.copy(alpha = 0.15f))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Text(text = customer.billingType, fontSize = 10.sp, color = Teal600, fontWeight = FontWeight.Medium)
+                        Text(text = customer.billingType!!, fontSize = 10.sp, color = Teal600, fontWeight = FontWeight.Medium)
                     }
                 }
-                if (customer.nidNumber.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Slate200)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(text = "NID: ${customer.nidNumber.take(8)}...", fontSize = 10.sp, color = Slate700)
-                    }
-                }
-                if (customer.fiberCoreNo.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(ElectricBlue.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(text = customer.fiberCoreNo, fontSize = 10.sp, color = ElectricBlue, fontWeight = FontWeight.Medium)
-                    }
-                }
-                if (customer.expireDate.isNotBlank()) {
+                if (customer.expireDate.orEmpty().isNotBlank()) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
@@ -376,7 +356,7 @@ fun CustomerCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "মেয়াদ: ${customer.expireDate} ${customer.expireTime}",
+                            text = "মেয়াদ: ${customer.expireDate} ${customer.expireTime.orEmpty()}",
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
@@ -444,19 +424,14 @@ fun AddEditCustomerDialog(
     var name by remember { mutableStateOf(customer?.name ?: "") }
     var mobile by remember { mutableStateOf(customer?.mobile ?: "") }
     var altMobile by remember { mutableStateOf(customer?.altMobile ?: "") }
-    var email by remember { mutableStateOf(customer?.email ?: "") }
-    var nidNumber by remember { mutableStateOf(customer?.nidNumber ?: "") }
-    var dob by remember { mutableStateOf(customer?.dob ?: "") }
 
     var address by remember { mutableStateOf(customer?.address ?: "") }
     var zone by remember { mutableStateOf(customer?.zone ?: "Uttara Zone") }
     var subZone by remember { mutableStateOf(customer?.subZone ?: "") }
-    var houseOwner by remember { mutableStateOf(customer?.houseOwnerName ?: "") }
-    var emergencyContact by remember { mutableStateOf(customer?.emergencyContact ?: "") }
+    var boxId by remember { mutableStateOf(customer?.boxId ?: "") }
 
     var pkgName by remember { mutableStateOf(customer?.packageName ?: "20 Mbps Super") }
     var billAmt by remember { mutableStateOf(customer?.monthlyBill?.toString() ?: "800") }
-    var discount by remember { mutableStateOf(customer?.discount?.toString() ?: "0") }
     var connectionFee by remember { mutableStateOf(customer?.connectionFee?.toString() ?: "1000") }
     var billingType by remember { mutableStateOf(customer?.billingType ?: "Prepaid") }
     var joinDate by remember { mutableStateOf(customer?.joinDate?.ifEmpty { "2026-08-12" } ?: "2026-08-12") }
@@ -467,13 +442,8 @@ fun AddEditCustomerDialog(
     var connectionType by remember { mutableStateOf(customer?.connectionType ?: "PPPoE") }
     var pppoeUser by remember { mutableStateOf(customer?.pppoeUsername ?: "") }
     var pppoePass by remember { mutableStateOf(customer?.pppoePassword ?: "123456") }
-    var ipAddress by remember { mutableStateOf(customer?.ipAddress ?: "") }
-    var macAddress by remember { mutableStateOf(customer?.macAddress ?: "") }
-    var onuSerial by remember { mutableStateOf(customer?.onuMacSerial ?: "") }
-    var fiberCore by remember { mutableStateOf(customer?.fiberCoreNo ?: "") }
-    var networkBox by remember { mutableStateOf(customer?.networkBox ?: "") }
-    var refName by remember { mutableStateOf(customer?.referenceName ?: "") }
-    var refMobile by remember { mutableStateOf(customer?.referenceMobile ?: "") }
+    var onuMac by remember { mutableStateOf(customer?.onuMac ?: "") }
+    var onuSerial by remember { mutableStateOf(customer?.onuSerial ?: "") }
     var notes by remember { mutableStateOf(customer?.notes ?: "") }
 
     // New state for 20th day rule billing choice
@@ -544,31 +514,6 @@ fun AddEditCustomerDialog(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                             )
                         }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = email,
-                                onValueChange = { email = it },
-                                label = { Text("ইমেইল এড্রেস") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                            ReadonlyDateField(
-                                value = dob,
-                                label = "জন্ম তারিখ",
-                                onDateSelected = { dob = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        OutlinedTextField(
-                            value = nidNumber,
-                            onValueChange = { nidNumber = it },
-                            label = { Text("জাতীয় পরিচয়পত্র নম্বর (NID Number)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                        )
                     }
                 }
 
@@ -608,18 +553,10 @@ fun AddEditCustomerDialog(
                         }
 
                         OutlinedTextField(
-                            value = houseOwner,
-                            onValueChange = { houseOwner = it },
-                            label = { Text("বাড়ির মালিকের নাম ও ফোন") },
-                            placeholder = { Text("যেমন: হাজী লতিফ (01700000000)", color = Slate600, fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        OutlinedTextField(
-                            value = emergencyContact,
-                            onValueChange = { emergencyContact = it },
-                            label = { Text("জরুরি যোগাযোগের ফোন নম্বর") },
+                            value = boxId,
+                            onValueChange = { boxId = it },
+                            label = { Text("নেটওয়ার্ক বক্স / Splitter TJ ID") },
+                            placeholder = { Text("যেমন: BOX-101", color = Slate600, fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
@@ -649,25 +586,6 @@ fun AddEditCustomerDialog(
                                 value = billAmt,
                                 onValueChange = { billAmt = it },
                                 label = { Text("মাসিক বিল (৳)") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                            )
-                            OutlinedTextField(
-                                value = discount,
-                                onValueChange = { discount = it },
-                                label = { Text("মাসিক ছাড় (৳)") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                            )
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = connectionFee,
-                                onValueChange = { connectionFee = it },
-                                label = { Text("ইন্সটলেশন ফি (৳)") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -786,58 +704,16 @@ fun AddEditCustomerDialog(
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
-                                value = ipAddress,
-                                onValueChange = { ipAddress = it },
-                                label = { Text("IP Address (Static)") },
+                                value = onuMac,
+                                onValueChange = { onuMac = it },
+                                label = { Text("ONU MAC") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
                             )
-                            OutlinedTextField(
-                                value = macAddress,
-                                onValueChange = { macAddress = it },
-                                label = { Text("MAC Address") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
                                 value = onuSerial,
                                 onValueChange = { onuSerial = it },
-                                label = { Text("ONU MAC / Serial") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                            OutlinedTextField(
-                                value = fiberCore,
-                                onValueChange = { fiberCore = it },
-                                label = { Text("ফাইবার কেবল কোর / রঙ") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                        }
-
-                        OutlinedTextField(
-                            value = networkBox,
-                            onValueChange = { networkBox = it },
-                            label = { Text("নেটওয়ার্ক বক্স / Splitter TJ Box") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = refName,
-                                onValueChange = { refName = it },
-                                label = { Text("রেফারেন্স ব্যক্তির নাম") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                            OutlinedTextField(
-                                value = refMobile,
-                                onValueChange = { refMobile = it },
-                                label = { Text("রেফারেন্স মোবাইল") },
+                                label = { Text("ONU Serial") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
                             )
@@ -909,35 +785,23 @@ fun AddEditCustomerDialog(
                         name = finalName,
                         mobile = mobile,
                         altMobile = altMobile,
-                        email = email,
-                        nidNumber = nidNumber,
-                        dob = dob,
                         address = address,
                         zone = zone,
                         subZone = subZone,
-                        houseOwnerName = houseOwner,
-                        emergencyContact = emergencyContact,
+                        boxId = boxId,
                         packageName = pkgName,
                         monthlyBill = billAmt.toDoubleOrNull() ?: 800.0,
-                        discount = discount.toDoubleOrNull() ?: 0.0,
                         connectionFee = connectionFee.toDoubleOrNull() ?: 0.0,
                         billingType = billingType,
-                        username = finalPppoeUser,
                         pppoeUsername = finalPppoeUser,
                         pppoePassword = pppoePass,
-                        ipAddress = ipAddress,
-                        macAddress = macAddress,
-                        onuMacSerial = onuSerial,
-                        fiberCoreNo = fiberCore,
-                        networkBox = networkBox,
+                        onuMac = onuMac,
+                        onuSerial = onuSerial,
                         connectionType = connectionType,
                         joinDate = joinDate,
-                        joinDayOfMonth = joinDayInt,
                         expireDate = expireDate,
                         expireTime = expireTime,
                         status = customer?.status ?: "Active",
-                        referenceName = refName,
-                        referenceMobile = refMobile,
                         currentDue = currentDue.toDoubleOrNull() ?: 0.0,
                         notes = notes
                     )

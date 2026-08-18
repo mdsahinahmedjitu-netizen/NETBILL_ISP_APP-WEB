@@ -315,13 +315,10 @@ fun CustomerDetailScreen(
 
                         DetailRow(label = "Package Name", value = customer.packageName)
                         DetailRow(label = "Monthly Bill", value = "$currency ${customer.monthlyBill.toInt()}/mo")
-                        if (customer.discount > 0) {
-                            DetailRow(label = "Monthly Discount", value = "- $currency ${customer.discount.toInt()}")
-                        }
                         if (customer.connectionFee > 0) {
                             DetailRow(label = "Installation Fee", value = "$currency ${customer.connectionFee.toInt()}")
                         }
-                        DetailRow(label = "Billing Type", value = customer.billingType)
+                        DetailRow(label = "Billing Type", value = customer.billingType ?: "N/A")
                         DetailRow(
                             label = "Current Account Balance",
                             value = if (customer.currentDue > 0) "Due: $currency ${customer.currentDue.toInt()}" else if (customer.advanceBalance > 0) "Advance: $currency ${customer.advanceBalance.toInt()}" else "Clean Paid"
@@ -362,11 +359,11 @@ fun CustomerDetailScreen(
 
                         DetailRow(
                             label = "Expiration Date (মেয়াদ শেষ তারিখ)",
-                            value = if (customer.expireDate.isNotBlank()) customer.expireDate else "Not Set"
+                            value = if (customer.expireDate.orEmpty().isNotBlank()) customer.expireDate!! else "Not Set"
                         )
                         DetailRow(
                             label = "Expiration Time (মেয়াদ শেষ সময়)",
-                            value = if (customer.expireTime.isNotBlank()) customer.expireTime else "23:59"
+                            value = if (customer.expireTime.orEmpty().isNotBlank()) customer.expireTime!! else "23:59"
                         )
                     }
                 }
@@ -383,14 +380,12 @@ fun CustomerDetailScreen(
                         Text("🌐 নেটওয়ার্ক ও কারিগরি বিবরণ (Network Specs)", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        DetailRow(label = "Connection Type", value = customer.connectionType)
+                        DetailRow(label = "Connection Type", value = customer.connectionType ?: "PPPoE")
                         DetailRow(label = "PPPoE Username", value = customer.pppoeUsername)
                         DetailRow(label = "PPPoE Password", value = customer.pppoePassword)
-                        DetailRow(label = "IP Address", value = if (customer.ipAddress.isNotEmpty()) customer.ipAddress else "Dynamic Auto IP")
-                        DetailRow(label = "MAC Address", value = if (customer.macAddress.isNotEmpty()) customer.macAddress else "N/A")
-                        DetailRow(label = "ONU Serial / MAC", value = if (customer.onuMacSerial.isNotEmpty()) customer.onuMacSerial else "N/A")
-                        DetailRow(label = "Fiber Cable Core", value = if (customer.fiberCoreNo.isNotEmpty()) customer.fiberCoreNo else "N/A")
-                        DetailRow(label = "Network Box / TJ", value = if (customer.networkBox.isNotEmpty()) customer.networkBox else "Splitter Box 1")
+                        DetailRow(label = "ONU MAC", value = customer.onuMac ?: "N/A")
+                        DetailRow(label = "ONU Serial", value = customer.onuSerial ?: "N/A")
+                        DetailRow(label = "Network Box / TJ", value = customer.boxId ?: "N/A")
                     }
                 }
             }
@@ -407,17 +402,8 @@ fun CustomerDetailScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         DetailRow(label = "Primary Mobile", value = customer.mobile)
-                        if (customer.altMobile.isNotEmpty()) {
-                            DetailRow(label = "Alt Mobile", value = customer.altMobile)
-                        }
-                        if (customer.email.isNotEmpty()) {
-                            DetailRow(label = "Email Address", value = customer.email)
-                        }
-                        if (customer.nidNumber.isNotEmpty()) {
-                            DetailRow(label = "NID Number", value = customer.nidNumber)
-                        }
-                        if (customer.dob.isNotEmpty()) {
-                            DetailRow(label = "Date of Birth", value = customer.dob)
+                        if (customer.altMobile.orEmpty().isNotEmpty()) {
+                            DetailRow(label = "Alt Mobile", value = customer.altMobile!!)
                         }
                     }
                 }
@@ -434,19 +420,10 @@ fun CustomerDetailScreen(
                         Text("🏠 ঠিকানা ও রেফারেন্স (Address & Contacts)", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        DetailRow(label = "Zone / Sub Zone", value = "${customer.zone} ${if (customer.subZone.isNotEmpty()) "(${customer.subZone})" else ""}")
-                        DetailRow(label = "Full Address", value = customer.address)
-                        if (customer.houseOwnerName.isNotEmpty()) {
-                            DetailRow(label = "House Owner Info", value = customer.houseOwnerName)
-                        }
-                        if (customer.emergencyContact.isNotEmpty()) {
-                            DetailRow(label = "Emergency Contact", value = customer.emergencyContact)
-                        }
-                        if (customer.referenceName.isNotEmpty()) {
-                            DetailRow(label = "Reference Person", value = "${customer.referenceName} (${customer.referenceMobile})")
-                        }
-                        if (customer.notes.isNotEmpty()) {
-                            DetailRow(label = "Notes / Remarks", value = customer.notes)
+                        DetailRow(label = "Zone / Sub Zone", value = "${customer.zone} ${if (customer.subZone.orEmpty().isNotEmpty()) "(${customer.subZone})" else ""}")
+                        DetailRow(label = "Full Address", value = customer.address.orEmpty())
+                        if (customer.notes.orEmpty().isNotEmpty()) {
+                            DetailRow(label = "Notes / Remarks", value = customer.notes!!)
                         }
                     }
                 }
@@ -494,8 +471,8 @@ fun CustomerDetailScreen(
     }
 
     if (showEditExpiryDialog) {
-        var newDate by remember { mutableStateOf(customer.expireDate.ifEmpty { "2026-09-01" }) }
-        var newTime by remember { mutableStateOf(customer.expireTime.ifEmpty { "23:59" }) }
+        var newDate by remember { mutableStateOf(customer.expireDate.orEmpty().ifEmpty { "2026-09-01" }) }
+        var newTime by remember { mutableStateOf(customer.expireTime.orEmpty().ifEmpty { "23:59" }) }
 
         AlertDialog(
             onDismissRequest = { showEditExpiryDialog = false },

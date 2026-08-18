@@ -186,16 +186,12 @@ fun MikroTikScreen(viewModel: MainViewModel) {
     var selectedRouterId by remember { mutableStateOf<String?>(null) }
     val currentRouter = routers.find { it.id == selectedRouterId } ?: routers.firstOrNull() ?: MikroTikRouterEntity(
         id = "1",
-        routerName = "Core RouterBOARD CCR2116",
-        ipAddress = "192.168.88.1",
-        apiPort = 8728,
-        username = "admin",
-        password = "",
-        isConnected = true,
-        activePppoeCount = 412,
-        totalRxMbps = 845.2,
-        totalTxMbps = 320.8,
-        zone = "Uttara Core Hub"
+        name = "Core RouterBOARD CCR2116",
+        host = "192.168.88.1",
+        port = 8728,
+        apiUser = "admin",
+        apiPass = "",
+        isConnected = true
     )
 
     // Hardware Status State
@@ -377,13 +373,13 @@ fun MikroTikScreen(viewModel: MainViewModel) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(
-                                            text = router.routerName,
+                                            text = router.name,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
                                             color = if (isSelected) Color.White else Slate900
                                         )
                                         Text(
-                                            text = "${router.ipAddress} • ${router.zone}",
+                                            text = "${router.host}",
                                             fontSize = 10.sp,
                                             color = if (isSelected) Color.White.copy(alpha = 0.85f) else Slate600
                                         )
@@ -440,7 +436,7 @@ fun MikroTikScreen(viewModel: MainViewModel) {
                                 Column {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = currentRouter.routerName,
+                                            text = currentRouter.name,
                                             fontWeight = FontWeight.ExtraBold,
                                             fontSize = 16.sp,
                                             color = Slate900
@@ -461,7 +457,7 @@ fun MikroTikScreen(viewModel: MainViewModel) {
                                         }
                                     }
                                     Text(
-                                        text = "Model: RouterBOARD 2116-12G-4S+ • OS: RouterOS v7.14.2",
+                                        text = "Model: RouterBOARD 2116-12G-4S+ • Host: ${currentRouter.host}",
                                         fontSize = 11.sp,
                                         color = Slate600
                                     )
@@ -1112,7 +1108,7 @@ fun MikroTikScreen(viewModel: MainViewModel) {
             },
             text = {
                 Text(
-                    "Are you sure you want to disconnect user '${target.username}' (${target.ipAddress}) from MikroTik router '${currentRouter.routerName}'?\n\nThis will immediately terminate the active PPPoE/Hotspot line.",
+                    "Are you sure you want to disconnect user '${target.username}' (${target.ipAddress}) from MikroTik router '${currentRouter.name}'?\n\nThis will immediately terminate the active PPPoE/Hotspot line.",
                     fontSize = 13.sp,
                     color = Slate600
                 )
@@ -1254,15 +1250,14 @@ fun MikroTikScreen(viewModel: MainViewModel) {
     if (showAddRouterDialog) {
         AddRouterDialog(
             onDismiss = { showAddRouterDialog = false },
-            onAdd = { name, ip, port, user, pass, zone ->
+            onAdd = { name, host, port, user, pass, _ ->
                 viewModel.addMikroTikRouter(
                     MikroTikRouterEntity(
-                        routerName = name,
-                        ipAddress = ip,
-                        apiPort = port,
-                        username = user,
-                        password = pass,
-                        zone = zone,
+                        name = name,
+                        host = host,
+                        port = port,
+                        apiUser = user,
+                        apiPass = pass,
                         isConnected = true
                     )
                 )
