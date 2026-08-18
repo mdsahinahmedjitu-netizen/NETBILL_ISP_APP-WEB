@@ -726,7 +726,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                     {visibleColumns.cb && <td className="p-4 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-6 h-6 rounded-lg border-slate-200 text-teal-600 cursor-pointer" /></td>}
                     {visibleColumns.id && <td className="p-3 text-slate-600 text-[10px] font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
                     {visibleColumns.sl && <td className="p-3 text-slate-400 text-[10px]">{idx + 1}</td>}
-                    {visibleColumns.customer && <td className="p-3 text-left font-black leading-tight"><p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-sm text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-0.5">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
+                    {visibleColumns.customer && <td className="p-3 text-left font-black leading-tight"><p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-base text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-1">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
                     {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold">{c.pppoeUsername || '---'}</td>}
                     {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
                     {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
@@ -750,18 +750,18 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                       const advanceBalance = parseFloat(c.advanceBalance || c.advance_balance || 0);
 
                       return (<>
-                        <p className="text-[11px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{monthlyBill}</p>
-                        <p className="text-[11px] font-black text-emerald-600 mt-0.5 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p>
-                        <p className="text-[14px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(currentDue)}</p>
-                        {advanceBalance > 0 && <p className="text-[9px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(advanceBalance)}</p>}
+                        <p className="text-[14px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{monthlyBill}</p>
+                        <p className="text-[14px] font-black text-emerald-600 mt-1 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p>
+                        <p className="text-[16px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(currentDue)}</p>
+                        {advanceBalance > 0 && <p className="text-[10px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(advanceBalance)}</p>}
                       </>);
                     })()}</td>}
-                    {visibleColumns.join && <td className="p-3 text-[10px] text-slate-600 font-black">{formatDateDisplay(c.joinDate)}</td>}
+                    {visibleColumns.join && <td className="p-3 text-[14px] text-slate-800 dark:text-white font-black">{formatDateDisplay(c.joinDate)}</td>}
                     {visibleColumns.expire && <td className="p-3 text-center leading-tight">
-                      <p className="text-[11px] font-black text-rose-500 uppercase tracking-tighter">
+                      <p className="text-[16px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter shadow-sm">
                         {formatDateDisplay(c.expireDate || c.expire_date || c.expiryDate || c.expiry_date || 'Not Set')}
                       </p>
-                      <p className="text-[9px] font-black text-slate-400 mt-0.5 uppercase">
+                      <p className="text-[10px] font-black text-slate-400 mt-1 uppercase">
                         Req: {formatDateDisplay(c.requestDate || c.request_date || 'Not Set')}
                       </p>
                     </td>}
@@ -782,7 +782,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                           <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>
                             {c.status}
                           </span>
-                          <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase ${c.paymentStatus === 'Paid' ? 'bg-teal-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                          <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase ${c.paymentStatus === 'Paid' ? 'bg-teal-500 text-white' : 'bg-orange-500 text-white'}`}>
                             {c.paymentStatus}
                           </span>
                         </div>
