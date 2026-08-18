@@ -31,8 +31,8 @@ interface CustomerDao {
     @Query("SELECT * FROM customers WHERE id = :id LIMIT 1")
     suspend fun getCustomerById(id: String): CustomerEntity?
 
-    @Query("SELECT * FROM customers WHERE pppoeUsername = :pppoe AND pppoePassword = :password LIMIT 1")
-    suspend fun getCustomerByPppoe(pppoe: String, password: String): CustomerEntity?
+    @Query("SELECT * FROM customers WHERE (pppoeUsername = :identifier OR customerCode = :identifier) AND pppoePassword = :password LIMIT 1")
+    suspend fun getCustomerByIdentifier(identifier: String, password: String): CustomerEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCustomer(customer: CustomerEntity)

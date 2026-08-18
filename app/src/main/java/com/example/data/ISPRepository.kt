@@ -296,16 +296,19 @@ class ISPRepository(private val db: AppDatabase) {
         return expiredCustomers.size
     }
 
-    suspend fun getCustomerByPppoe(pppoe: String, password: String): CustomerEntity? {
-        return customerDao.getCustomerByPppoe(pppoe, password)
+    suspend fun getCustomerByLogin(identifier: String, password: String): CustomerEntity? {
+        return customerDao.getCustomerByIdentifier(identifier, password)
     }
 
-    suspend fun findCustomerByPppoeInCloud(pppoe: String, password: String): CustomerEntity? {
+    suspend fun findCustomerByLoginInCloud(identifier: String, password: String): CustomerEntity? {
         return try {
             val response = supabase.postgrest.from("customers")
                 .select() {
                     filter {
-                        eq("pppoe_username", pppoe)
+                        or {
+                            eq("pppoe_username", identifier)
+                            eq("customer_code", identifier)
+                        }
                         eq("pppoe_password", password)
                     }
                 }

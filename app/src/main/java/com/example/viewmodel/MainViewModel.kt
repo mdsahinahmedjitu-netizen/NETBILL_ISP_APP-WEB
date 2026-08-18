@@ -189,41 +189,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _loginUiState.value = LoginUiState.Loading
             
-            // 1. First, try Supabase Authentication (Cloud Primary)
+            // 1. Check Hardcoded Admin (Same as Web)
+            if (identifier == "admin@isp.com" && pass == "123456") {
+                _localUser.value = UserEntity(id = "admin", username = identifier, name = "Super Admin", mobile = "", role = "admin")
+                _loginUiState.value = LoginUiState.Success
+                authManager.signInAnonymously() // For sync
+                showToast("Logged in as Super Admin")
+                return@launch
+            }
+
+            // 2. Try Supabase Authentication (Cloud Primary)
             val supabaseResult = authManager.signIn(identifier, pass)
-            
             if (supabaseResult.isSuccess) {
                 _loginUiState.value = LoginUiState.Success
                 showToast("Logged in via Supabase Cloud")
                 return@launch
             }
 
-            // 2. Fallback: Check Local Room Database
+            // 3. Fallback: Check Local Room Database
             val user = repository.userDao.getUserByUsernameOrMobile(identifier)
             if (user != null && user.passwordHash == pass) {
-                // Perform Anonymous Supabase Login for sync permissions
-                val anonResult = authManager.signInAnonymously()
-                
+                authManager.signInAnonymously()
                 _localUser.value = user
                 _loginUiState.value = LoginUiState.Success
-                
-                if (anonResult.isSuccess) {
-                    showToast("Logged in as ${user.name} (Demo Mode + Cloud Sync)")
-                } else {
-                    val error = anonResult.exceptionOrNull()?.message ?: "Unknown Error"
-                    showToast("Cloud Sync Auth Error: $error")
-                }
+                showToast("Logged in as ${user.name}")
                 return@launch
             }
 
-            // 3. Both failed
-            val errorMsg = supabaseResult.exceptionOrNull()?.message ?: "Invalid credentials"
-            _loginUiState.value = LoginUiState.Error(errorMsg)
-            showToast("Login Failed: $errorMsg")
+            _loginUiState.value = LoginUiState.Error("Invalid Credentials")
+            showToast("Login Failed")
         }
     }
 
-    fun loginCustomer(pppoeUser: String, pppoePass: String) {
+    fun loginCustomer(identifier: String, pass: String) {
         viewModelScope.launch {
             _loginUiState.value = LoginUiState.Loading
             
@@ -234,21 +232,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            // 2. First search in local Room DB
-            var customer = repository.getCustomerByPppoe(pppoeUser.trim(), pppoePass.trim())
+            // 2. First search in local Room DB (Name, PPPoE or ID)
+            var customer = repository.getCustomerByLogin(identifier.trim(), pass.trim())
 
-            // 3. If not found locally, search directly in Cloud Firestore
+            // 3. If not found locally, search directly in Cloud
             if (customer == null) {
-                customer = repository.findCustomerByPppoeInCloud(pppoeUser, pppoePass)
+                customer = repository.findCustomerByLoginInCloud(identifier.trim(), pass.trim())
             }
 
             if (customer != null) {
                 _loggedInCustomer.value = customer
                 _loginUiState.value = LoginUiState.Success
-                repository.startSync() // Start real-time sync for this customer
+                repository.startSync() 
                 showToast("Welcome ${customer.name}!")
             } else {
-                _loginUiState.value = LoginUiState.Error("Invalid PPPoE Username or Password")
+                _loginUiState.value = LoginUiState.Error("Invalid Customer ID or Password")
                 showToast("Login Failed: Customer not found")
             }
         }

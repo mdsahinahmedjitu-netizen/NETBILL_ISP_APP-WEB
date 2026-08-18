@@ -109,6 +109,36 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
         ) {
             item { PremiumHeader(cust = cust) }
 
+            // CUSTOMER BASIC INFO (MOBILE & ZONE)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Phone, null, tint = Teal600, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Mobile No", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Bold)
+                                Text(cust.mobile, fontSize = 16.sp, fontWeight = FontWeight.Black, color = Slate900)
+                            }
+                        }
+                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Place, null, tint = Teal600, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Zone / Area", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Bold)
+                                Text(cust.zone.ifEmpty { "Global" }, fontSize = 16.sp, fontWeight = FontWeight.Black, color = Slate900)
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 ConnectivitySection(
                     status = cust.status, 
@@ -258,8 +288,8 @@ fun BillingActionCard(due: Double, advance: Double, onPayClick: () -> Unit) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("মোট বকেয়া (Due)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CoralWarning)
-                    Text("৳ ${due.toInt()}", fontSize = 36.sp, fontWeight = FontWeight.Black, color = if(due > 0) CoralWarning else EmeraldSuccess)
+                    Text("মোট বকেয়া (Total Due)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CoralWarning)
+                    Text("৳ ${due.toInt()}", fontSize = 36.sp, fontWeight = FontWeight.Black, color = CoralWarning)
                 }
                 Button(onClick = onPayClick, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = BkashPink), modifier = Modifier.height(50.dp).padding(horizontal = 4.dp)) {
                     Icon(Icons.Outlined.Payments, null)
