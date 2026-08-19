@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -60,18 +61,23 @@ import java.util.*
 @Composable
 fun StaffScreen(viewModel: MainViewModel) {
     val staffList by viewModel.staffList.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+    val isAdmin = currentUser?.role?.lowercase() == "admin"
     val currency = AppTranslation("currency_symbol")
     var showAddStaffDialog by remember { mutableStateOf(false) }
     var selectedStaffForSalary by remember { mutableStateOf<StaffEntity?>(null) }
+    var selectedStaffForEdit by remember { mutableStateOf<StaffEntity?>(null) }
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddStaffDialog = true },
-                containerColor = ElectricBlue,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Staff")
+            if (isAdmin) {
+                FloatingActionButton(
+                    onClick = { showAddStaffDialog = true },
+                    containerColor = ElectricBlue,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Staff")
+                }
             }
         },
         containerColor = SleekBg
@@ -117,6 +123,17 @@ fun StaffScreen(viewModel: MainViewModel) {
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isAdmin) {
+                                    IconButton(onClick = { selectedStaffForEdit = staff }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit Staff",
+                                            tint = Slate600,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
                                 IconButton(
                                     onClick = { viewModel.updateStaff(staff.copy(receiveAlerts = !staff.receiveAlerts)) }
                                 ) {
@@ -145,8 +162,8 @@ fun StaffScreen(viewModel: MainViewModel) {
             if (showAddStaffDialog) {
                 AddStaffDialog(
                     onDismiss = { showAddStaffDialog = false },
-                    onSave = { name, mobile, role, salary, alerts, jDate ->
-                        viewModel.addStaff(name, mobile, role, salary, alerts, jDate)
+                    onSave = { name, mobile, role, salary, alerts, jDate, zone ->
+                        viewModel.addStaff(name, mobile, role, salary, alerts, jDate, zone)
                         showAddStaffDialog = false
                     }
                 )
@@ -162,16 +179,67 @@ fun StaffScreen(viewModel: MainViewModel) {
                     }
                 )
             }
+
+            selectedStaffForEdit?.let { staff ->
+                EditStaffDialog(
+                    staff = staff,
+                    onDismiss = { selectedStaffForEdit = null },
+                    onSave = { updatedStaff ->
+                        viewModel.updateStaff(updatedStaff)
+                        selectedStaffForEdit = null
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun AddStaffDialog(onDismiss: () -> Unit, onSave: (String, String, String, Double, Boolean, String) -> Unit) {
+fun EditStaffDialog(staff: StaffEntity, onDismiss: () -> Unit, onSave: (StaffEntity) -> Unit) {
+    var name by remember { mutableStateOf(staff.name) }
+    var mobile by remember { mutableStateOf(staff.mobile) }
+    var role by remember { mutableStateOf(staff.role) }
+    var salary by remember { mutableStateOf(staff.salary.toInt().toString()) }
+    var zone by remember { mutableStateOf(staff.zone) }
+    var receiveAlerts by remember { mutableStateOf(staff.receiveAlerts) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Employee: ${staff.name}", color = Slate900, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Staff Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile Number") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = role, onValueChange = { role = it }, label = { Text("Role / Designation") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = salary, onValueChange = { salary = it }, label = { Text("Monthly Salary (৳)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = zone, onValueChange = { zone = it }, label = { Text("Assigned Zone") }, modifier = Modifier.fillMaxWidth())
+                
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { receiveAlerts = !receiveAlerts }) {
+                    androidx.compose.material3.Checkbox(checked = receiveAlerts, onCheckedChange = { receiveAlerts = it })
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Receive WhatsApp Alerts", fontSize = 13.sp, color = Slate800)
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { 
+                onSave(staff.copy(name = name, mobile = mobile, role = role, salary = salary.toDoubleOrNull() ?: staff.salary, zone = zone, receiveAlerts = receiveAlerts)) 
+            }, colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)) {
+                Text("Update Staff", color = Color.White)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Slate600) } },
+        containerColor = SleekCard
+    )
+}
+
+@Composable
+fun AddStaffDialog(onDismiss: () -> Unit, onSave: (String, String, String, Double, Boolean, String, String) -> Unit) {
     var name by remember { mutableStateOf("") }
     var mobile by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("Support Staff") }
     var salary by remember { mutableStateOf("15000") }
+    var zone by remember { mutableStateOf("All") }
     var receiveAlerts by remember { mutableStateOf(false) }
     var joiningDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
 
@@ -191,6 +259,7 @@ fun AddStaffDialog(onDismiss: () -> Unit, onSave: (String, String, String, Doubl
                 OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("Mobile Number") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(value = role, onValueChange = { role = it }, label = { Text("Role / Designation") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.None))
                 OutlinedTextField(value = salary, onValueChange = { salary = it }, label = { Text("Monthly Salary (৳)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = zone, onValueChange = { zone = it }, label = { Text("Assigned Zone") }, modifier = Modifier.fillMaxWidth())
                 
                 ReadonlyDateField(
                     value = joiningDate,
@@ -207,7 +276,7 @@ fun AddStaffDialog(onDismiss: () -> Unit, onSave: (String, String, String, Doubl
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(name, mobile, role, salary.toDoubleOrNull() ?: 15000.0, receiveAlerts, joiningDate) }, colors = ButtonDefaults.buttonColors(containerColor = Teal600)) {
+            Button(onClick = { onSave(name, mobile, role, salary.toDoubleOrNull() ?: 15000.0, receiveAlerts, joiningDate, zone) }, colors = ButtonDefaults.buttonColors(containerColor = Teal600)) {
                 Text("Save Staff", color = Color.White)
             }
         },

@@ -290,6 +290,12 @@ object Strings {
         "salary" to "Monthly Salary",
         "joining_date" to "Joining Date",
         "pay_salary" to "Disburse Salary",
+        "salary_ledger" to "Salary Ledger",
+        "total_salary_accrued" to "Total Salary Accrued",
+        "total_disbursed" to "Total Disbursed",
+        "net_balance" to "Net Balance",
+        "pao_na" to "Pao-na",
+        "advance" to "Advance",
 
         // Packages
         "package_management" to "Internet Packages",
@@ -597,6 +603,12 @@ object Strings {
         "salary" to "মাসিক বেতন",
         "joining_date" to "যোগদানের তারিখ",
         "pay_salary" to "বেতন প্রদান করুন",
+        "salary_ledger" to "বেতন হিসাব (লেজার)",
+        "total_salary_accrued" to "মোট অর্জিত বেতন",
+        "total_disbursed" to "মোট পরিশোধিত",
+        "net_balance" to "নিট ব্যালেন্স",
+        "pao_na" to "পাওনা",
+        "advance" to "অগ্রিম",
 
         // Packages
         "package_management" to "ইন্টারনেট প্যাকেজসমূহ",

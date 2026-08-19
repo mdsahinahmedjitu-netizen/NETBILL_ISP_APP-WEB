@@ -347,10 +347,23 @@ class ISPRepository(private val db: AppDatabase) {
         return 0
     }
     suspend fun insertExpense(expense: ExpenseEntity) { expenseDao.insertExpense(expense) }
+    suspend fun updateExpense(expense: ExpenseEntity) {
+        expenseDao.insertExpense(expense)
+        try { supabase.postgrest.from("expenses").update(expense) { filter { eq("id", expense.id) } } } catch (e: Exception) { Log.e("ISPRepository", "Supabase Expense update failed", e) }
+    }
     suspend fun insertPackage(pkg: PackageEntity) { packageDao.insertPackage(pkg) }
-    suspend fun insertStaff(staff: StaffEntity) { staffDao.insertStaff(staff) }
-    suspend fun updateStaff(staff: StaffEntity) { staffDao.insertStaff(staff) }
-    suspend fun insertSalary(salary: StaffSalaryEntity) {}
+    suspend fun insertStaff(staff: StaffEntity) { 
+        staffDao.insertStaff(staff) 
+        try { supabase.postgrest.from("staff").insert(staff) } catch (e: Exception) { Log.e("ISPRepository", "Supabase Staff insert failed", e) }
+    }
+    suspend fun updateStaff(staff: StaffEntity) { 
+        staffDao.insertStaff(staff) 
+        try { supabase.postgrest.from("staff").update(staff) { filter { eq("id", staff.id) } } } catch (e: Exception) { Log.e("ISPRepository", "Supabase Staff update failed", e) }
+    }
+    suspend fun insertSalary(salary: StaffSalaryEntity) {
+        // Implementation for inserting salary
+        try { supabase.postgrest.from("staff_salary").insert(salary) } catch (e: Exception) { Log.e("ISPRepository", "Supabase Salary insert failed", e) }
+    }
     suspend fun updateRouterStatus(routerId: String, isConnected: Boolean) {}
     suspend fun insertRouter(router: MikroTikRouterEntity) { mikrotikDao.insertRouter(router) }
     suspend fun insertLedgerEntry(entry: LedgerEntity) { ledgerDao.insertLedger(entry) }

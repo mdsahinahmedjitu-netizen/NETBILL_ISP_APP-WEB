@@ -5,6 +5,7 @@ const Expenses = ({ store, session, t }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [filterCategory, setFilterCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [newCatName, setNewCatName] = useState('');
@@ -40,6 +41,26 @@ const Expenses = ({ store, session, t }) => {
     notes: ''
   };
   const [formData, setFormData] = useState(initialState);
+
+  const openAddModal = () => {
+    setIsEditing(false);
+    setFormData(initialState);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (exp) => {
+    setIsEditing(true);
+    setFormData({
+      id: exp.id,
+      title: exp.title || exp.item,
+      category: exp.category,
+      amount: exp.amount,
+      expenseDate: exp.expenseDate || exp.date,
+      expenseBy: exp.expenseBy,
+      notes: exp.notes || exp.remarks
+    });
+    setShowAddModal(true);
+  };
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
@@ -80,20 +101,28 @@ const Expenses = ({ store, session, t }) => {
 
     setIsProcessing(true);
     try {
-      const { error } = await supabase.from('expenses').insert({
+      const dbData = {
         title: formData.title,
         category: formData.category,
         amount: parseFloat(formData.amount),
         expense_date: formData.expenseDate,
         expense_by: formData.expenseBy,
         notes: formData.notes
-      });
-      if (error) throw error;
-      alert("Expense Recorded Successfully!");
+      };
+
+      if (isEditing) {
+        const { error } = await supabase.from('expenses').update(dbData).eq('id', formData.id);
+        if (error) throw error;
+        alert("Expense Updated Successfully!");
+      } else {
+        const { error } = await supabase.from('expenses').insert(dbData);
+        if (error) throw error;
+        alert("Expense Recorded Successfully!");
+      }
       setShowAddModal(false);
       setFormData(initialState);
     } catch (error) {
-      alert("Failed to record expense.");
+      alert("Failed to save expense.");
     } finally {
       setIsProcessing(false);
     }
@@ -126,7 +155,7 @@ const Expenses = ({ store, session, t }) => {
                 <i className="fas fa-tags mr-2"></i>{t.expense_categories?.split(' ')[1] || 'CATEGORIES'}
              </button>
              <button
-               onClick={() => setShowAddModal(true)}
+               onClick={openAddModal}
                className="bg-slate-900 text-white px-10 py-5 rounded-[28px] shadow-2xl font-black text-xs tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-slate-700"
              >
                 + {t.add_expense}
@@ -185,13 +214,20 @@ const Expenses = ({ store, session, t }) => {
                        <td className="p-6 text-xs font-black text-indigo-600 uppercase italic">{exp.expenseBy}</td>
                        <td className="p-6 text-right font-black text-2xl text-rose-500 tracking-tighter">৳ {exp.amount}</td>
                        <td className="p-6 text-center">
-
-                          <button
-                            onClick={() => handleDelete(exp.id)}
-                            className="w-10 h-10 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                          >
-                             <i className="fas fa-trash-alt"></i>
-                          </button>
+                          <div className="flex justify-center space-x-2">
+                             <button
+                               onClick={() => openEditModal(exp)}
+                               className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                             >
+                                <i className="fas fa-edit text-xs"></i>
+                             </button>
+                             <button
+                               onClick={() => handleDelete(exp.id)}
+                               className="w-10 h-10 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                             >
+                                <i className="fas fa-trash-alt text-xs"></i>
+                             </button>
+                          </div>
                        </td>
                     </tr>
                   ))}
@@ -215,7 +251,7 @@ const Expenses = ({ store, session, t }) => {
               <div className="flex justify-between items-center border-b pb-8">
                  <div className="flex items-center space-x-4">
                     <div className="w-14 h-14 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-rose-100"><i className="fas fa-receipt"></i></div>
-                    <h3 className="text-3xl font-black uppercase tracking-tighter">{t.add_expense}</h3>
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">{isEditing ? 'Edit ISP Expense' : t.add_expense}</h3>
                  </div>
                  <button onClick={() => setShowAddModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg"><i className="fas fa-times"></i></button>
               </div>
@@ -256,6 +292,18 @@ const Expenses = ({ store, session, t }) => {
                  </div>
 
                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-400 ml-4 tracking-[4px]">Spent By *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Admin or Staff Name"
+                      value={formData.expenseBy}
+                      onChange={e => setFormData({...formData, expenseBy: e.target.value})}
+                      className="w-full bg-white dark:bg-slate-800 p-5 rounded-3xl font-black text-sm outline-none border-2 border-slate-100 dark:border-slate-700"
+                      required
+                    />
+                 </div>
+
+                 <div className="space-y-2">
                     <label className="text-[10px] text-slate-400 ml-4 tracking-[4px]">Amount (৳) *</label>
                     <input
                       type="number"
@@ -280,9 +328,9 @@ const Expenses = ({ store, session, t }) => {
                  <button
                    type="submit"
                    disabled={isProcessing}
-                   className="w-full bg-slate-900 text-white py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all border-b-8 border-slate-700"
+                   className={`w-full ${isEditing ? 'bg-indigo-600 border-indigo-900' : 'bg-slate-900 border-slate-700'} text-white py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all border-b-8`}
                  >
-                    {isProcessing ? 'SAVING RECORD...' : 'COMMIT EXPENSE'}
+                    {isProcessing ? 'SAVING RECORD...' : isEditing ? 'UPDATE EXPENSE' : 'COMMIT EXPENSE'}
                  </button>
               </form>
            </div>

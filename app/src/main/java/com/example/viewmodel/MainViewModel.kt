@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.core.content.edit
 
 data class DashboardStats(
     val totalCustomers: Int = 0,
@@ -69,8 +70,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _loginUiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val loginUiState: StateFlow<LoginUiState> = _loginUiState.asStateFlow()
 
-    private val _toastMessage = MutableStateFlow<String?>(null)
-    val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
+
 
     private val _filterState = MutableStateFlow(CustomerFilterState())
     val filterState: StateFlow<CustomerFilterState> = _filterState.asStateFlow()
@@ -144,7 +144,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         // Observe settings and update gateway config
         viewModelScope.launch {
-            repository.settings.collect { settings ->
+            repository.settings.collect { _ ->
                 // settings?.let { repository.updateGatewayConfig(it) } // Update if method exists
             }
         }
@@ -167,14 +167,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        super.onCleared()
         repository.stopSync()
     }
 
 
     fun setLanguage(language: AppLanguage) {
         _currentLanguage.value = language
-        prefs.edit().putString("app_lang", language.name).apply()
+        prefs.edit { putString("app_lang", language.name) }
         showToast("Language changed to: ${language.name}")
     }
 
@@ -184,10 +183,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setDarkMode(enabled: Boolean) {
         _isDarkMode.value = enabled
-        prefs.edit().putBoolean("is_dark_mode", enabled).apply()
+        prefs.edit { putBoolean("is_dark_mode", enabled) }
     }
 
-    fun toggleDarkMode() { setDarkMode(!_isDarkMode.value) }
+
 
     fun loginUser(identifier: String, pass: String) {
         viewModelScope.launch {
@@ -392,12 +391,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun generateBills(monthYear: String) {
-        viewModelScope.launch {
-            val count = repository.generateAutoMonthlyInvoices(monthYear)
-            showToast("$count Invoices Generated.")
-        }
-    }
+
 
     fun generateBillsForMonth(monthYear: String, overrides: Map<String, String> = emptyMap()) {
         viewModelScope.launch {
@@ -406,11 +400,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addExpense(title: String, category: String, amount: Double, notes: String, date: String? = null) {
+    fun addExpense(title: String, category: String, amount: Double, notes: String, date: String? = null, spentBy: String? = null) {
         viewModelScope.launch {
             val dateStr = date ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            repository.insertExpense(ExpenseEntity(id = UUID.randomUUID().toString(), title = title, category = category, amount = amount, expenseDate = dateStr, expenseBy = currentUser.value?.name ?: "Admin", notes = notes))
+            repository.insertExpense(ExpenseEntity(id = UUID.randomUUID().toString(), title = title, category = category, amount = amount, expenseDate = dateStr, expenseBy = spentBy ?: currentUser.value?.name ?: "Admin", notes = notes))
             showToast("Expense recorded.")
+        }
+    }
+
+    fun updateExpense(expense: ExpenseEntity) {
+        viewModelScope.launch {
+            repository.updateExpense(expense)
+            showToast("Expense updated.")
         }
     }
 
@@ -421,10 +422,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addStaff(name: String, mobile: String, role: String, salary: Double, receiveAlerts: Boolean = false, jDate: String? = null) {
+    fun addStaff(name: String, mobile: String, role: String, salary: Double, receiveAlerts: Boolean = false, jDate: String? = null, zone: String = "All") {
         viewModelScope.launch {
             val dateStr = jDate ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            repository.insertStaff(StaffEntity(id = UUID.randomUUID().toString(), name = name, mobile = mobile, role = role, salary = salary, joiningDate = dateStr, receiveAlerts = receiveAlerts))
+            repository.insertStaff(StaffEntity(id = UUID.randomUUID().toString(), name = name, mobile = mobile, role = role, salary = salary, joiningDate = dateStr, receiveAlerts = receiveAlerts, zone = zone))
             showToast("Staff added.")
         }
     }
@@ -443,9 +444,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateRouterStatus(routerId: String, connected: Boolean) {
-        viewModelScope.launch { repository.updateRouterStatus(routerId, connected) }
-    }
+
 
     fun addMikroTikRouter(router: MikroTikRouterEntity) {
         viewModelScope.launch { repository.insertRouter(router) }
@@ -522,36 +521,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearSmsLogs() { viewModelScope.launch { repository.clearAllSmsLogs() } }
     fun resendAllFailedSms() { /* Implement if needed */ }
     fun resendFailedSms(log: SmsLogEntity) { viewModelScope.launch { repository.updateSmsLog(log) } }
-    fun sendMass20thDaySmsReminders() {
-        viewModelScope.launch {
-            val customers = expiringTomorrowCustomers.value
-            val currentSettings = settingsState.value ?: ISPSettingsEntity()
-            if (customers.isEmpty()) {
-                showToast("No customers expiring tomorrow.")
-                return@launch
-            }
-            if (!currentSettings.isAutoSmsEnabled) {
-                showToast("Auto SMS is disabled in settings.")
-                return@launch
-            }
 
-            var sentCount = 0
-            customers.forEach { cust ->
-                val msg = "Dear ${cust.name}, your NetBill internet will expire tomorrow. Current Due: ${cust.currentDue.toInt()} ৳. Please pay today to avoid disconnection."
-                repository.sendAndLogSms(SmsLogEntity(
-                    id = UUID.randomUUID().toString(), 
-                    customerId = cust.id, 
-                    customerCode = cust.customerCode, 
-                    customerName = cust.name, 
-                    mobile = cust.mobile, 
-                    notificationType = "20th Day Reminder", 
-                    message = msg
-                ))
-                sentCount++
-            }
-            showToast("Queued $sentCount SMS reminders.")
-        }
-    }
 
     fun sendSupportUpdateSms(id: String?, zone: String, msg: String) {
         viewModelScope.launch {
@@ -583,16 +553,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun suspendAllExpiredCustomers() {
-        viewModelScope.launch {
-            val count = repository.checkAndSuspendExpiredCustomers()
-            if (count > 0) {
-                showToast("$count expired customers have been suspended and notified via SMS.")
-            } else {
-                showToast("No newly expired customers found.")
-            }
-        }
-    }
+
 
     fun sendSingleSmsNotification(id: String, code: String, name: String, mobile: String, type: String, msg: String) {
         viewModelScope.launch { 
@@ -706,7 +667,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateGatewayConfig(config: com.example.service.GatewayConfig) { _gatewayConfig.value = config }
     fun processAutomatedGatewayPayment(customerId: String, invoiceId: String, amount: Double, gateway: com.example.service.PaymentGatewayType, mobile: String, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
-            val (success, payment) = repository.processAutomatedGatewayPayment(customerId, invoiceId, amount, gateway, mobile, "System")
+            val (success, _) = repository.processAutomatedGatewayPayment(customerId, invoiceId, amount, gateway, mobile, "System")
             onResult(success, if (success) "Payment Success" else "Payment Failed")
         }
     }
@@ -714,20 +675,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { onResult(repository.verifyAndReconcileTransaction(trxId, gateway)) }
     }
 
-    fun startBKashPayment(customerId: String, amount: Double, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            val customer = customersList.value.find { it.id == customerId } ?: return@launch
-            val (success, payment) = repository.processAutomatedGatewayPayment(
-                customerId = customerId,
-                invoiceId = "", // Direct payment, not tied to a specific old invoice
-                amount = amount,
-                gateway = com.example.service.PaymentGatewayType.BKASH,
-                customerMobile = customer.mobile,
-                collectorName = "System (Gateway)"
-            )
-            onResult(success, if (success) "Payment Successful: ${payment?.receiptNo}" else "Payment Failed")
-        }
-    }
+
 
     fun submitPaymentRequest(customerId: String, amount: Double, method: String, trxId: String, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
@@ -820,12 +768,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun deleteSupportTicket(id: String) {
-        viewModelScope.launch {
-            repository.deleteSupportTicket(id)
-            showToast("Ticket deleted.")
-        }
-    }
+
 
     fun broadcastSms(type: String, zone: String = "All", onlyDue: Boolean = false) {
         viewModelScope.launch {
@@ -860,6 +803,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun showToast(msg: String) { _toastMessage.value = msg }
-    fun clearToast() { _toastMessage.value = null }
+
+
+    fun showToast(msg: String) { Log.d("Toast", msg) }
 }

@@ -56,12 +56,12 @@ data class CustomerEntity(
     @SerialName("connection_fee") val connectionFee: Double = 0.0,
     val notes: String? = ""
 ) {
-    val joinDayOfMonth: Int
+    @get:Ignore val joinDayOfMonth: Int
         get() {
             return try {
                 if (joinDate.isNullOrBlank()) 1
-                else joinDate!!.split("-")[2].toInt()
-            } catch (e: Exception) { 1 }
+                else joinDate.split("-")[2].toInt()
+            } catch (_: Exception) { 1 }
         }
 }
 
@@ -149,6 +149,7 @@ data class StaffEntity(
     val role: String = "operator",
     val salary: Double = 0.0,
     val password: String = "",
+    val zone: String = "All",
     @SerialName("joining_date") val joiningDate: String = "",
     @SerialName("receive_alerts") val receiveAlerts: Boolean = false,
     val active: Boolean = true,
@@ -165,17 +166,6 @@ data class StaffSalaryEntity(
     val amount: Double = 0.0,
     @SerialName("salary_month") val salaryMonth: String = "",
     @SerialName("payment_date") val paymentDate: String = ""
-)
-
-@Serializable
-@Entity(tableName = "staff_payouts")
-data class StaffPayoutEntity(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    @SerialName("staff_id") val staffId: String = "",
-    val amount: Double = 0.0,
-    val date: String = "",
-    val type: String = "salary",
-    val remarks: String = ""
 )
 
 @Serializable

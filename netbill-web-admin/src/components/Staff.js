@@ -47,7 +47,9 @@ const Staff = ({ store, session, t }) => {
     password: '',
     zone: 'All',
     status: 'Active',
-    balance: 0 // New field to track Due/Advance
+    balance: 0,
+    joiningDate: new Date().toLocaleDateString('en-CA'),
+    receiveAlerts: false
   };
   const [formData, setFormData] = useState(initialState);
 
@@ -59,25 +61,46 @@ const Staff = ({ store, session, t }) => {
 
   const openEditModal = (staff) => {
     setIsEditing(true);
-    setFormData(staff);
+    setFormData({
+      ...initialState,
+      ...staff
+    });
     setShowModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      const dbData = {
+        name: formData.name,
+        mobile: formData.mobile,
+        role: formData.role,
+        salary: parseFloat(formData.salary) || 0,
+        password: formData.password,
+        zone: formData.zone,
+        status: formData.status,
+        balance: parseFloat(formData.balance) || 0
+      };
+
+      // Only add joining_date if it's needed and exists in your schema
+      // If your DB uses join_date instead of joining_date, change it here
+      if (formData.joiningDate) {
+        dbData.joining_date = formData.joiningDate;
+      }
+
       if (isEditing) {
-        const { error } = await supabase.from('staff').update(formData).eq('id', formData.id);
+        const { error } = await supabase.from('staff').update(dbData).eq('id', formData.id);
         if (error) throw error;
         alert("Staff updated successfully!");
       } else {
-        const { error } = await supabase.from('staff').insert(formData);
+        const { error } = await supabase.from('staff').insert(dbData);
         if (error) throw error;
         alert("Staff recruited successfully!");
       }
       setShowModal(false);
     } catch (error) {
-      alert("Action failed!");
+      console.error("Save failed:", error);
+      alert("Action failed! " + (error.message || ""));
     }
   };
 
@@ -243,7 +266,10 @@ const Staff = ({ store, session, t }) => {
 
               <div>
                 <h4 className="text-xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{s.name}</h4>
-                <p className="text-[9px] font-black text-teal-600 uppercase tracking-[3px] mt-1.5">{s.role} • {s.mobile}</p>
+                <div className="flex items-center space-x-2 mt-1.5">
+                  <p className="text-[9px] font-black text-teal-600 uppercase tracking-[3px]">{s.role} • {s.mobile}</p>
+                  {s.receiveAlerts && <span className="text-[8px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black">ALERTS ON</span>}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -289,8 +315,25 @@ const Staff = ({ store, session, t }) => {
                 <Field label="Mobile / Username *" value={formData.mobile} onChange={v => setFormData({...formData, mobile: v})} placeholder="017xxxxxxxx" />
                 <Field label="Login Password *" value={formData.password} onChange={v => setFormData({...formData, password: v})} type="password" />
                 <Field label="Designation / Role" value={formData.role} onChange={v => setFormData({...formData, role: v})} type="select" options={['Collector', 'Lineman', 'Management', 'Support', 'Admin']} />
-                <Field label="Monthly Salary (৳)" value={formData.salary} onChange={v => setFormData({...formData, salary: parseFloat(v) || 0})} type="number" />
+                <Field label="Monthly Salary (৳) *" value={formData.salary} onChange={v => setFormData({...formData, salary: v})} type="number" />
+                {session.role === 'admin' && (
+                  <Field label="Account Balance (৳) *" value={formData.balance} onChange={v => setFormData({...formData, balance: v})} type="number" />
+                )}
                 <Field label="Zone Coverage" value={formData.zone} onChange={v => setFormData({...formData, zone: v})} placeholder="E.g. Zone A, Zone B" />
+                <Field label="Joining Date" value={formData.joiningDate} onChange={v => setFormData({...formData, joiningDate: v})} type="date" />
+
+                <div className="md:col-span-2 flex items-center space-x-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <input
+                    type="checkbox"
+                    id="receiveAlerts"
+                    checked={formData.receiveAlerts}
+                    onChange={e => setFormData({...formData, receiveAlerts: e.target.checked})}
+                    className="w-6 h-6 rounded-lg text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="receiveAlerts" className="text-sm font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest cursor-pointer">
+                    Receive WhatsApp Alerts for this staff
+                  </label>
+                </div>
                 <div className="md:col-span-2 pt-6">
                   <button type="submit" className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black uppercase tracking-[10px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all border-b-8 border-indigo-900">
                     {isEditing ? 'UPDATE STAFF IDENTITY' : 'COMMIT RECRUITMENT'}

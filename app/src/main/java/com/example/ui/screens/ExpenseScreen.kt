@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,6 +30,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -65,6 +67,7 @@ fun ExpenseScreen(viewModel: MainViewModel) {
     val expenses by viewModel.expensesList.collectAsState()
     val currency = AppTranslation("currency_symbol")
     var showAddExpenseDialog by remember { mutableStateOf(false) }
+    var selectedExpenseForEdit by remember { mutableStateOf<ExpenseEntity?>(null) }
 
     Scaffold(
         floatingActionButton = {
@@ -119,7 +122,17 @@ fun ExpenseScreen(viewModel: MainViewModel) {
                                     Text("Category: ${exp.category} • Date: ${exp.expenseDate}", color = Slate600, fontSize = 11.sp)
                                     Text("Logged by: ${exp.expenseBy}", color = Teal600, fontSize = 11.sp)
                                 }
-                                Text("$currency ${exp.amount.toInt()}", fontWeight = FontWeight.Bold, color = CoralWarning, fontSize = 16.sp)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("$currency ${exp.amount.toInt()}", fontWeight = FontWeight.Bold, color = CoralWarning, fontSize = 16.sp)
+                                    IconButton(onClick = { selectedExpenseForEdit = exp }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = Slate400,
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -131,9 +144,20 @@ fun ExpenseScreen(viewModel: MainViewModel) {
     if (showAddExpenseDialog) {
         AddExpenseDialog(
             onDismiss = { showAddExpenseDialog = false },
-            onSave = { title, category, amount, notes, date ->
-                viewModel.addExpense(title, category, amount, notes, date)
+            onSave = { title, category, amount, notes, date, spentBy ->
+                viewModel.addExpense(title, category, amount, notes, date, spentBy)
                 showAddExpenseDialog = false
+            }
+        )
+    }
+
+    selectedExpenseForEdit?.let { expense ->
+        EditExpenseDialog(
+            expense = expense,
+            onDismiss = { selectedExpenseForEdit = null },
+            onUpdate = { updatedExpense ->
+                viewModel.updateExpense(updatedExpense)
+                selectedExpenseForEdit = null
             }
         )
     }
@@ -141,14 +165,96 @@ fun ExpenseScreen(viewModel: MainViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun EditExpenseDialog(
+    expense: ExpenseEntity,
+    onDismiss: () -> Unit,
+    onUpdate: (ExpenseEntity) -> Unit
+) {
+    var title by remember { mutableStateOf(expense.title) }
+    var category by remember { mutableStateOf(expense.category) }
+    var expandedCat by remember { mutableStateOf(false) }
+    var amount by remember { mutableStateOf(expense.amount.toInt().toString()) }
+    var notes by remember { mutableStateOf(expense.notes ?: "") }
+    var spentBy by remember { mutableStateOf(expense.expenseBy) }
+    var expenseDate by remember { mutableStateOf(expense.expenseDate) }
+
+    val categories = listOf(
+        "Bandwidth Cost", "Staff Salary", "Electricity Bill", "Equipment Purchase", "Office Rent", "Maintenance", "Transport", "Other Expense"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit ISP Expense", color = Slate900, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Expense Title / Voucher") }, modifier = Modifier.fillMaxWidth())
+
+                ExposedDropdownMenuBox(
+                    expanded = expandedCat,
+                    onExpandedChange = { expandedCat = !expandedCat }
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCat) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        label = { Text("Category") }
+                    )
+                    ExposedDropdownMenu(expanded = expandedCat, onDismissRequest = { expandedCat = false }) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(text = { Text(cat) }, onClick = { category = cat; expandedCat = false })
+                        }
+                    }
+                }
+
+                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (৳ BDT)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = spentBy, onValueChange = { spentBy = it }, label = { Text("Spent By") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes / Vendor") }, modifier = Modifier.fillMaxWidth())
+
+                ReadonlyDateField(
+                    value = expenseDate,
+                    label = "ব্যয়ের তারিখ (Expense Date)",
+                    onDateSelected = { expenseDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { 
+                    onUpdate(expense.copy(
+                        title = title, 
+                        category = category, 
+                        amount = amount.toDoubleOrNull() ?: expense.amount, 
+                        notes = notes, 
+                        expenseBy = spentBy,
+                        expenseDate = expenseDate
+                    )) 
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+            ) {
+                Text("Update Expense", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = Slate600) }
+        },
+        containerColor = SleekCard
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun AddExpenseDialog(
     onDismiss: () -> Unit,
-    onSave: (String, String, Double, String, String) -> Unit
+    onSave: (String, String, Double, String, String, String) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Bandwidth Cost") }
     var expandedCat by remember { mutableStateOf(false) }
     var amount by remember { mutableStateOf("") }
+    var spentBy by remember { mutableStateOf("Admin") }
     var notes by remember { mutableStateOf("") }
     var expenseDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
 
@@ -183,6 +289,7 @@ fun AddExpenseDialog(
                 }
 
                 OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (৳ BDT)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = spentBy, onValueChange = { spentBy = it }, label = { Text("Spent By") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes / Vendor") }, modifier = Modifier.fillMaxWidth())
                 
                 ReadonlyDateField(
@@ -195,7 +302,7 @@ fun AddExpenseDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onSave(title, category, amount.toDoubleOrNull() ?: 0.0, notes, expenseDate) },
+                onClick = { onSave(title, category, amount.toDoubleOrNull() ?: 0.0, notes, expenseDate, spentBy) },
                 colors = ButtonDefaults.buttonColors(containerColor = BkashPink)
             ) {
                 Text("Save Expense", color = Color.White)
