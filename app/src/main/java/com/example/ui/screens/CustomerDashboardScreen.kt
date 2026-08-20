@@ -10,8 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.automirrored.outlined.LiveHelp
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.NetworkCheck
@@ -28,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 import com.example.data.entity.CustomerEntity
 import com.example.viewmodel.MainViewModel
 import com.example.ui.theme.*
@@ -41,6 +41,7 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
     val payments by viewModel.paymentsList.collectAsState()
     val tickets by viewModel.supportTickets.collectAsState()
     val settings by viewModel.settingsState.collectAsState()
+    val isDarkMode by viewModel.isDarkMode.collectAsState()
     val currency = "৳"
 
     if (customer == null) {
@@ -54,18 +55,6 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
     var showSupportDialog by remember { mutableStateOf(false) }
     var showPayDialog by remember { mutableStateOf(false) }
     
-    // Traffic Animation Simulation
-    var liveTrafficUp by remember { mutableStateOf(0.0) }
-    var liveTrafficDown by remember { mutableStateOf(0.0) }
-    
-    LaunchedEffect(Unit) {
-        while(true) {
-            liveTrafficDown = (100..5000).random() / 100.0
-            liveTrafficUp = (10..500).random() / 100.0
-            delay(3.seconds)
-        }
-    }
-
     val myPayments = remember(payments, cust.id) {
         payments.filter { it.customerId == cust.id }.sortedByDescending { it.paymentDate }
     }
@@ -75,105 +64,159 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { 
-                    Text("NETBILL SELF-CARE", 
-                        fontWeight = FontWeight.Black, 
-                        fontSize = 16.sp, 
-                        letterSpacing = 2.sp,
-                        color = Teal700
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = { /* Profile Action */ }) {
-                        Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Teal600)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.logout() }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = CoralWarning)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
-        },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = if (isDarkMode) Slate900 else Color(0xFFF8FAFC)
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            item { PremiumHeader(cust = cust) }
+            // WEB-STYLE HEADER
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            modifier = Modifier.size(56.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Teal600
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.AccountCircle, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("WELCOME BACK,", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Teal600, letterSpacing = 2.sp)
+                            Text(cust.name, fontSize = 24.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, letterSpacing = (-1).sp)
+                        }
+                    }
+                    IconButton(
+                        onClick = { viewModel.logout() },
+                        modifier = Modifier.background(CoralWarning.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Logout, null, tint = CoralWarning, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
 
-            // CUSTOMER BASIC INFO (MOBILE & ZONE)
+            // HERO DUE CARD (MATCHES WEB)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    shape = RoundedCornerShape(44.dp),
+                    colors = CardDefaults.cardColors(containerColor = Teal600),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
                 ) {
-                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Phone, null, tint = Teal600, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text("Mobile No", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Bold)
-                                Text(cust.mobile, fontSize = 16.sp, fontWeight = FontWeight.Black, color = Slate900)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Brush.verticalGradient(listOf(Teal600, Color(0xFF0F766E))))
+                            .padding(32.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.Start) {
+                            Text("মোট বকেয়া (TOTAL DUE)", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.7f), letterSpacing = 3.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("$currency ${String.format(java.util.Locale.US, "%,.0f", cust.currentDue)}", fontSize = 64.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = (-2).sp)
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Column {
+                                    Text("MONTHLY BILL", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.6f))
+                                    Text("$currency ${cust.monthlyBill}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                }
+                                Column {
+                                    Text("EXPIRATION", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.6f))
+                                    Text(cust.expireDate ?: "Not Set", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                }
                             }
-                        }
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Place, null, tint = Teal600, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text("Zone / Area", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Bold)
-                                Text(cust.zone.orEmpty().ifEmpty { "Global" }, fontSize = 16.sp, fontWeight = FontWeight.Black, color = Slate900)
+
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            Button(
+                                onClick = { showPayDialog = true },
+                                modifier = Modifier.fillMaxWidth().height(72.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Teal700),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
+                                Text("PAY BILL NOW", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp)
                             }
                         }
                     }
                 }
             }
 
+            // INFO GRID
             item {
-                ConnectivitySection(
-                    status = cust.status, 
-                    up = liveTrafficUp, 
-                    down = liveTrafficDown,
-                    expireDate = cust.expireDate ?: ""
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    InfoSmallCard(label = "CURRENT PLAN", value = cust.packageName, icon = Icons.Default.Wifi, color = ElectricBlue, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
+                    InfoSmallCard(label = "ZONE / AREA", value = cust.zone.orEmpty().ifEmpty { "Global" }, icon = Icons.Default.Place, color = Teal600, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
+                }
             }
 
+            // ACTIONS
             item {
-                BillingActionCard(
-                    due = cust.currentDue, 
-                    advance = cust.advanceBalance,
-                    onPayClick = { showPayDialog = true }
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("SUPPORT CENTER", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 3.sp)
+                    Card(
+                        onClick = { showSupportDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Slate800 else Color.White),
+                        border = BorderStroke(1.dp, if (isDarkMode) Slate700 else Color(0xFFE2E8F0))
+                    ) {
+                        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(48.dp).background(Color(0xFFFBBF24).copy(alpha = 0.1f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                Icon(Icons.AutoMirrored.Filled.Help, null, tint = Color(0xFFD97706))
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("REPORT A PROBLEM", fontSize = 14.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900)
+                                Text("আমাদের প্রতিনিধি শীঘ্রই যোগাযোগ করবে", fontSize = 11.sp, color = Slate500)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Slate300)
+                        }
+                    }
+                }
             }
 
-            item {
-                ServiceGrid(
-                    onReportClick = { showSupportDialog = true },
-                    onHistoryClick = { /* Scroll Logic */ }
-                )
-            }
-
-            if (myTickets.isNotEmpty()) {
-                item { SectionHeader(title = "My Support Tickets", icon = Icons.AutoMirrored.Outlined.LiveHelp) }
-                items(myTickets.take(3)) { ticket -> TicketCompactItem(ticket = ticket) }
-            }
-
+            // PAYMENT HISTORY
             if (myPayments.isNotEmpty()) {
-                item { SectionHeader(title = "Recent Payments", icon = Icons.Outlined.History) }
-                items(myPayments.take(5)) { pymt -> PaymentCompactItem(pymt = pymt, currency = currency) }
+                item {
+                    Text("PAYMENT HISTORY / পেমেন্ট ইতিহাস", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 3.sp)
+                }
+                items(myPayments) { pymt ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Slate800 else Color.White),
+                        border = BorderStroke(1.dp, if (isDarkMode) Slate700 else Color(0xFFF1F5F9))
+                    ) {
+                        Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(44.dp).background(EmeraldSuccess.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Receipt, null, tint = EmeraldSuccess, modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text("Receipt: ${pymt.receiptNo}", fontSize = 14.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900)
+                                    Text("${pymt.paymentDate} • ${pymt.paymentMethod}", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text("$currency ${String.format(java.util.Locale.US, "%,.0f", pymt.amount)}", fontSize = 20.sp, fontWeight = FontWeight.Black, color = EmeraldSuccess)
+                        }
+                    }
+                }
             }
             
-            item { Spacer(modifier = Modifier.height(20.dp)) }
+            item { Spacer(modifier = Modifier.height(40.dp)) }
         }
     }
 
@@ -199,6 +242,25 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
             },
             currentDue = cust.currentDue
         )
+    }
+}
+
+@Composable
+fun InfoSmallCard(label: String, value: String, icon: ImageVector, color: Color, modifier: Modifier, isDarkMode: Boolean) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Slate800 else Color.White),
+        border = BorderStroke(1.dp, if (isDarkMode) Slate700 else Color(0xFFE2E8F0))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Box(modifier = Modifier.size(40.dp).background(color.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(label, fontSize = 8.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 1.sp)
+            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, maxLines = 1)
+        }
     }
 }
 
@@ -274,7 +336,7 @@ fun SpeedCard(label: String, value: String, unit: String, icon: ImageVector, col
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(value, fontSize = 24.sp, fontWeight = FontWeight.Black, color = Slate900)
+                Text(String.format(Locale.US, "%.2f", value.toDoubleOrNull() ?: 0.0), fontSize = 24.sp, fontWeight = FontWeight.Black, color = Slate900)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(unit, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color, modifier = Modifier.padding(bottom = 4.dp))
             }
@@ -289,7 +351,7 @@ fun BillingActionCard(due: Double, advance: Double, onPayClick: () -> Unit) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     Text("মোট বকেয়া (Total Due)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CoralWarning)
-                    Text("৳ ${due.toInt()}", fontSize = 36.sp, fontWeight = FontWeight.Black, color = CoralWarning)
+                    Text("৳ ${String.format(Locale.US, "%,.0f", due)}", fontSize = 36.sp, fontWeight = FontWeight.Black, color = CoralWarning)
                 }
                 Button(onClick = onPayClick, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = BkashPink), modifier = Modifier.height(50.dp).padding(horizontal = 4.dp)) {
                     Icon(Icons.Outlined.Payments, null)
@@ -303,7 +365,7 @@ fun BillingActionCard(due: Double, advance: Double, onPayClick: () -> Unit) {
                     Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Savings, null, tint = EmeraldSuccess, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("You have ৳ ${advance.toInt()} advance in account.", fontSize = 11.sp, color = EmeraldSuccess, fontWeight = FontWeight.Bold)
+                        Text("You have ৳ ${String.format(Locale.US, "%,.0f", advance)} advance in account.", fontSize = 11.sp, color = EmeraldSuccess, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -370,7 +432,7 @@ fun PaymentCompactItem(pymt: com.example.data.entity.PaymentCollectionEntity, cu
                     Text("${pymt.paymentDate} • ${pymt.paymentMethod}", fontSize = 11.sp, color = Slate500)
                 }
             }
-            Text("$currency ${pymt.amount.toInt()}", fontWeight = FontWeight.Black, color = EmeraldSuccess, fontSize = 16.sp)
+            Text("$currency ${String.format(Locale.US, "%,.0f", pymt.amount)}", fontWeight = FontWeight.Black, color = EmeraldSuccess, fontSize = 16.sp)
         }
     }
 }
@@ -405,7 +467,7 @@ fun CustomerManualPayDialog(
                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("১. আপনার $selectedMethod অ্যাপ থেকে নিচের নাম্বারে Send Money করুন।", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate800)
                         Text(paymentNumber, fontSize = 22.sp, fontWeight = FontWeight.Black, color = Teal700, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                        Text("পরিমাণ: ৳${currentDue.toInt()}", fontSize = 11.sp, color = Slate600)
+                        Text("পরিমাণ: ৳${String.format(Locale.US, "%,.0f", currentDue)}", fontSize = 11.sp, color = Slate600)
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

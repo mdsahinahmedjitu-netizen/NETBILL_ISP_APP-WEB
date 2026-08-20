@@ -82,12 +82,6 @@ const Staff = ({ store, session, t }) => {
         balance: parseFloat(formData.balance) || 0
       };
 
-      // Only add joining_date if it's needed and exists in your schema
-      // If your DB uses join_date instead of joining_date, change it here
-      if (formData.joiningDate) {
-        dbData.joining_date = formData.joiningDate;
-      }
-
       if (isEditing) {
         const { error } = await supabase.from('staff').update(dbData).eq('id', formData.id);
         if (error) throw error;
@@ -313,7 +307,7 @@ const Staff = ({ store, session, t }) => {
              <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Field label="Staff Name *" value={formData.name} onChange={v => setFormData({...formData, name: v})} placeholder="Full Name" />
                 <Field label="Mobile / Username *" value={formData.mobile} onChange={v => setFormData({...formData, mobile: v})} placeholder="017xxxxxxxx" />
-                <Field label="Login Password *" value={formData.password} onChange={v => setFormData({...formData, password: v})} type="password" />
+                <Field label="Login Password *" value={formData.password} onChange={v => setFormData({...formData, password: v})} type="text" />
                 <Field label="Designation / Role" value={formData.role} onChange={v => setFormData({...formData, role: v})} type="select" options={['Collector', 'Lineman', 'Management', 'Support', 'Admin']} />
                 <Field label="Monthly Salary (৳) *" value={formData.salary} onChange={v => setFormData({...formData, salary: v})} type="number" />
                 {session.role === 'admin' && (

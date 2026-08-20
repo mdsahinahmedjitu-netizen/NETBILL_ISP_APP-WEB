@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigateToAddCustomer, openSearch, openSummary, t }) => {
+const Dashboard = ({ store, session, permissions, setActivePage, setReportInitialTab, navigateToAddCustomer, openSearch, openSummary, t }) => {
   const [activeFilter, setActiveFilter] = useState('today');
   const [customDate, setCustomDate] = useState(new Date().toLocaleDateString('en-CA'));
 
@@ -65,26 +65,50 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
         const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         const receiptNo = "REC-" + Math.random().toString(36).substr(2, 6).toUpperCase();
 
+        const customer = store.customers.find(c => c.id === req.customer_id);
+        if (!customer) throw new Error("Customer not found in system");
+
+        const payAmt = parseFloat(req.amount);
+        let currentDue = (customer.current_due || customer.currentDue || 0);
+        let currentAdvance = (customer.advance_balance || customer.advanceBalance || 0);
+
+        let newDue = currentDue;
+        let newAdvance = currentAdvance;
+
+        if (payAmt > newDue) {
+            const excess = payAmt - newDue;
+            newAdvance += excess;
+            newDue = 0;
+        } else {
+            newDue -= payAmt;
+        }
+
         // 1. Record Payment
         await supabase.from('payments').insert({
             customer_id: req.customer_id,
             customer_name: req.customer_name,
             customer_code: req.customer_code,
-            amount: req.amount,
-            payment_method: (req.method || 'Unknown') + " (Online)",
+            amount: payAmt,
+            payment_method: req.method || 'Unknown',
             payment_date: paymentDate,
             receipt_no: receiptNo,
-            transaction_id: req.trx_id,
-            collected_by: "Admin Verified",
-            remarks: "Approved Web Submission"
+            transaction_id: req.trx_id || req.trxId || '',
+            collected_by: req.collected_by || 'Staff Request',
+            collected_by_id: req.collected_by_id || '',
+            billing_month: req.billing_month || 'Current',
+            remarks: "Staff Collection (Approved)"
         });
 
-        // 2. Update Customer Balance
-        const customer = store.customers.find(c => c.id === req.customer_id);
-        if (customer) {
-            const newDue = (customer.current_due || 0) - req.amount;
-            await supabase.from('customers').update({ current_due: newDue }).eq('id', req.customer_id);
+        // 2. Update Customer Balance & Expiry
+        const updatePayload = {
+            current_due: newDue,
+            advance_balance: newAdvance,
+            payment_status: newDue <= 0 ? 'Paid' : 'Unpaid'
+        };
+        if (newDue <= 0 && req.suggested_expire_date) {
+            updatePayload.expire_date = req.suggested_expire_date;
         }
+        await supabase.from('customers').update(updatePayload).eq('id', req.customer_id);
 
         // 3. Add Ledger
         await supabase.from('ledger_entries').insert({
@@ -92,16 +116,62 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
             date: paymentDate,
             time: timeStr,
             type: "Payment",
-            amount: req.amount,
+            amount: payAmt,
             is_debit: false,
             reference_no: receiptNo,
-            description: "TrxID: " + req.trx_id
+            description: `Staff Collection: ${req.billing_month || 'Bill'}`,
+            running_balance: newDue,
+            collector_name: req.collected_by || 'Staff',
+            paid_amount: payAmt,
+            total_due_balance: newDue
         });
 
         // 4. Update Request Status
         await supabase.from('payment_requests').update({ status: 'approved' }).eq('id', req.id);
-        alert("Payment Approved!");
-    } catch (e) { alert("Action failed!"); }
+
+        // 5. Trigger SMS Notification
+        const settings = store.settings;
+        if (settings && settings.smsApiUrl && customer.mobile) {
+            let msg = `Dear ${customer.name}, BDT ${payAmt} has been received for ${req.billing_month || 'your bill'}. New Due: BDT ${newDue}. Thank you.`;
+
+            // Check for existing "Collection" template
+            const template = store.smsTemplates?.find(t => (t.title === 'Collection' || t.title === 'কালেকশন') && (t.isActive || t.is_active));
+            if (template) {
+                msg = (template.messageContent || template.message_content)
+                    .replace(/{NAME}/g, customer.name || '')
+                    .replace(/{AMOUNT}/g, payAmt)
+                    .replace(/{DUE}/g, Math.floor(newDue))
+                    .replace(/{CUSTOMER_CODE}/g, customer.customerCode || customer.customer_code || '');
+            }
+
+            const cleanMobile = customer.mobile.replace(/[^0-9]/g, "");
+            const finalUrl = settings.smsApiUrl
+                .replace(/{API_KEY}/g, settings.smsApiKey || '')
+                .replace(/{MOBILE}/g, cleanMobile)
+                .replace(/{NUMBER}/g, cleanMobile)
+                .replace(/{MESSAGE}/g, encodeURIComponent(msg));
+
+            // Dispatch using Image ping (CORS-safe)
+            const ping = new Image();
+            ping.src = finalUrl;
+
+            // Record in SMS Logs
+            await supabase.from('sms_logs').insert({
+                customer_id: customer.id,
+                customer_name: customer.name,
+                mobile: cleanMobile,
+                notification_type: 'Collection (Staff Approval)',
+                message: msg,
+                status: 'Sent',
+                sent_timestamp: new Date().toISOString()
+            });
+        }
+
+        alert("Payment Approved! Customer account updated.");
+    } catch (e) {
+        console.error(e);
+        alert("Approval failed: " + e.message);
+    }
   };
 
   const handleReject = async (id) => {
@@ -114,43 +184,47 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
     <div className="max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-widest transition-all relative">
 
       {/* TOP NOTIFICATION BAR - CUSTOMER COMPLAINTS / TICKETS */}
-      {store.tickets?.filter(t => t.status === 'Open' || t.status === 'Pending').length > 0 && (
+      {store.tickets?.filter(t => t.status === 'Open' || t.status === 'Pending').length > 0 && permissions.canSeeComplaintsAlert && (
         <div
           onClick={() => setActivePage('crm_tickets')}
-          className="bg-amber-500 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all border-b-4 border-amber-700"
+          className="bg-amber-500 text-slate-900 p-6 rounded-[32px] shadow-2xl flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all border-b-4 border-amber-700"
         >
            <div className="flex items-center space-x-5">
-              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl relative">
+              <div className="w-14 h-14 bg-black/10 rounded-2xl flex items-center justify-center text-2xl relative text-black">
                  <i className="fas fa-headset"></i>
-                 <span className="absolute -top-1 -right-1 bg-white text-amber-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-amber-600 shadow-sm">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length}</span>
+                 <span className="absolute -top-1 -right-1 bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-amber-500 shadow-sm">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length}</span>
               </div>
               <div>
-                 <h4 className="text-xl font-black uppercase tracking-tighter leading-none">Attention: Customer Complaints</h4>
-                 <p className="text-[10px] font-bold opacity-80 mt-1 uppercase tracking-widest">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length} Pending support tickets found. Click to resolve.</p>
+                 <h4 className="text-xl font-black uppercase tracking-tighter leading-none">{t.tickets_attention}</h4>
+                 <p className="text-sm font-black opacity-80 mt-1 uppercase tracking-widest">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length} {t.tickets_pending_msg}</p>
               </div>
            </div>
-           <div className="w-12 h-12 bg-white text-amber-600 rounded-full flex items-center justify-center text-xl font-black">
+           <div className="w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-black shadow-lg">
               <i className="fas fa-chevron-right"></i>
            </div>
         </div>
       )}
 
       {/* PENDING VERIFICATION ALERTS */}
-      {pendingRequests.length > 0 && (
+      {pendingRequests.length > 0 && permissions.canSeeVerificationAlert && (
         <div className="bg-rose-50 dark:bg-rose-900/20 p-10 rounded-[56px] border-4 border-rose-500/20 space-y-8 animate-pulse">
            <div className="flex items-center space-x-5 text-rose-600">
               <div className="w-14 h-14 bg-rose-500 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg">
                  <i className="fas fa-bell"></i>
               </div>
-              <h3 className="text-3xl font-black uppercase tracking-tighter">Needs Verification: {pendingRequests.length}</h3>
+              <h3 className="text-3xl font-black uppercase tracking-tighter">{t.needs_verification}: {pendingRequests.length}</h3>
            </div>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {pendingRequests.map(req => (
                 <div key={req.id} className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-xl border border-rose-100 flex justify-between items-center group">
                    <div className="space-y-2 leading-none">
-                      <p className="text-sm font-black text-slate-400">TrxID: <span className="text-rose-500">{req.trxId}</span></p>
+                      <div className="flex items-center space-x-2">
+                         <p className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg uppercase">{req.collected_by || 'Staff'}</p>
+                         <p className="text-sm font-black text-slate-400">TrxID: <span className="text-rose-500">{req.trxId || req.trx_id || 'N/A'}</span></p>
+                      </div>
                       <h4 className="text-xl font-black text-slate-800 dark:text-white uppercase">{req.customerName}</h4>
                       <p className="text-2xl font-black text-emerald-600">৳ {req.amount}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{req.billing_month}</p>
                    </div>
                    <div className="flex space-x-3">
                       <button onClick={() => handleApprove(req)} className="w-14 h-14 bg-emerald-500 text-white rounded-2xl shadow-lg hover:scale-110 active:scale-95 transition-all"><i className="fas fa-check"></i></button>
@@ -163,18 +237,21 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
       )}
 
       {/* Stats Grid */}
+      {permissions.canSeeStatsCards && (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-7 font-black uppercase tracking-widest leading-none">
         <FeatureCard title={t.grid_collection} icon="fa-hand-holding-dollar" grad="grad-collection" onClick={() => setActivePage('payments')} />
-        <FeatureCard title="Collection Report" icon="fa-chart-column" grad="grad-invoices" onClick={() => { setReportInitialTab('collection'); setActivePage('reports'); }} />
+        <FeatureCard title={t.collection_report} icon="fa-chart-column" grad="grad-invoices" onClick={() => { setReportInitialTab('collection'); setActivePage('reports'); }} />
         <FeatureCard title={t.grid_crm} icon="fa-users-viewfinder" grad="grad-subscribers" onClick={() => setActivePage('customers')} />
         <FeatureCard title={t.grid_tickets} icon="fa-ticket" grad="grad-tickets" onClick={() => setActivePage('crm_tickets')} />
-        <FeatureCard title={t.grid_add} icon="fa-user-plus" grad="grad-create" onClick={navigateToAddCustomer} />
+        {session?.role === 'admin' && <FeatureCard title={t.grid_add} icon="fa-user-plus" grad="grad-create" onClick={navigateToAddCustomer} />}
         <FeatureCard title={t.grid_search} icon="fa-magnifying-glass-chart" grad="grad-search" onClick={openSearch} />
         <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => { setReportInitialTab('due'); setActivePage('reports'); }} />
         <FeatureCard title={t.grid_summary} icon="fa-chart-pie" grad="grad-summary" onClick={openSummary} />
       </div>
+      )}
 
       {/* Collection Breakdown Card */}
+      {permissions.canSeeTodayCollection && (
       <div className="bg-white dark:bg-slate-800 p-6 md:p-10 rounded-[32px] md:rounded-[48px] card-shadow border border-slate-100 dark:border-slate-700 space-y-8 md:space-y-10 relative overflow-hidden">
         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
            <div className="space-y-2 uppercase">
@@ -204,23 +281,26 @@ const Dashboard = ({ store, session, setActivePage, setReportInitialTab, navigat
            </div>
         </div>
       </div>
+      )}
 
       {/* Main Stats Summary */}
+      {permissions.canSeeTotalCollection && (
       <div className="bg-[#0D9488] p-6 md:p-12 rounded-[32px] md:rounded-[64px] text-white shadow-2xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-white/5 rounded-full -mr-24 md:-mr-48 -mt-24 md:-mt-48 duration-1000 group-hover:scale-110"></div>
         <div className="flex flex-col md:flex-row justify-between items-start relative z-10 font-black tracking-widest leading-none uppercase gap-8">
           <div className="space-y-6 md:space-y-12 w-full leading-none">
             <p className="text-[10px] md:text-sm font-black opacity-90 tracking-[5px] uppercase">{t.financial_total}</p>
-            <h2 className="text-3xl sm:text-5xl md:text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString()}</h2>
+            <h2 className="text-3xl sm:text-5xl md:text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString('en-US')}</h2>
             <div className="flex flex-col md:flex-row md:space-x-24 gap-6 md:gap-0 pt-6 md:pt-10 font-black tracking-widest uppercase">
-               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px]">{t.target_plan}</p><p className="text-lg md:text-3xl font-black">৳ {targetPlan.toLocaleString()}</p></div>
+               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px]">{t.target_plan}</p><p className="text-lg md:text-3xl font-black">৳ {targetPlan.toLocaleString('en-US')}</p></div>
                <div className="hidden md:block w-px h-20 bg-white/20"></div>
-               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-lg md:text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString()}</p></div>
+               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-lg md:text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString('en-US')}</p></div>
             </div>
           </div>
           <div className="w-12 h-12 md:w-24 md:h-24 bg-white/10 rounded-xl md:rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12 self-end md:self-start"><i className="fas fa-chart-line text-xl md:text-4xl text-white"></i></div>
         </div>
       </div>
+      )}
 
     </div>
   );
@@ -245,7 +325,7 @@ const BreakdownRow = ({ method, amount, color, icon, total }) => {
               <span className="text-slate-800 dark:text-slate-200 text-sm md:text-xl tracking-tighter uppercase font-black uppercase">{method}</span>
               <div className="flex items-center space-x-4 md:space-x-10 uppercase font-black uppercase">
                   <span className="text-slate-400 text-xs md:text-lg font-black">{p}%</span>
-                  <span className="text-slate-900 dark:text-white text-base md:text-3xl font-black uppercase tracking-tighter leading-none">৳ {Math.floor(amount).toLocaleString()}</span>
+                  <span className="text-slate-900 dark:text-white text-base md:text-3xl font-black uppercase tracking-tighter leading-none">৳ {Math.floor(amount).toLocaleString('en-US')}</span>
               </div>
           </div>
           <div className="h-2 md:h-2.5 w-full bg-slate-50 dark:bg-slate-900 rounded-full overflow-hidden shadow-inner uppercase font-black">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId, isDirectMode }) => {
+const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId, isDirectMode }) => {
   const [search, setSearch] = useState('');
   const [selectedCust, setSelectedCust] = useState(null);
   const [ledger, setLedger] = useState([]);
@@ -70,7 +70,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
 
   const initialState = {
     name: '', mobile: '', altMobile: '', customerCode: '', address: '',
-    packageName: '', monthlyBill: 0, pppoeUsername: '', pppoePassword: '',
+    packageName: '', monthlyBill: 500, pppoeUsername: '', pppoePassword: '',
     onuSerialNumber: '', zone: '', subZone: '', boxId: '',
     routerId: '', billingType: 'MONTHLY DATE TO DATE', paymentStatus: 'Unpaid',
     expireDate: '', requestDate: '', connectionType: '', status: 'Active',
@@ -125,6 +125,12 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
     const planMatch = filters.plan === 'All' || c.packageName === filters.plan;
     const currentDue = parseFloat(c.currentDue) || 0;
     const dueMatch = !filters.hideZeroDue || (currentDue >= 1);
+
+    // Role-Based Isolation: Collector Staff only see their assigned customers
+    if (session?.role === 'staff') {
+        const isAssigned = (c.assignedStaffId || c.assigned_staff_id) === session.data.id || (c.assignedStaffId || c.assigned_staff_id) === session.data.name;
+        if (!isAssigned) return false;
+    }
 
     return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch;
   });
@@ -515,6 +521,10 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!formData.assignedStaffId || formData.assignedStaffId === 'No Staff') {
+        alert("Please select an Assigned Collector Staff!");
+        return;
+    }
     try {
       const dbData = {
         customer_code: formData.customerCode,
@@ -673,7 +683,9 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
            <StatCard label="TOTAL" value={store.customers.length} color="slate" />
            <StatCard label="MARKED" value={selectedIds.length} color="indigo" />
            <StatCard label="ACTIVE" value={store.customers.filter(c=>c.status==='Active').length} color="emerald" />
-           <button onClick={openAddModal} className="bg-[#0D9488] text-white px-8 py-4 rounded-2xl shadow-2xl font-black uppercase text-sm tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-teal-900">+ {t.new_enrollment}</button>
+           {session?.role === 'admin' && (
+             <button onClick={openAddModal} className="bg-[#0D9488] text-white px-8 py-4 rounded-2xl shadow-2xl font-black uppercase text-sm tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-teal-900">+ {t.new_enrollment}</button>
+           )}
         </div>
       </div>
 
@@ -913,7 +925,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                   <Field label="Mobile *" value={formData.mobile} onChange={v => setFormData({...formData, mobile: v})} placeholder="017xxxx" color="indigo" />
                   <Field label={t.alt_mobile} value={formData.altMobile} onChange={v => setFormData({...formData, altMobile: v})} placeholder="Mobile 2" color="indigo" />
                   <Field label="PPPoE *" value={formData.pppoeUsername} onChange={v => setFormData({...formData, pppoeUsername: v})} placeholder="user@isp" color="indigo" />
-                  <Field label="Pass *" value={formData.pppoePassword} onChange={v => setFormData({...formData, pppoePassword: v})} type="password" color="indigo" />
+                  <Field label="Pass *" value={formData.pppoePassword} onChange={v => setFormData({...formData, pppoePassword: v})} type="text" color="indigo" />
                   <Field label="ONU" value={formData.onuMac} onChange={v => setFormData({...formData, onuMac: v})} placeholder="MAC..." color="indigo" />
                 </Section>
                 <Section title={t.billing_info} color="emerald" bgColor="bg-emerald-50 dark:bg-emerald-900/10" borderColor="border-emerald-100" shadowColor="shadow-emerald-500/20">
@@ -930,7 +942,7 @@ const Customers = ({ store, setActivePage, t, lang, autoOpenModal, setAutoOpenMo
                   <Field label="Fee" value={formData.connectionFee} onChange={v => setFormData({...formData, connectionFee: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Date" value={formData.connectionDate} onChange={v => setFormData({...formData, connectionDate: v})} type="date" color="cyan" />
                   <div className="pt-4 md:pt-8 border-t-2 border-cyan-200">
-                    <Field label={t.assigned_staff} value={formData.assignedStaffId} onChange={v => setFormData({...formData, assignedStaffId: v})} type="select" options={['No Staff', ...store.staff?.map(s => s.name)]} color="cyan" />
+                    <Field label={t.assigned_staff + " *"} value={formData.assignedStaffId} onChange={v => setFormData({...formData, assignedStaffId: v})} type="select" options={['No Staff', ...store.staff?.map(s => s.name)]} color="cyan" />
                   </div>
                   <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[24px] md:rounded-[40px] space-y-4 md:space-y-5 shadow-inner">
                     <p className="text-[10px] md:text-[11px] text-slate-400 font-black text-center tracking-[2px] md:tracking-[4px]">REF</p>

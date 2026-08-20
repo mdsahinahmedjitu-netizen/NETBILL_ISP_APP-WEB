@@ -26,9 +26,12 @@ import com.example.data.entity.*
         ZoneEntity::class,
         SubZoneEntity::class,
         BoxEntity::class,
-        MikroTikRouterEntity::class
+        MikroTikRouterEntity::class,
+        StaffPayoutEntity::class,
+        StaffSalaryEntity::class,
+        PaymentRequestEntity::class
     ],
-    version = 12,
+    version = 14,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -48,6 +51,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun smsTemplateDao(): SmsTemplateDao
     abstract fun inventoryDao(): InventoryDao
     abstract fun supportTicketDao(): SupportTicketDao
+    abstract fun staffPayoutDao(): StaffPayoutDao
+    abstract fun staffSalaryDao(): StaffSalaryDao
+    abstract fun paymentRequestDao(): com.example.data.dao.PaymentRequestDao
 
     companion object {
         @Volatile

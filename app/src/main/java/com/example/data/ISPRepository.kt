@@ -39,6 +39,9 @@ class ISPRepository(private val db: AppDatabase) {
     val smsLogDao = db.smsLogDao()
     val smsTemplateDao = db.smsTemplateDao()
     val mikrotikDao = db.mikrotikDao()
+    val payoutDao = db.staffPayoutDao()
+    val salaryDao = db.staffSalaryDao()
+    val paymentRequestDao = db.paymentRequestDao()
     private val smsService = com.example.service.SmsService()
 
     val allCustomers: Flow<List<CustomerEntity>> = customerDao.getAllCustomers()
@@ -52,6 +55,9 @@ class ISPRepository(private val db: AppDatabase) {
     val allSmsLogs: Flow<List<SmsLogEntity>> = smsLogDao.getAllLogs()
     val allSmsTemplates: Flow<List<SmsTemplateEntity>> = smsTemplateDao.getAllTemplates()
     val allRouters: Flow<List<MikroTikRouterEntity>> = mikrotikDao.getAllRouters()
+    val allPayouts: Flow<List<StaffPayoutEntity>> = payoutDao.getAllPayouts()
+    val allSalaries: Flow<List<StaffSalaryEntity>> = salaryDao.getAllSalaries()
+    val allPaymentRequests: Flow<List<PaymentRequestEntity>> = paymentRequestDao.getAllRequests()
 
     suspend fun submitPaymentRequest(data: Map<String, Any>) {
         supabase.postgrest.from("payment_requests").insert(data)
@@ -97,6 +103,8 @@ class ISPRepository(private val db: AppDatabase) {
             launch { syncTable<StaffEntity>("staff", { id -> scope.launch { staffDao.deleteStaffById(id) } }) { entity -> scope.launch { staffDao.insertStaff(entity) } } }
             launch { syncTable<LedgerEntity>("ledger_entries", { id -> scope.launch { ledgerDao.deleteLedgerById(id) } }) { entity -> scope.launch { ledgerDao.insertLedger(entity) } } }
             launch { syncTable<SmsTemplateEntity>("sms_templates", { id -> scope.launch { smsTemplateDao.deleteTemplateById(id) } }) { entity -> scope.launch { smsTemplateDao.insertTemplate(entity) } } }
+            launch { syncTable<StaffPayoutEntity>("staff_payouts", { id -> scope.launch { payoutDao.deletePayoutById(id) } }) { entity -> scope.launch { payoutDao.insertPayout(entity) } } }
+            launch { syncTable<PaymentRequestEntity>("payment_requests", { id -> scope.launch { paymentRequestDao.deleteRequestById(id) } }) { entity -> scope.launch { paymentRequestDao.insertRequest(entity) } } }
         }
     }
 
@@ -346,6 +354,40 @@ class ISPRepository(private val db: AppDatabase) {
         // Implementation
         return 0
     }
+
+    suspend fun approvePaymentRequest(req: PaymentRequestEntity): Boolean {
+        return try {
+            val payment = recordPayment(
+                customerId = req.customerId,
+                amount = req.amount,
+                paymentMethod = req.method,
+                transactionId = req.trxId,
+                collectorName = req.collectedBy,
+                collectorId = "",
+                remarks = "Approved Staff Collection Request",
+                billingMonth = null
+            )
+            if (payment != null) {
+                supabase.postgrest.from("payment_requests")
+                    .update(mapOf("status" to "approved")) { filter { eq("id", req.id) } }
+                true
+            } else false
+        } catch (e: Exception) {
+            Log.e("ISPRepository", "Approval failed", e)
+            false
+        }
+    }
+
+    suspend fun rejectPaymentRequest(req: PaymentRequestEntity): Boolean {
+        return try {
+            supabase.postgrest.from("payment_requests")
+                .update(mapOf("status" to "rejected")) { filter { eq("id", req.id) } }
+            true
+        } catch (e: Exception) {
+            Log.e("ISPRepository", "Rejection failed", e)
+            false
+        }
+    }
     suspend fun insertExpense(expense: ExpenseEntity) { expenseDao.insertExpense(expense) }
     suspend fun updateExpense(expense: ExpenseEntity) {
         expenseDao.insertExpense(expense)
@@ -361,9 +403,25 @@ class ISPRepository(private val db: AppDatabase) {
         try { supabase.postgrest.from("staff").update(staff) { filter { eq("id", staff.id) } } } catch (e: Exception) { Log.e("ISPRepository", "Supabase Staff update failed", e) }
     }
     suspend fun insertSalary(salary: StaffSalaryEntity) {
-        // Implementation for inserting salary
+        salaryDao.insertSalary(salary)
         try { supabase.postgrest.from("staff_salary").insert(salary) } catch (e: Exception) { Log.e("ISPRepository", "Supabase Salary insert failed", e) }
     }
+
+    suspend fun insertPayout(payout: StaffPayoutEntity) {
+        payoutDao.insertPayout(payout)
+        try { supabase.postgrest.from("staff_payouts").insert(payout) } catch (e: Exception) { Log.e("ISPRepository", "Supabase Payout insert failed", e) }
+    }
+
+    suspend fun updatePayout(payout: StaffPayoutEntity) {
+        payoutDao.updatePayout(payout)
+        try { supabase.postgrest.from("staff_payouts").update(payout) { filter { eq("id", payout.id) } } } catch (e: Exception) { Log.e("ISPRepository", "Supabase Payout update failed", e) }
+    }
+
+    suspend fun deletePayoutById(id: String) {
+        payoutDao.deletePayoutById(id)
+        try { supabase.postgrest.from("staff_payouts").delete { filter { eq("id", id) } } } catch (e: Exception) { Log.e("ISPRepository", "Supabase Payout delete failed", e) }
+    }
+
     suspend fun updateRouterStatus(routerId: String, isConnected: Boolean) {}
     suspend fun insertRouter(router: MikroTikRouterEntity) { mikrotikDao.insertRouter(router) }
     suspend fun insertLedgerEntry(entry: LedgerEntity) { ledgerDao.insertLedger(entry) }

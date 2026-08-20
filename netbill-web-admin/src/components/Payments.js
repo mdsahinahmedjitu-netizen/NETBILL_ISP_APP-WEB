@@ -64,16 +64,41 @@ const Payments = ({ store, session, t }) => {
     return () => supabase.removeChannel(channel);
   }, [selectedCustomerId]);
 
-  const filteredCustomers = store.customers.filter(c =>
-    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.customerCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.mobile?.includes(searchTerm) ||
-    c.pppoeUsername?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCustomers = store.customers.filter(c => {
+    const searchMatch = !searchTerm ||
+      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.customerCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.mobile?.includes(searchTerm) ||
+      c.pppoeUsername?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Role-Based Isolation: Staff only see their assigned customers in dropdown
+    if (session?.role === 'staff') {
+        const isAssigned = (c.assignedStaffId || c.assigned_staff_id) === session.data.id || (c.assignedStaffId || c.assigned_staff_id) === session.data.name;
+        if (!isAssigned) return false;
+    }
+
+    return searchMatch;
+  });
+
+  const canCollect = useMemo(() => {
+    if (session?.role === 'admin') return true;
+    if (session?.role === 'staff') {
+        const roleName = session.data.role; // e.g. 'Collector'
+        const permissions = store.settings?.rolePermissions?.[roleName] || store.settings?.role_permissions?.[roleName];
+        return permissions?.canCollect !== false;
+    }
+    return false;
+  }, [session, store.settings]);
 
   const handlePayment = async (e) => {
     e.preventDefault();
     if (!selectedCustomerId || !amount) return;
+
+    if (!canCollect) {
+        alert("You do not have permission to collect payments!");
+        return;
+    }
+
     const customer = store.customers.find(c => c.id === selectedCustomerId);
     if (!customer) return;
 
@@ -144,9 +169,37 @@ const Payments = ({ store, session, t }) => {
           nextExpireDate = `${baseDate.getDate().toString().padStart(2, '0')}-${monthsArr[baseDate.getMonth()]}-${baseDate.getFullYear()}`;
       }
 
+      // ROLE BASED REDIRECTION: Staff MUST submit for approval
+      if (session?.role === 'staff') {
+        const { error: reqErr } = await supabase.from('payment_requests').insert({
+            customer_id: selectedCustomerId,
+            customer_name: customer.name,
+            customer_code: customer.customerCode || customer.customer_code,
+            amount: payAmt,
+            method: method,
+            status: 'pending',
+            request_date: todayISO,
+            request_time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            collected_by: session.data.name,
+            collected_by_id: session.data.id,
+            billing_month: billingMonth,
+            suggested_expire_date: nextExpireDate
+        });
+
+        if (reqErr) {
+            console.error("Payment Request Error:", reqErr);
+            throw new Error(reqErr.message);
+        }
+
+        // Clear fields on success
+        setAmount(''); setSelectedCustomerId(''); setSearchTerm('');
+        setIsProcessing(false);
+        return;
+      }
+
       commitFinalPayment(selectedCustomerId, payAmt, newDue, newAdvance, nextExpireDate);
 
-    } catch (e) { alert("Error processing payment!"); setIsProcessing(false); }
+    } catch (e) { alert("Error: " + e.message); setIsProcessing(false); }
   };
 
   const commitFinalPayment = async (custId, payAmt, newDue, newAdvance, finalExpireDate) => {

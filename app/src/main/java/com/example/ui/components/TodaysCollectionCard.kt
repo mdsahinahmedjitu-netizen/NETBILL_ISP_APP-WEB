@@ -43,6 +43,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -67,11 +69,13 @@ import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.NagadOrange
 import com.example.ui.theme.RocketViolet
 import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.SleekBorder
 import com.example.ui.theme.SleekCard
+import com.example.ui.theme.SlateSurfaceVariant
 import com.example.ui.theme.Teal100
 import com.example.ui.theme.Teal50
 import com.example.ui.theme.Teal600
@@ -125,6 +129,7 @@ fun TodaysCollectionCard(
 ) {
     var customDateString by remember { mutableStateOf(getTodayDateString()) }
     var showDatePickerDialog by remember { mutableStateOf(false) }
+    val dividerColor = Slate200
 
     // Calculate aggregated statistics based on selected filter
     val summary = remember(payments, selectedFilter, customDateString) {
@@ -137,139 +142,120 @@ fun TodaysCollectionCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(44.dp),
         colors = CardDefaults.cardColors(containerColor = SleekCard),
         border = androidx.compose.foundation.BorderStroke(1.dp, SleekBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp)
+            modifier = Modifier.padding(32.dp)
         ) {
             // Header Row: Title & Subtitle + Live Refresh Indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
+                                .size(14.dp)
                                 .clip(CircleShape)
                                 .background(EmeraldSuccess)
                         )
                         Text(
                             text = if (selectedFilter == CollectionFilterPeriod.TODAY)
-                                AppTranslation("todays_collection")
+                                AppTranslation("todays_collection").uppercase()
                             else
-                                "${summary.periodLabel} ${AppTranslation("todays_collection")}",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
+                                "${summary.periodLabel} ${AppTranslation("todays_collection")}".uppercase(),
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Slate900,
+                            letterSpacing = (-1).sp
                         )
                     }
                     Text(
-                        text = summary.periodLabel,
+                        text = "${activeFilterLabel(selectedFilter)} Overview".uppercase(),
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Slate500
+                        fontWeight = FontWeight.Black,
+                        color = Slate400,
+                        letterSpacing = 2.sp
                     )
                 }
 
                 // Live Auto-Refresh Badge
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(20.dp),
                     color = Teal50,
                     border = androidx.compose.foundation.BorderStroke(1.dp, Teal100)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Schedule,
                             contentDescription = null,
                             tint = Teal600,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = "LIVE AUTO",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Teal700
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Teal700,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Filter Chips Bar: [Today] [Yesterday] [Last 7 Days] [This Month] [Custom]
+            // Filter Chips Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                FilterChipItem(
-                    label = AppTranslation("todays_collection"),
-                    shortLabel = "Today",
-                    isSelected = selectedFilter == CollectionFilterPeriod.TODAY,
-                    onClick = { onFilterSelected(CollectionFilterPeriod.TODAY) }
-                )
-                FilterChipItem(
-                    label = AppTranslation("yesterday"),
-                    shortLabel = AppTranslation("yesterday"),
-                    isSelected = selectedFilter == CollectionFilterPeriod.YESTERDAY,
-                    onClick = { onFilterSelected(CollectionFilterPeriod.YESTERDAY) }
-                )
-                FilterChipItem(
-                    label = AppTranslation("last_7_days"),
-                    shortLabel = AppTranslation("last_7_days"),
-                    isSelected = selectedFilter == CollectionFilterPeriod.LAST_7_DAYS,
-                    onClick = { onFilterSelected(CollectionFilterPeriod.LAST_7_DAYS) }
-                )
-                FilterChipItem(
-                    label = AppTranslation("this_month"),
-                    shortLabel = AppTranslation("this_month"),
-                    isSelected = selectedFilter == CollectionFilterPeriod.THIS_MONTH,
-                    onClick = { onFilterSelected(CollectionFilterPeriod.THIS_MONTH) }
-                )
-                FilterChipItem(
-                    label = if (selectedFilter == CollectionFilterPeriod.CUSTOM) customDateString else AppTranslation("custom_date"),
-                    shortLabel = if (selectedFilter == CollectionFilterPeriod.CUSTOM) customDateString else AppTranslation("custom_date"),
-                    isSelected = selectedFilter == CollectionFilterPeriod.CUSTOM,
-                    onClick = {
-                        onFilterSelected(CollectionFilterPeriod.CUSTOM)
-                        showDatePickerDialog = true
-                    }
-                )
+                FilterChipItem(label = "Today", isSelected = selectedFilter == CollectionFilterPeriod.TODAY, onClick = { onFilterSelected(CollectionFilterPeriod.TODAY) })
+                FilterChipItem(label = "Yesterday", isSelected = selectedFilter == CollectionFilterPeriod.YESTERDAY, onClick = { onFilterSelected(CollectionFilterPeriod.YESTERDAY) })
+                FilterChipItem(label = "Last 7 Days", isSelected = selectedFilter == CollectionFilterPeriod.LAST_7_DAYS, onClick = { onFilterSelected(CollectionFilterPeriod.LAST_7_DAYS) })
+                FilterChipItem(label = "Month", isSelected = selectedFilter == CollectionFilterPeriod.THIS_MONTH, onClick = { onFilterSelected(CollectionFilterPeriod.THIS_MONTH) })
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Payment Methods Breakdown Table
+            // Payment Methods Breakdown
             Text(
-                text = AppTranslation("collection_breakdown"),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Slate500,
-                letterSpacing = 0.5.sp
+                text = AppTranslation("collection_breakdown").uppercase(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black,
+                color = Slate400,
+                letterSpacing = 4.sp,
+                modifier = Modifier.padding(bottom = 16.dp).drawBehind {
+                    val strokeWidth = 1.dp.toPx()
+                    val y = size.height - strokeWidth
+                    drawLine(
+                        color = dividerColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = strokeWidth
+                    )
+                }.fillMaxWidth().padding(bottom = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            summary.methodRows.forEach { row ->
-                PaymentMethodItemRow(row = row)
-                Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                summary.methodRows.forEach { row ->
+                    PaymentMethodItemRow(row = row)
+                }
             }
-
-
         }
     }
 
@@ -290,25 +276,25 @@ fun TodaysCollectionCard(
 @Composable
 fun FilterChipItem(
     label: String,
-    shortLabel: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) Teal600 else Color(0xFFF1F5F9),
+        color = if (isSelected) Teal600 else SlateSurfaceVariant,
         border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, SleekBorder)
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = shortLabel,
+                text = label.uppercase(),
                 fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color.White else Color(0xFF0F172A)
+                fontWeight = FontWeight.Black,
+                color = if (isSelected) Color.White else Slate400,
+                letterSpacing = 1.sp
             )
         }
     }
@@ -325,20 +311,20 @@ fun PaymentMethodItemRow(
         // Icon Badge
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(row.brandColor.copy(alpha = 0.12f)),
+                .size(56.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(SlateSurfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = row.icon,
                 contentDescription = row.displayName,
                 tint = row.brandColor,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(20.dp))
 
         // Method Name & Progress Bar
         Column(
@@ -347,47 +333,61 @@ fun PaymentMethodItemRow(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
                 Text(
-                    text = row.displayName,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Slate900
+                    text = row.displayName.uppercase(),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Slate900,
+                    letterSpacing = (-0.5).sp
                 )
-                Text(
-                    text = "${(row.percentage * 100).toInt()}%",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate500
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "${(row.percentage * 100).toInt()}%",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Slate400
+                    )
+                    Text(
+                        text = formatBdtCurrency(row.amount).uppercase(),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Slate900,
+                        letterSpacing = (-1).sp
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Percentage Bar
-            LinearProgressIndicator(
-                progress = { row.percentage.coerceIn(0f, 1f) },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(5.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = row.brandColor,
-                trackColor = row.brandColor.copy(alpha = 0.15f)
-            )
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(SlateSurfaceVariant)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(row.percentage.coerceIn(0f, 1f))
+                        .height(8.dp)
+                        .clip(CircleShape)
+                        .background(row.brandColor)
+                )
+            }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.width(16.dp))
-
-        // Amount Display formatted in Bangladeshi Taka (৳)
-        Text(
-            text = formatBdtCurrency(row.amount),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (row.amount > 0) Slate900 else Slate500,
-            textAlign = TextAlign.End,
-            modifier = Modifier.width(85.dp)
-        )
+fun activeFilterLabel(filter: CollectionFilterPeriod): String {
+    return when (filter) {
+        CollectionFilterPeriod.TODAY -> "Today"
+        CollectionFilterPeriod.YESTERDAY -> "Yesterday"
+        CollectionFilterPeriod.LAST_7_DAYS -> "Last 7 Days"
+        CollectionFilterPeriod.THIS_MONTH -> "Month"
+        CollectionFilterPeriod.CUSTOM -> "Custom"
     }
 }
 

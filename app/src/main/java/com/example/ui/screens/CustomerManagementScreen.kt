@@ -94,6 +94,7 @@ fun CustomerManagementScreen(
 ) {
     val customers by viewModel.filteredCustomers.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
+    val permissions by viewModel.currentPermissions.collectAsState()
     val currency = AppTranslation("currency_symbol")
 
     var showAddCustomerDialog by remember { mutableStateOf(false) }
@@ -101,15 +102,17 @@ fun CustomerManagementScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    customerToEdit = null
-                    showAddCustomerDialog = true
-                },
-                containerColor = ElectricBlue,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Customer")
+            if (permissions.canAdd) {
+                FloatingActionButton(
+                    onClick = {
+                        customerToEdit = null
+                        showAddCustomerDialog = true
+                    },
+                    containerColor = ElectricBlue,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Customer")
+                }
             }
         },
         containerColor = SleekBg
@@ -229,6 +232,7 @@ fun CustomerManagementScreen(
                         CustomerCard(
                             customer = customer,
                             currency = currency,
+                            permissions = permissions,
                             onClick = { onSelectCustomer(customer) },
                             onEdit = {
                                 customerToEdit = customer
@@ -247,6 +251,7 @@ fun CustomerManagementScreen(
     if (showAddCustomerDialog) {
         AddEditCustomerDialog(
             customer = customerToEdit,
+            permissions = permissions,
             onDismiss = { showAddCustomerDialog = false },
             onSave = { newCust, choice ->
                 viewModel.addOrUpdateCustomer(newCust, choice)
@@ -260,6 +265,7 @@ fun CustomerManagementScreen(
 fun CustomerCard(
     customer: CustomerEntity,
     currency: String,
+    permissions: com.example.data.entity.UserRolePermissions,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -312,6 +318,14 @@ fun CustomerCard(
                             fontSize = 12.sp,
                             color = Slate600
                         )
+                        if (permissions.canSeeMobile) {
+                            Text(
+                                text = "Mobile: ${customer.mobile}",
+                                fontSize = 11.sp,
+                                color = Teal600,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 
@@ -323,7 +337,7 @@ fun CustomerCard(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (isDue) "Due: $currency ${customer.currentDue.toInt()}" else "Paid",
+                        text = if (isDue) "Due: $currency ${String.format(java.util.Locale.US, "%,.0f", customer.currentDue)}" else "Paid",
                         color = if (isDue) CoralWarning else EmeraldSuccess,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp
@@ -373,26 +387,32 @@ fun CustomerCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Pkg: ${customer.packageName} ($currency ${customer.monthlyBill.toInt()}/mo)",
+                    text = "Pkg: ${customer.packageName} ($currency ${String.format(java.util.Locale.US, "%,.0f", customer.monthlyBill)}/mo)",
                     fontSize = 12.sp,
                     color = CyanAccent,
                     fontWeight = FontWeight.SemiBold
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(onClick = onToggleStatus, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = if (customer.status == "Active") Icons.Default.CheckCircle else Icons.Default.Block,
-                            contentDescription = "Toggle Status",
-                            tint = if (customer.status == "Active") EmeraldSuccess else CoralWarning,
-                            modifier = Modifier.size(18.dp)
-                        )
+                    if (permissions.canSuspend) {
+                        IconButton(onClick = onToggleStatus, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = if (customer.status == "Active") Icons.Default.CheckCircle else Icons.Default.Block,
+                                contentDescription = "Toggle Status",
+                                tint = if (customer.status == "Active") EmeraldSuccess else CoralWarning,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
-                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = CyanAccent, modifier = Modifier.size(18.dp))
+                    if (permissions.canEdit) {
+                        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = CyanAccent, modifier = Modifier.size(18.dp))
+                        }
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = CoralWarning, modifier = Modifier.size(18.dp))
+                    if (permissions.canDelete) {
+                        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = CoralWarning, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }
@@ -417,6 +437,7 @@ fun CustomerCard(
 @Composable
 fun AddEditCustomerDialog(
     customer: CustomerEntity?,
+    permissions: com.example.data.entity.UserRolePermissions,
     onDismiss: () -> Unit,
     onSave: (CustomerEntity, String) -> Unit
 ) {
@@ -493,7 +514,8 @@ fun AddEditCustomerDialog(
                             label = { Text("গ্রাহকের নাম (বাংলা / English)") },
                             placeholder = { Text("যেমন: মো: রফিকুল ইসলাম / Rafiqul Islam", color = Slate600, fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            readOnly = !permissions.canEdit && customer != null
                         )
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -503,7 +525,8 @@ fun AddEditCustomerDialog(
                                 label = { Text("মোবাইল নম্বর") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                readOnly = (!permissions.canEdit && customer != null) || !permissions.canSeeMobile
                             )
                             OutlinedTextField(
                                 value = altMobile,
@@ -511,55 +534,62 @@ fun AddEditCustomerDialog(
                                 label = { Text("বিকল্প মোবাইল") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                readOnly = (!permissions.canEdit && customer != null) || !permissions.canSeeMobile
                             )
                         }
                     }
                 }
 
                 // Section 2: Address & Location Info
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Slate100),
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("🏠 ঠিকানা ও এলাকা তথ্য (Address & Location)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 13.sp)
+                if (permissions.canSeeAddress) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = Slate100),
+                        border = BorderStroke(1.dp, Slate200)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("🏠 ঠিকানা ও এলাকা তথ্য (Address & Location)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 13.sp)
 
-                        OutlinedTextField(
-                            value = address,
-                            onValueChange = { address = it },
-                            label = { Text("পূর্ণাঙ্গ ঠিকানা") },
-                            placeholder = { Text("যেমন: বাড়ি-১২, রোড-০৫, সেক্টর-৩, উত্তরা", color = Slate600, fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
-                                value = zone,
-                                onValueChange = { zone = it },
-                                label = { Text("জোন / এলাকা") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                value = address,
+                                onValueChange = { address = it },
+                                label = { Text("পূর্ণাঙ্গ ঠিকানা") },
+                                placeholder = { Text("যেমন: বাড়ি-১২, রোড-০৫, সেক্টর-৩, উত্তরা", color = Slate600, fontSize = 12.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = !permissions.canEdit && customer != null
                             )
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = zone,
+                                    onValueChange = { zone = it },
+                                    label = { Text("জোন / এলাকা") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    readOnly = !permissions.canEdit && customer != null
+                                )
+                                OutlinedTextField(
+                                    value = subZone,
+                                    onValueChange = { subZone = it },
+                                    label = { Text("সাব-জোন / ব্লক") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    readOnly = !permissions.canEdit && customer != null
+                                )
+                            }
+
                             OutlinedTextField(
-                                value = subZone,
-                                onValueChange = { subZone = it },
-                                label = { Text("সাব-জোন / ব্লক") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
+                                value = boxId,
+                                onValueChange = { boxId = it },
+                                label = { Text("নেটওয়ার্ক বক্স / Splitter TJ ID") },
+                                placeholder = { Text("যেমন: BOX-101", color = Slate600, fontSize = 12.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                readOnly = !permissions.canEdit && customer != null
                             )
                         }
-
-                        OutlinedTextField(
-                            value = boxId,
-                            onValueChange = { boxId = it },
-                            label = { Text("নেটওয়ার্ক বক্স / Splitter TJ ID") },
-                            placeholder = { Text("যেমন: BOX-101", color = Slate600, fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
                     }
                 }
 
@@ -578,7 +608,8 @@ fun AddEditCustomerDialog(
                             onValueChange = { pkgName = it },
                             label = { Text("ইন্টারনেট প্যাকেজ") },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            readOnly = !permissions.canModifyPricing
                         )
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -588,7 +619,8 @@ fun AddEditCustomerDialog(
                                 label = { Text("মাসিক বিল (৳)") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                readOnly = !permissions.canModifyPricing
                             )
                             ReadonlyDateField(
                                 value = joinDate,
@@ -619,7 +651,8 @@ fun AddEditCustomerDialog(
                             label = { Text("পূর্ববর্তী বকেয়া পরিমাণ (৳)") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            readOnly = !permissions.canModifyPricing
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -637,39 +670,42 @@ fun AddEditCustomerDialog(
                                 onValueChange = { expireTime = it },
                                 label = { Text("মেয়াদ শেষ সময় (HH:MM / AM-PM)") },
                                 modifier = Modifier.weight(1f),
-                                singleLine = true
+                                singleLine = true,
+                                readOnly = !permissions.canEdit && customer != null
                             )
                         }
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("দ্রুত সেট:", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.SemiBold)
-                            FilterChip(
-                                selected = expireDate == "2026-08-31",
-                                onClick = {
-                                    expireDate = "2026-08-31"
-                                    expireTime = "11:59 PM"
-                                },
-                                label = { Text("আজ রাত 11:59", fontSize = 10.sp) }
-                            )
-                            FilterChip(
-                                selected = expireDate == "2026-09-08",
-                                onClick = {
-                                    expireDate = "2026-09-08"
-                                    expireTime = "11:59 PM"
-                                },
-                                label = { Text("+৭ দিন", fontSize = 10.sp) }
-                            )
-                            FilterChip(
-                                selected = expireDate == "2026-09-30",
-                                onClick = {
-                                    expireDate = "2026-09-30"
-                                    expireTime = "11:59 PM"
-                                },
-                                label = { Text("+৩০ দিন", fontSize = 10.sp) }
-                            )
+                        if (permissions.canEdit || customer == null) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("দ্রুত সেট:", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.SemiBold)
+                                FilterChip(
+                                    selected = expireDate == "2026-08-31",
+                                    onClick = {
+                                        expireDate = "2026-08-31"
+                                        expireTime = "11:59 PM"
+                                    },
+                                    label = { Text("আজ রাত 11:59", fontSize = 10.sp) }
+                                )
+                                FilterChip(
+                                    selected = expireDate == "2026-09-08",
+                                    onClick = {
+                                        expireDate = "2026-09-08"
+                                        expireTime = "11:59 PM"
+                                    },
+                                    label = { Text("+৭ দিন", fontSize = 10.sp) }
+                                )
+                                FilterChip(
+                                    selected = expireDate == "2026-09-30",
+                                    onClick = {
+                                        expireDate = "2026-09-30"
+                                        expireTime = "11:59 PM"
+                                    },
+                                    label = { Text("+৩০ দিন", fontSize = 10.sp) }
+                                )
+                            }
                         }
                     }
                 }
@@ -691,15 +727,19 @@ fun AddEditCustomerDialog(
                                 label = { Text("PPPoE Username") },
                                 placeholder = { Text("অটো জেনারেট হবে", fontSize = 11.sp) },
                                 modifier = Modifier.weight(1f),
-                                singleLine = true
+                                singleLine = true,
+                                readOnly = !permissions.canEdit && customer != null
                             )
-                            OutlinedTextField(
-                                value = pppoePass,
-                                onValueChange = { pppoePass = it },
-                                label = { Text("PPPoE Password") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
+                            if (permissions.canPasswords || customer == null) {
+                                OutlinedTextField(
+                                    value = pppoePass,
+                                    onValueChange = { pppoePass = it },
+                                    label = { Text("PPPoE Password") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    readOnly = !permissions.canEdit && customer != null
+                                )
+                            }
                         }
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -708,14 +748,16 @@ fun AddEditCustomerDialog(
                                 onValueChange = { onuMac = it },
                                 label = { Text("ONU MAC") },
                                 modifier = Modifier.weight(1f),
-                                singleLine = true
+                                singleLine = true,
+                                readOnly = !permissions.canEdit && customer != null
                             )
                             OutlinedTextField(
                                 value = onuSerial,
                                 onValueChange = { onuSerial = it },
                                 label = { Text("ONU Serial") },
                                 modifier = Modifier.weight(1f),
-                                singleLine = true
+                                singleLine = true,
+                                readOnly = !permissions.canEdit && customer != null
                             )
                         }
 
@@ -723,7 +765,8 @@ fun AddEditCustomerDialog(
                             value = notes,
                             onValueChange = { notes = it },
                             label = { Text("অন্যান্য মন্তব্য / নোট (Notes)") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = !permissions.canEdit && customer != null
                         )
                     }
                 }

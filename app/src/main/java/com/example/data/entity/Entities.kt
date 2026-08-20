@@ -169,6 +169,20 @@ data class StaffSalaryEntity(
 )
 
 @Serializable
+@Entity(tableName = "staff_payouts")
+data class StaffPayoutEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    @SerialName("staff_id") val staffId: String = "",
+    @SerialName("staff_name") val staffName: String = "",
+    val month: String = "",
+    val amount: Double = 0.0,
+    val type: String = "salary_add", // salary_add, payment
+    @SerialName("new_balance") val newBalance: Double = 0.0,
+    val date: String = "",
+    val remarks: String = ""
+)
+
+@Serializable
 @Entity(tableName = "isp_settings")
 data class ISPSettingsEntity(
     @PrimaryKey val id: Int = 1,
@@ -186,7 +200,59 @@ data class ISPSettingsEntity(
     @SerialName("is_whatsapp_alert_enabled") val isWhatsappAlertEnabled: Boolean = false,
     @SerialName("monthly_target") val monthlyTarget: Double = 0.0,
     @SerialName("personal_bkash_no") val personalBkashNo: String = "017XXXXXXXX",
-    @SerialName("personal_nagad_no") val personalNagadNo: String = "018XXXXXXXX"
+    @SerialName("personal_nagad_no") val personalNagadNo: String = "018XXXXXXXX",
+    @SerialName("role_permissions") val rolePermissionsJson: String? = null
+)
+
+@Serializable
+data class UserRolePermissions(
+    val canCollect: Boolean = true,
+    val canCollectDirect: Boolean = false,
+    val canSeeMobile: Boolean = true,
+    val canSeeAddress: Boolean = true,
+    val canEdit: Boolean = false,
+    val canDelete: Boolean = false,
+    val canAdd: Boolean = false,
+    val canSeeRevenue: Boolean = false,
+    val canInventory: Boolean = false,
+    val canSuspend: Boolean = false,
+    val canLedger: Boolean = true,
+    val canPasswords: Boolean = false,
+    val canExpenses: Boolean = false,
+    val canSMS: Boolean = false,
+    val canDiscount: Boolean = false,
+    val canBulkBill: Boolean = false,
+    val canEditPayments: Boolean = false,
+    val canManageStock: Boolean = false,
+    val canAssignAssets: Boolean = false,
+    val canManageZones: Boolean = false,
+    val canManageRouters: Boolean = false,
+    val canResolveTickets: Boolean = true,
+    val canSendBulkSMS: Boolean = false,
+    val canEditTemplates: Boolean = false,
+    val canSeeStatsCards: Boolean = true,
+    val canSeeExpiryAlerts: Boolean = true,
+    val canSeeComplaintsAlert: Boolean = true,
+    val canSeeVerificationAlert: Boolean = false,
+    val canSeeTodayCollection: Boolean = true,
+    val canSeeTotalCollection: Boolean = true,
+    val canAccessBilling: Boolean = false,
+    val canAccessReports: Boolean = false,
+    val canAccessInventory: Boolean = false,
+    val canAccessPackages: Boolean = false,
+    val canAccessSMS: Boolean = false,
+    val canAccessSalary: Boolean = false,
+    val canAccessTickets: Boolean = true,
+    val canAccessCustomers: Boolean = true,
+    val canAccessPayments: Boolean = true,
+    val canAccessExpenses: Boolean = false,
+    val canAccessStaff: Boolean = false,
+    val canAccessInfrastructure: Boolean = false,
+    val canAccessSmsLogs: Boolean = false,
+    val canAccessGlobalSettings: Boolean = false,
+    val canModifyPricing: Boolean = false,
+    val canViewLogs: Boolean = false,
+    val canManageStaff: Boolean = false
 )
 
 @Serializable
@@ -302,4 +368,20 @@ data class MikroTikRouterEntity(
     @SerialName("api_user") val apiUser: String = "",
     @SerialName("api_pass") val apiPass: String = "",
     @SerialName("is_connected") val isConnected: Boolean = false
+)
+
+@Serializable
+@Entity(tableName = "payment_requests")
+data class PaymentRequestEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    @SerialName("customer_id") val customerId: String = "",
+    @SerialName("customer_name") val customerName: String = "",
+    @SerialName("customer_code") val customerCode: String = "",
+    val amount: Double = 0.0,
+    val method: String = "",
+    @SerialName("trx_id") val trxId: String = "",
+    val status: String = "pending", // pending, approved, rejected
+    @SerialName("request_date") val requestDate: String = "",
+    @SerialName("request_time") val requestTime: String = "",
+    @SerialName("collected_by") val collectedBy: String = ""
 )

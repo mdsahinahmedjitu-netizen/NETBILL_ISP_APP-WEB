@@ -77,6 +77,7 @@ fun PaymentCollectionScreen(viewModel: MainViewModel) {
     val payments by viewModel.paymentsList.collectAsState()
     val customers by viewModel.customersList.collectAsState()
     val selectedReceipt by viewModel.selectedReceipt.collectAsState()
+    val permissions by viewModel.currentPermissions.collectAsState()
     val currency = AppTranslation("currency_symbol")
 
     var showAddPaymentDialog by remember { mutableStateOf(false) }
@@ -85,24 +86,26 @@ fun PaymentCollectionScreen(viewModel: MainViewModel) {
 
     Scaffold(
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                ExtendedFloatingActionButton(
-                    text = { Text("bKash / Nagad Direct", fontWeight = FontWeight.Bold, fontSize = 12.sp) },
-                    icon = { Icon(Icons.Default.Payment, contentDescription = null) },
-                    onClick = { showOnlineGatewayDialog = true },
-                    containerColor = BkashPink,
-                    contentColor = Color.White
-                )
-
-                FloatingActionButton(
-                    onClick = { showAddPaymentDialog = true },
-                    containerColor = Teal600,
-                    contentColor = Color.White
+            if (permissions.canCollect) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Record Cash Payment")
+                    ExtendedFloatingActionButton(
+                        text = { Text("bKash / Nagad Direct", fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                        icon = { Icon(Icons.Default.Payment, contentDescription = null) },
+                        onClick = { showOnlineGatewayDialog = true },
+                        containerColor = BkashPink,
+                        contentColor = Color.White
+                    )
+
+                    FloatingActionButton(
+                        onClick = { showAddPaymentDialog = true },
+                        containerColor = Teal600,
+                        contentColor = Color.White
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Record Cash Payment")
+                    }
                 }
             }
         },
@@ -126,17 +129,19 @@ fun PaymentCollectionScreen(viewModel: MainViewModel) {
                     color = Slate900
                 )
 
-                Button(
-                    onClick = { showReconciliationDialog = true },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Teal600,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Verify Gateway Trx", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                if (permissions.canSeeRevenue) {
+                    Button(
+                        onClick = { showReconciliationDialog = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Teal600,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Verify Gateway Trx", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
@@ -174,16 +179,27 @@ fun PaymentCollectionScreen(viewModel: MainViewModel) {
             viewModel = viewModel,
             onDismiss = { showAddPaymentDialog = false },
             onSave = { customerId, amount, method, txnId, remarks, date, collector, month ->
-                viewModel.collectPayment(
-                    customerId = customerId,
-                    amount = amount,
-                    method = method,
-                    trxId = txnId,
-                    remarks = remarks,
-                    date = date,
-                    collectorName = collector,
-                    billingMonth = month
-                )
+                if (permissions.canCollectDirect) {
+                    viewModel.collectPayment(
+                        customerId = customerId,
+                        amount = amount,
+                        method = method,
+                        trxId = txnId,
+                        remarks = remarks,
+                        date = date,
+                        collectorName = collector,
+                        billingMonth = month
+                    )
+                } else {
+                    viewModel.submitPaymentRequest(
+                        customerId = customerId,
+                        amount = amount,
+                        method = method,
+                        trxId = txnId
+                    ) { success, msg ->
+                        viewModel.showToast(msg)
+                    }
+                }
                 showAddPaymentDialog = false
             }
         )
@@ -268,7 +284,7 @@ fun PaymentCard(payment: PaymentCollectionEntity, currency: String, onClick: () 
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "$currency ${payment.amount.toInt()}",
+                    text = "$currency ${String.format(java.util.Locale.US, "%,.0f", payment.amount)}",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = EmeraldSuccess
@@ -409,7 +425,7 @@ fun RecordPaymentDialog(
                                         text = { 
                                             Column {
                                                 Text(cust.name, fontWeight = FontWeight.Bold)
-                                                Text("ID: ${cust.customerCode} • Due: ৳${cust.currentDue.toInt()}", fontSize = 11.sp)
+                                                Text("ID: ${cust.customerCode} • Due: ৳${String.format(Locale.US, "%,.0f", cust.currentDue)}", fontSize = 11.sp)
                                             }
                                         },
                                         onClick = {

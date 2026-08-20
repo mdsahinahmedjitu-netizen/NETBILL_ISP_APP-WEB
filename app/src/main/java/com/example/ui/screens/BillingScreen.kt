@@ -89,6 +89,7 @@ import com.example.viewmodel.MainViewModel
 @Composable
 fun BillingScreen(viewModel: MainViewModel) {
     val invoices by viewModel.invoicesList.collectAsState()
+    val permissions by viewModel.currentPermissions.collectAsState()
     val context = LocalContext.current
     val currency = AppTranslation("currency_symbol")
 
@@ -149,41 +150,47 @@ fun BillingScreen(viewModel: MainViewModel) {
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedButton(
-                    onClick = { showReconciliationDialog = true },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate800),
-                    border = BorderStroke(1.dp, Slate200),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp), tint = Teal600)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Verify Trx", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                if (permissions.canSeeRevenue) {
+                    OutlinedButton(
+                        onClick = { showReconciliationDialog = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate800),
+                        border = BorderStroke(1.dp, Slate200),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp), tint = Teal600)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Verify Trx", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
-                Button(
-                    onClick = { showOnlineGatewayDialog = true },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = BkashPink,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("bKash/Nagad Pay", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                if (permissions.canCollect) {
+                    Button(
+                        onClick = { showOnlineGatewayDialog = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BkashPink,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("bKash/Nagad Pay", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
-                Button(
-                    onClick = { showGenerateBillsDialog = true },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Teal600,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Auto Bills", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                if (permissions.canBulkBill) {
+                    Button(
+                        onClick = { showGenerateBillsDialog = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Teal600,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Auto Bills", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -191,28 +198,30 @@ fun BillingScreen(viewModel: MainViewModel) {
         Spacer(modifier = Modifier.height(14.dp))
 
         // Billing Summary Metrics Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            BillingSummaryCard(
-                label = "TOTAL BILLED",
-                value = "$currency ${totalBilled.toInt()}",
-                color = Teal600,
-                modifier = Modifier.weight(1f)
-            )
-            BillingSummaryCard(
-                label = "COLLECTED",
-                value = "$currency ${totalCollected.toInt()}",
-                color = EmeraldSuccess,
-                modifier = Modifier.weight(1f)
-            )
-            BillingSummaryCard(
-                label = "OUTSTANDING",
-                value = "$currency ${totalOutstanding.toInt()}",
-                color = CoralWarning,
-                modifier = Modifier.weight(1f)
-            )
+        if (permissions.canSeeRevenue) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BillingSummaryCard(
+                    label = "TOTAL BILLED",
+                    value = "$currency ${String.format(java.util.Locale.US, "%,.0f", totalBilled)}",
+                    color = Teal600,
+                    modifier = Modifier.weight(1f)
+                )
+                BillingSummaryCard(
+                    label = "COLLECTED",
+                    value = "$currency ${String.format(java.util.Locale.US, "%,.0f", totalCollected)}",
+                    color = EmeraldSuccess,
+                    modifier = Modifier.weight(1f)
+                )
+                BillingSummaryCard(
+                    label = "OUTSTANDING",
+                    value = "$currency ${String.format(java.util.Locale.US, "%,.0f", totalOutstanding)}",
+                    color = CoralWarning,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -328,6 +337,7 @@ fun BillingScreen(viewModel: MainViewModel) {
                     InvoiceCard(
                         invoice = invoice,
                         currency = currency,
+                        permissions = permissions,
                         onCollectPayment = { selectedInvoiceForPayment = invoice },
                         onPrintInvoice = { selectedInvoiceForReceipt = invoice }
                     ) {
@@ -433,6 +443,7 @@ fun BillingSummaryCard(
 fun InvoiceCard(
     invoice: InvoiceEntity,
     currency: String,
+    permissions: com.example.data.entity.UserRolePermissions,
     onCollectPayment: () -> Unit,
     onPrintInvoice: () -> Unit,
     onSendReminder: () -> Unit
@@ -547,19 +558,19 @@ fun InvoiceCard(
             ) {
                 Column {
                     Text("Package Bill", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Medium)
-                    Text("$currency ${invoice.billAmount.toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate800)
+                    Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.billAmount)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate800)
                 }
                 Column {
                     Text("Previous Due", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Medium)
-                    Text("$currency ${invoice.previousDue.toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate800)
+                    Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.previousDue)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate800)
                 }
                 Column {
                     Text("Paid Amount", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Medium)
-                    Text("$currency ${(invoice.totalPayable - invoice.dueAmount).toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                    Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.totalPayable - invoice.dueAmount)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Total Payable", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Medium)
-                    Text("$currency ${invoice.totalPayable.toInt()}", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Teal600)
+                    Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.totalPayable)}", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Teal600)
                 }
             }
 
@@ -571,30 +582,34 @@ fun InvoiceCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (!isPaid) {
-                    Button(
-                        onClick = onCollectPayment,
-                        modifier = Modifier.weight(1.2f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Teal600,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Pay Bill", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    if (permissions.canCollect) {
+                        Button(
+                            onClick = onCollectPayment,
+                            modifier = Modifier.weight(1.2f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Teal600,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Pay Bill", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
 
-                    OutlinedButton(
-                        onClick = onSendReminder,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Teal600),
-                        border = BorderStroke(1.dp, Teal100),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("SMS", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    if (permissions.canSMS) {
+                        OutlinedButton(
+                            onClick = onSendReminder,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Teal600),
+                            border = BorderStroke(1.dp, Teal100),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("SMS", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 } else {
                     Box(
@@ -663,7 +678,7 @@ fun PayInvoiceDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Current Due Amount:", fontSize = 12.sp, color = Slate600)
-                        Text("$currency ${invoice.dueAmount.toInt()}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Teal600)
+                        Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.dueAmount)}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Teal600)
                     }
                 }
 
@@ -825,15 +840,15 @@ fun PrintReceiptDialog(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Package Bill Amount:", fontSize = 11.sp, color = Slate600)
-                        Text("$currency ${invoice.billAmount.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.billAmount)}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Previous Balance / Due:", fontSize = 11.sp, color = Slate600)
-                        Text("$currency ${invoice.previousDue.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.previousDue)}", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Amount Paid:", fontSize = 11.sp, color = Slate600)
-                        Text("$currency ${(invoice.totalPayable - invoice.dueAmount).toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                        Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.totalPayable - invoice.dueAmount)}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -842,7 +857,7 @@ fun PrintReceiptDialog(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("TOTAL PAYABLE DUE:", fontSize = 13.sp, fontWeight = FontWeight.Black, color = Slate900)
-                        Text("$currency ${invoice.dueAmount.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Black, color = Teal600)
+                        Text("$currency ${String.format(java.util.Locale.US, "%,.0f", invoice.dueAmount)}", fontSize = 15.sp, fontWeight = FontWeight.Black, color = Teal600)
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))

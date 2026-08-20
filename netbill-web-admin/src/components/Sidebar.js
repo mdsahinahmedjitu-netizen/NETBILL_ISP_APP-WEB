@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, onLogout, t, role }) => {
+const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, onLogout, t, role, permissions }) => {
 
   // Define menu items based on role
   const getMenuItems = () => {
@@ -12,22 +12,24 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
       ];
     }
 
-    return [
+    const items = [
       { id: 'dashboard', icon: 'fa-th-large', label: t.dashboard_overview },
-      { id: 'customers', icon: 'fa-users', label: t.subscribers_crm },
-      { id: 'crm_tickets', icon: 'fa-headset', label: 'Support Tickets' },
-      { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center },
-      { id: 'reports', icon: 'fa-chart-pie', label: t.collection_report },
-      { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title },
-      { id: 'staff', icon: 'fa-user-tie', label: t.staff_team, adminOnly: true },
-      { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: t.salary_ledger },
-      { id: 'inventory', icon: 'fa-box', label: t.inventory_stock },
-      { id: 'packages', icon: 'fa-wifi', label: t.service_packages },
-      { id: 'infrastructure', icon: 'fa-network-wired', label: t.infrastructure || 'Network Assets', adminOnly: true },
-      { id: 'sms_setup', icon: 'fa-envelope-open-text', label: 'SMS Setup', adminOnly: true },
-      { id: 'sms_logs', icon: 'fa-history', label: 'SMS History', adminOnly: true },
-      { id: 'settings', icon: 'fa-cog', label: t.global_settings, adminOnly: true },
+      { id: 'customers', icon: 'fa-users', label: t.subscribers_crm, visible: permissions.canAccessCustomers },
+      { id: 'crm_tickets', icon: 'fa-headset', label: t.support_tickets, visible: permissions.canAccessTickets },
+      { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center, visible: permissions.canAccessPayments },
+      { id: 'reports', icon: 'fa-chart-pie', label: t.collection_report, visible: permissions.canAccessReports },
+      { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title, visible: permissions.canAccessExpenses },
+      { id: 'staff', icon: 'fa-user-tie', label: t.staff_team, visible: permissions.canAccessStaff },
+      { id: 'salary_history', icon: 'fa-file-invoice-dollar', label: t.salary_ledger, visible: permissions.canAccessSalary },
+      { id: 'inventory', icon: 'fa-box', label: t.inventory_stock, visible: permissions.canAccessInventory },
+      { id: 'packages', icon: 'fa-wifi', label: t.service_packages, visible: permissions.canAccessPackages },
+      { id: 'infrastructure', icon: 'fa-network-wired', label: t.infrastructure || 'Network Assets', visible: permissions.canAccessInfrastructure },
+      { id: 'sms_setup', icon: 'fa-envelope-open-text', label: t.sms_setup, visible: permissions.canAccessSMS },
+      { id: 'sms_logs', icon: 'fa-history', label: t.sms_history, visible: permissions.canAccessSmsLogs },
+      { id: 'settings', icon: 'fa-cog', label: t.global_settings, visible: permissions.canAccessGlobalSettings },
     ];
+
+    return items.filter(item => item.visible !== false);
   };
 
   const menuItems = getMenuItems();

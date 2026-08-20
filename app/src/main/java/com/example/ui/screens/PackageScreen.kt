@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material3.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,20 +44,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.localization.AppTranslation
-import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.Navy800
-import com.example.ui.theme.Navy900
+import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PackageScreen(viewModel: MainViewModel) {
+fun PackageScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val packages by viewModel.packagesList.collectAsState()
     val currency = AppTranslation("currency_symbol")
     var showAddPkgDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("সার্ভিস প্যাকেজ (Packages)", fontWeight = FontWeight.Black) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddPkgDialog = true },
@@ -108,7 +117,7 @@ fun PackageScreen(viewModel: MainViewModel) {
                             }
 
                             Text(
-                                text = "$currency ${pkg.monthlyPrice.toInt()}/mo",
+                                text = "$currency ${String.format(Locale.US, "%,.0f", pkg.monthlyPrice)}/mo",
                                 fontWeight = FontWeight.Bold,
                                 color = EmeraldSuccess,
                                 fontSize = 16.sp

@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,8 +31,9 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InventoryScreen(viewModel: MainViewModel) {
+fun InventoryScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val inventory by viewModel.inventoryList.collectAsState()
+    val permissions by viewModel.currentPermissions.collectAsState()
     val customers by viewModel.customersList.collectAsState()
 
     var showAddItemDialog by remember { mutableStateOf(false) }
@@ -39,6 +41,17 @@ fun InventoryScreen(viewModel: MainViewModel) {
     var itemToAssign by remember { mutableStateOf<InventoryEntity?>(null) }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("ইনভেন্টরি ও স্টক (Inventory)", fontWeight = FontWeight.Black) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddItemDialog = true },
@@ -223,7 +236,7 @@ fun InventoryItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Price: ৳${item.costPrice.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Teal600)
+                Text("Price: ৳${String.format(Locale.US, "%,.0f", item.costPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Teal600)
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (item.status == "In Stock") {

@@ -202,3 +202,27 @@ interface MikroTikDao {
     @Query("DELETE FROM mikrotik_routers WHERE id = :id")
     suspend fun deleteRouterById(id: String)
 }
+
+@Dao
+interface StaffPayoutDao {
+    @Query("SELECT * FROM staff_payouts ORDER BY date DESC")
+    fun getAllPayouts(): Flow<List<StaffPayoutEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPayout(payout: StaffPayoutEntity)
+
+    @Update
+    suspend fun updatePayout(payout: StaffPayoutEntity)
+
+    @Query("DELETE FROM staff_payouts WHERE id = :id")
+    suspend fun deletePayoutById(id: String)
+}
+
+@Dao
+interface StaffSalaryDao {
+    @Query("SELECT * FROM staff_salary ORDER BY paymentDate DESC")
+    fun getAllSalaries(): Flow<List<StaffSalaryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSalary(salary: StaffSalaryEntity)
+}

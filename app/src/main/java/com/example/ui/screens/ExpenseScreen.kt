@@ -17,9 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material3.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -63,20 +63,35 @@ import com.example.ui.theme.Navy900
 import com.example.viewmodel.MainViewModel
 
 @Composable
-fun ExpenseScreen(viewModel: MainViewModel) {
+fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val expenses by viewModel.expensesList.collectAsState()
+    val permissions by viewModel.currentPermissions.collectAsState()
     val currency = AppTranslation("currency_symbol")
     var showAddExpenseDialog by remember { mutableStateOf(false) }
     var selectedExpenseForEdit by remember { mutableStateOf<ExpenseEntity?>(null) }
 
     Scaffold(
+        topBar = {
+            @OptIn(ExperimentalMaterial3Api::class)
+            TopAppBar(
+                title = { Text(AppTranslation("expense_management"), fontWeight = FontWeight.Black) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            )
+        },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddExpenseDialog = true },
-                containerColor = BkashPink,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Expense")
+            if (permissions.canExpenses) {
+                FloatingActionButton(
+                    onClick = { showAddExpenseDialog = true },
+                    containerColor = BkashPink,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Expense")
+                }
             }
         },
         containerColor = SleekBg
@@ -123,14 +138,16 @@ fun ExpenseScreen(viewModel: MainViewModel) {
                                     Text("Logged by: ${exp.expenseBy}", color = Teal600, fontSize = 11.sp)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("$currency ${exp.amount.toInt()}", fontWeight = FontWeight.Bold, color = CoralWarning, fontSize = 16.sp)
-                                    IconButton(onClick = { selectedExpenseForEdit = exp }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Edit",
-                                            tint = Slate400,
-                                            modifier = Modifier.padding(start = 8.dp)
-                                        )
+                                    Text("$currency ${String.format(Locale.US, "%,.0f", exp.amount)}", fontWeight = FontWeight.Bold, color = CoralWarning, fontSize = 16.sp)
+                                    if (permissions.canExpenses) {
+                                        IconButton(onClick = { selectedExpenseForEdit = exp }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "Edit",
+                                                tint = Slate400,
+                                                modifier = Modifier.padding(start = 8.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }

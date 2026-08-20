@@ -11,6 +11,7 @@ import com.example.localization.AppLanguage
 import android.util.Log
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.content.edit
@@ -85,24 +86,78 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val invoicesList = repository.allInvoices.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val paymentsList = repository.allPayments.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allPaymentsList = repository.allPayments.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    
+    val paymentsList: StateFlow<List<PaymentCollectionEntity>> = combine(allPaymentsList, currentUser) { list, user ->
+        val isStaff = user?.role?.lowercase() != "admin"
+        val staffId = user?.id ?: ""
+        val staffName = user?.name ?: ""
+        
+        if (isStaff) {
+            list.filter { it.collectedById == staffId || it.collectedBy == staffName }
+        } else {
+            list
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    
     val expensesList = repository.allExpenses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settingsState = repository.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val smsLogsList = repository.allSmsLogs.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val smsTemplatesList = repository.allSmsTemplates.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val mikrotikRouters = repository.allRouters.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val staffList = repository.allStaff.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val staffPayouts = repository.allPayouts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val paymentRequestsList = repository.allPaymentRequests.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val paymentAllocations = repository.allAllocations.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val inventoryList = repository.inventoryDao.getAllInventory().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val supportTickets = repository.supportTicketDao.getAllTickets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val currentPermissions: StateFlow<UserRolePermissions> = combine(currentUser, settingsState) { user, settings ->
+        if (user == null) return@combine UserRolePermissions()
+        if (user.role.lowercase() == "admin") {
+            return@combine UserRolePermissions(
+                canCollect = true, canCollectDirect = true, canSeeMobile = true, canSeeAddress = true, canEdit = true, canDelete = true, canAdd = true, canSeeRevenue = true,
+                canInventory = true, canSuspend = true, canLedger = true, canPasswords = true, canExpenses = true, canSMS = true,
+                canDiscount = true, canBulkBill = true, canEditPayments = true, canManageStock = true, canAssignAssets = true,
+                canManageZones = true, canManageRouters = true, canResolveTickets = true, canSendBulkSMS = true, canEditTemplates = true,
+                canSeeStatsCards = true, canSeeExpiryAlerts = true, canSeeComplaintsAlert = true, canSeeVerificationAlert = true,
+                canSeeTodayCollection = true, canSeeTotalCollection = true,
+                canAccessBilling = true, canAccessReports = true, canAccessInventory = true, canAccessPackages = true, canAccessSMS = true,
+                canAccessSalary = true, canAccessTickets = true, canAccessCustomers = true, canAccessPayments = true, canAccessExpenses = true,
+                canAccessStaff = true, canAccessInfrastructure = true, canAccessSmsLogs = true, canAccessGlobalSettings = true,
+                canModifyPricing = true, canViewLogs = true, canManageStaff = true
+            )
+        }
+
+        try {
+            val json = Json { ignoreUnknownKeys = true }
+            val allPermissionsMap: Map<String, UserRolePermissions> = if (!settings?.rolePermissionsJson.isNullOrBlank()) {
+                json.decodeFromString(settings!!.rolePermissionsJson!!)
+            } else {
+                emptyMap()
+            }
+            
+            // Normalize role name (Web uses Capitalized roles like 'Collector')
+            val staffRole = user.role.replaceFirstChar { it.uppercase() }
+            allPermissionsMap[staffRole] ?: UserRolePermissions()
+        } catch (e: Exception) {
+            Log.e("Permissions", "Failed to parse permissions", e)
+            UserRolePermissions()
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserRolePermissions())
 
     val currentCustomer: StateFlow<CustomerEntity?> = combine(_loggedInCustomer, customersList) { loggedIn, list ->
         if (loggedIn == null) null
         else list.find { it.id == loggedIn.id } ?: loggedIn
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val filteredCustomers: StateFlow<List<CustomerEntity>> = combine(customersList, _filterState) { list, filter ->
+    val filteredCustomers: StateFlow<List<CustomerEntity>> = combine(customersList, _filterState, currentUser) { list, filter, user ->
+        val isStaff = user?.role?.lowercase() != "admin"
+        val staffId = user?.id ?: ""
+
         list.filter { cust ->
+            val matchStaff = if (isStaff) cust.assignedStaffId == staffId else true
+            
             val matchQuery = filter.searchQuery.isEmpty() ||
                     cust.customerCode.contains(filter.searchQuery, ignoreCase = true) ||
                     cust.name.contains(filter.searchQuery, ignoreCase = true) ||
@@ -115,7 +170,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val matchStatus = filter.selectedStatus == "All" || cust.status == filter.selectedStatus
             val matchDue = !filter.onlyDueCustomers || cust.currentDue > 0
 
-            matchQuery && matchZone && matchPkg && matchStatus && matchDue
+            matchStaff && matchQuery && matchZone && matchPkg && matchStatus && matchDue
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -124,20 +179,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         custs.filter { cust -> com.example.util.ExpiryUtils.isExpiringTomorrow(cust) && !dismissed.contains(cust.id) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val dashboardStats: StateFlow<DashboardStats> = combine(customersList, paymentsList, expensesList) { custs, pymts, exps ->
-        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        val yearMonthStr = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
+    val dashboardStats: StateFlow<DashboardStats> = combine(customersList, paymentsList, expensesList, currentUser) { allCusts, pymts, exps, user ->
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(Date())
+        val yearMonthStr = SimpleDateFormat("yyyy-MM", java.util.Locale.US).format(Date())
+
+        val isStaff = user?.role?.lowercase() != "admin"
+        val staffId = user?.id ?: ""
+        
+        val visibleCusts = if (isStaff) allCusts.filter { it.assignedStaffId == staffId } else allCusts
 
         DashboardStats(
-            totalCustomers = custs.size,
+            totalCustomers = visibleCusts.size,
             todaysCollection = pymts.filter { it.paymentDate == todayStr }.sumOf { it.amount },
             monthlyCollection = pymts.filter { it.paymentDate.startsWith(yearMonthStr) }.sumOf { it.amount },
-            totalDue = custs.sumOf { it.currentDue },
+            totalDue = visibleCusts.sumOf { it.currentDue },
             todaysExpense = exps.filter { it.expenseDate == todayStr }.sumOf { it.amount },
             monthlyExpense = exps.filter { it.expenseDate.startsWith(yearMonthStr) }.sumOf { it.amount },
-            activeCustomers = custs.count { it.status == "Active" },
-            expiredCustomers = custs.count { com.example.util.ExpiryUtils.isExpired(it) },
-            newCustomers = custs.count { it.joinDate.orEmpty().startsWith(yearMonthStr) }
+            activeCustomers = visibleCusts.count { it.status == "Active" },
+            expiredCustomers = visibleCusts.count { com.example.util.ExpiryUtils.isExpired(it) },
+            newCustomers = visibleCusts.count { it.joinDate.orEmpty().startsWith(yearMonthStr) }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats())
 
@@ -422,10 +482,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addStaff(name: String, mobile: String, role: String, salary: Double, receiveAlerts: Boolean = false, jDate: String? = null, zone: String = "All") {
+    fun addStaff(name: String, mobile: String, role: String, salary: Double, password: String = "123456", receiveAlerts: Boolean = false, jDate: String? = null, zone: String = "All") {
         viewModelScope.launch {
             val dateStr = jDate ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            repository.insertStaff(StaffEntity(id = UUID.randomUUID().toString(), name = name, mobile = mobile, role = role, salary = salary, joiningDate = dateStr, receiveAlerts = receiveAlerts, zone = zone))
+            repository.insertStaff(StaffEntity(id = UUID.randomUUID().toString(), name = name, mobile = mobile, role = role, salary = salary, password = password, joiningDate = dateStr, receiveAlerts = receiveAlerts, zone = zone))
             showToast("Staff added.")
         }
     }
@@ -439,8 +499,87 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun payStaffSalary(staffId: String, staffName: String, amount: Double, month: String) {
         viewModelScope.launch {
-            repository.insertSalary(StaffSalaryEntity(id = UUID.randomUUID().toString(), staffId = staffId, staffName = staffName, amount = amount, salaryMonth = month, paymentDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())))
-            showToast("Salary paid.")
+            val staff = staffList.value.find { it.id == staffId } ?: return@launch
+            val newBalance = staff.balance + amount
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            
+            // 1. Insert Payout Record
+            repository.insertPayout(StaffPayoutEntity(
+                id = UUID.randomUUID().toString(),
+                staffId = staffId,
+                staffName = staffName,
+                month = month,
+                amount = amount,
+                type = "salary_add",
+                newBalance = newBalance,
+                date = today,
+                remarks = "Monthly Salary: $month"
+            ))
+
+            // 2. Update Staff Balance
+            repository.updateStaff(staff.copy(balance = newBalance))
+            showToast("Salary added.")
+        }
+    }
+
+    fun disburseStaffPayment(staffId: String, staffName: String, amount: Double, month: String, remarks: String = "") {
+        viewModelScope.launch {
+            val staff = staffList.value.find { it.id == staffId } ?: return@launch
+            val newBalance = staff.balance - amount
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+            // 1. Insert Payout Record
+            repository.insertPayout(StaffPayoutEntity(
+                id = UUID.randomUUID().toString(),
+                staffId = staffId,
+                staffName = staffName,
+                month = month,
+                amount = amount,
+                type = "payment",
+                newBalance = newBalance,
+                date = today,
+                remarks = remarks.ifBlank { "Cash Disbursement" }
+            ))
+
+            // 2. Update Staff Balance
+            repository.updateStaff(staff.copy(balance = newBalance))
+            showToast("Payment disbursed.")
+        }
+    }
+
+    fun updateStaffPayout(payout: StaffPayoutEntity, oldAmount: Double, oldType: String) {
+        viewModelScope.launch {
+            // 1. Update the payout record itself
+            repository.updatePayout(payout)
+
+            // 2. Adjust staff balance if necessary (if amount or type changed)
+            val staff = staffList.value.find { it.id == payout.staffId }
+            if (staff != null) {
+                // First, reverse the old amount
+                var balance = staff.balance
+                if (oldType == "salary_add") balance -= oldAmount else balance += oldAmount
+                
+                // Then apply the new amount
+                if (payout.type == "salary_add") balance += payout.amount else balance -= payout.amount
+                
+                repository.updateStaff(staff.copy(balance = balance))
+            }
+            showToast("Record updated.")
+        }
+    }
+
+    fun deleteStaffPayout(payout: StaffPayoutEntity) {
+        viewModelScope.launch {
+            // 1. Reverse staff balance
+            val staff = staffList.value.find { it.id == payout.staffId }
+            if (staff != null) {
+                val reversalAdjustment = if (payout.type == "salary_add") -payout.amount else payout.amount
+                repository.updateStaff(staff.copy(balance = staff.balance + reversalAdjustment))
+            }
+
+            // 2. Delete record
+            repository.deletePayoutById(payout.id)
+            showToast("Record deleted.")
         }
     }
 
@@ -673,6 +812,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun verifyGatewayTransaction(trxId: String, gateway: com.example.service.PaymentGatewayType, onResult: (com.example.service.GatewayApiResult<String>) -> Unit) {
         viewModelScope.launch { onResult(repository.verifyAndReconcileTransaction(trxId, gateway)) }
+    }
+
+    fun approvePaymentRequest(req: PaymentRequestEntity) {
+        viewModelScope.launch {
+            val success = repository.approvePaymentRequest(req)
+            if (success) showToast("Payment Request Approved!")
+        }
+    }
+
+    fun rejectPaymentRequest(req: PaymentRequestEntity) {
+        viewModelScope.launch {
+            val success = repository.rejectPaymentRequest(req)
+            if (success) showToast("Payment Request Rejected.")
+        }
     }
 
 

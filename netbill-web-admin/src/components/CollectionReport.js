@@ -8,8 +8,8 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
   const [endDate, setDateEnd] = useState(new Date().toLocaleDateString('en-CA'));
 
   const isStaff = session?.role === 'staff';
-  const [selectedStaff, setSelectedStaff] = useState(isStaff ? session.data.name : 'All Collectors');
-  const [selectedMethod, setSelectedMethod] = useState('All Methods');
+  const [selectedStaff, setSelectedStaff] = useState(isStaff ? session.data.name : t.coll_all_collectors);
+  const [selectedMethod, setSelectedMethod] = useState(t.coll_all_methods);
 
   const [printableColumns, setPrintableColumns] = useState({
     sl: true, id: true, customer: true, address: true, method: true, date: true, collector: true, amount: true
@@ -31,8 +31,8 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
     return store.payments?.filter(p => {
       const pDate = p.paymentDate || p.payment_date;
       const dateMatch = pDate >= startDate && pDate <= endDate;
-      let staffMatch = isStaff ? (p.collectedBy === session.data.name || p.collectedById === session.data.id) : (selectedStaff === 'All Collectors' || p.collectedBy === selectedStaff || p.collectedById === selectedStaff);
-      const methodMatch = selectedMethod === 'All Methods' || p.paymentMethod?.includes(selectedMethod) || p.payment_method?.includes(selectedMethod);
+      let staffMatch = isStaff ? (p.collectedBy === session.data.name || p.collectedById === session.data.id) : (selectedStaff === t.coll_all_collectors || p.collectedBy === selectedStaff || p.collectedById === selectedStaff);
+      const methodMatch = selectedMethod === t.coll_all_methods || p.paymentMethod?.includes(selectedMethod) || p.payment_method?.includes(selectedMethod);
       const customer = store.customers.find(c => c.id === p.customerId || c.id === p.customer_id || c.customerCode === p.customerCode);
       const searchMatch = !search || p.customerName?.toLowerCase().includes(search.toLowerCase()) || p.customerCode?.includes(search) || p.transactionId?.includes(search) || customer?.pppoeUsername?.toLowerCase().includes(search.toLowerCase());
       return dateMatch && staffMatch && methodMatch && searchMatch;
@@ -52,13 +52,13 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
   const staffStats = useMemo(() => {
     const stats = {};
     filteredPayments.forEach(p => {
-      const name = p.collectedBy || 'Admin / Direct';
+      const name = p.collectedBy || t.coll_admin_direct;
       if (!stats[name]) stats[name] = { count: 0, amount: 0 };
       stats[name].count++;
       stats[name].amount += p.amount;
     });
     return Object.entries(stats);
-  }, [filteredPayments]);
+  }, [filteredPayments, t.coll_admin_direct]);
 
   const filteredDueCustomers = useMemo(() => {
     return store.customers?.filter(c => {
@@ -66,10 +66,10 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
       let staffMatch = false;
       const sid = c.assignedStaffId || c.assigned_staff_id;
       if (isStaff) staffMatch = sid === session.data.id || sid === session.data.name;
-      else staffMatch = selectedStaff === 'All Collectors' || sid === selectedStaff || store.staff?.find(s => s.name === selectedStaff)?.id === sid;
+      else staffMatch = selectedStaff === t.coll_all_collectors || sid === selectedStaff || store.staff?.find(s => s.name === selectedStaff)?.id === sid;
       return hasDue && staffMatch;
     }).sort((a,b) => (b.currentDue || b.current_due) - (a.currentDue || a.current_due));
-  }, [store.customers, store.staff, selectedStaff, isStaff, session?.data]);
+  }, [store.customers, store.staff, selectedStaff, isStaff, session?.data, t.coll_all_collectors]);
 
   const totalDueFiltered = filteredDueCustomers.reduce((sum, c) => sum + (parseFloat(c.currentDue || c.current_due) || 0), 0);
 
@@ -122,7 +122,7 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
       const displayAddress = customer?.address || customer?.zone || '---';
       return `<tr><td>${displayName}</td><td>${displayAddress}</td><td>${p.paymentDate || p.payment_date}</td><td>${p.collectedBy}</td><td align="right">৳${(p.amount || 0).toLocaleString()}</td></tr>`;
     }).join('');
-    const printHtml = `<html><head><title>Collection Report</title><style>body { font-family: sans-serif; padding: 20px; } .header { text-align: center; margin-bottom: 30px; } .summary { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; } .box { border: 1px solid #eee; padding: 15px; border-radius: 10px; text-align: center; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #eee; padding: 12px 8px; text-align: left; font-size: 12px; } th { background: #f9f9f9; }</style></head><body><div class="header"><h1>NETBILL ISP - COLLECTION REPORT</h1><p>Date Range: ${startDate} to ${endDate}</p></div><div class="summary"><div class="box"><b>TOTAL ENTRIES</b><br/>${filteredPayments.length}</div><div class="box"><b>TOTAL COLLECTED</b><br/>৳${totalAmount.toLocaleString()}</div></div><table><thead><tr><th>CUSTOMER</th><th>ADDRESS / ZONE</th><th>DATE</th><th>COLLECTOR</th><th align="right">AMOUNT</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+    const printHtml = `<html><head><title>Collection Report</title><style>body { font-family: sans-serif; padding: 20px; } .header { text-align: center; margin-bottom: 30px; } .summary { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; } .box { border: 1px solid #eee; padding: 15px; border-radius: 10px; text-align: center; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #eee; padding: 12px 8px; text-align: left; font-size: 12px; } th { background: #f9f9f9; }</style></head><body><div class="header"><h1>NETBILL ISP - COLLECTION REPORT</h1><p>Date Range: ${startDate} to ${endDate}</p></div><div class="summary"><div class="box"><b>${t.coll_total_entries}</b><br/>${filteredPayments.length}</div><div class="box"><b>${t.coll_total_revenue}</b><br/>৳${totalAmount.toLocaleString('en-US')}</div></div><table><thead><tr><th>${t.customer}</th><th>${t.coll_address_zone}</th><th>${t.coll_date}</th><th>${t.coll_collector}</th><th align="right">${t.coll_amount}</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
     printWindow.document.write(printHtml);
     printWindow.document.close();
     printWindow.print();
@@ -131,40 +131,42 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
   return (
     <div className="w-full space-y-6 pb-20 font-sans tracking-tight uppercase">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCardSmall label="Total Customers" value={store.customers.length} icon="fa-users" color="text-indigo-600" />
-        <StatCardSmall label="Collected" value={`৳${totalAmount.toLocaleString()}`} icon="fa-money-bill-trend-up" color="text-emerald-600" />
-        <StatCardSmall label="Due" value={`৳${Math.floor(totalDue).toLocaleString()}`} icon="fa-triangle-exclamation" color="text-rose-500" />
-        <StatCardSmall label="Total Bill" value={`৳${Math.floor(totalBill).toLocaleString()}`} icon="fa-receipt" color="text-blue-600" />
+        <StatCardSmall label={t.coll_total_customers} value={store.customers.length} icon="fa-users" color="text-indigo-600" />
+        <StatCardSmall label={t.coll_collected} value={`৳${totalAmount.toLocaleString('en-US')}`} icon="fa-money-bill-trend-up" color="text-emerald-600" />
+        <StatCardSmall label={t.coll_due} value={`৳${Math.floor(totalDue).toLocaleString('en-US')}`} icon="fa-triangle-exclamation" color="text-rose-500" />
+        <StatCardSmall label={t.coll_total_bill} value={`৳${Math.floor(totalBill).toLocaleString('en-US')}`} icon="fa-receipt" color="text-blue-600" />
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-5 rounded-[32px] shadow-lg border border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-4">
-        <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[200px] p-3 bg-slate-50 dark:bg-slate-900 rounded-xl outline-none font-black text-sm" />
+        <input type="text" placeholder={t.coll_search} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[200px] p-3 bg-slate-50 dark:bg-slate-900 rounded-xl outline-none font-black text-sm" />
         <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-900 px-5 py-3 rounded-xl border">
            <input type="date" value={startDate} onChange={e => setDateStart(e.target.value)} className="bg-transparent border-none text-xs font-black outline-none" />
            <span className="text-slate-300">/</span>
            <input type="date" value={endDate} onChange={e => setDateEnd(e.target.value)} className="bg-transparent border-none text-xs font-black outline-none" />
         </div>
         <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)} disabled={isStaff} className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 px-5 py-3 rounded-xl border border-indigo-100 text-xs font-black outline-none">
-          <option>All Collectors</option><option>Admin / Direct</option>
+          <option value={t.coll_all_collectors}>{t.coll_all_collectors}</option>
+          <option value={t.coll_admin_direct}>{t.coll_admin_direct}</option>
           {store.staff?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
         </select>
         <select value={selectedMethod} onChange={e => setSelectedMethod(e.target.value)} className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 px-5 py-3 rounded-xl border border-emerald-100 text-xs font-black outline-none">
-          <option>All Methods</option><option>Cash</option><option>bKash</option><option>Nagad</option><option>Bank</option>
+          <option value={t.coll_all_methods}>{t.coll_all_methods}</option>
+          <option value="Cash">Cash</option><option value="bKash">bKash</option><option value="Nagad">Nagad</option><option value="Bank">Bank</option>
         </select>
       </div>
 
       <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[24px] w-fit shadow-inner overflow-x-auto max-w-full">
-         <button onClick={() => setActiveTab('collection')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'collection' ? 'bg-white dark:bg-slate-800 text-teal-600 shadow' : 'text-slate-400'}`}>COLLECTION</button>
-         <button onClick={() => setActiveTab('due')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'due' ? 'bg-white dark:bg-slate-800 text-rose-500 shadow' : 'text-slate-400'}`}>DUE LIST</button>
-         <button onClick={() => setActiveTab('revenue')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow' : 'text-slate-400'}`}>REVENUE</button>
+         <button onClick={() => setActiveTab('collection')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'collection' ? 'bg-white dark:bg-slate-800 text-teal-600 shadow' : 'text-slate-400'}`}>{t.coll_tab_collection}</button>
+         <button onClick={() => setActiveTab('due')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'due' ? 'bg-white dark:bg-slate-800 text-rose-500 shadow' : 'text-slate-400'}`}>{t.coll_tab_due_list}</button>
+         <button onClick={() => setActiveTab('revenue')} className={`px-8 py-2.5 rounded-xl text-[10px] font-black shadow-md transition-all shrink-0 ${activeTab === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow' : 'text-slate-400'}`}>{t.coll_tab_revenue}</button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl border border-slate-100 dark:border-slate-700 p-6 md:p-10 min-h-[600px] relative overflow-hidden">
         <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${activeTab === 'collection' ? 'from-teal-500 to-rose-500' : activeTab === 'due' ? 'from-rose-500 to-orange-500' : 'from-blue-500 to-indigo-500'}`}></div>
 
         <div className="flex justify-between items-center mb-8">
-           <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none">{activeTab === 'collection' ? 'Collection Analysis' : activeTab === 'due' ? 'Subscriber Due List' : 'Revenue Summary'}</h3>
-           <button onClick={handlePrint} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black shadow-lg">PRINT REPORT</button>
+           <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter leading-none">{activeTab === 'collection' ? t.coll_analysis : activeTab === 'due' ? t.coll_subscriber_due : t.coll_revenue_summary}</h3>
+           <button onClick={handlePrint} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black shadow-lg">{t.coll_print_report}</button>
         </div>
 
         {activeTab === 'collection' && (
@@ -172,21 +174,21 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-end border-b pb-8">
                  <div className="flex items-center space-x-6">
                     <div className="bg-slate-50 dark:bg-slate-900 px-6 py-4 rounded-3xl border shadow-inner">
-                       <p className="text-[9px] text-slate-400 font-black mb-1">TOTAL ENTRIES</p>
+                       <p className="text-[9px] text-slate-400 font-black mb-1">{t.coll_total_entries}</p>
                        <p className="text-3xl font-black text-slate-800 dark:text-white">{filteredPayments.length}</p>
                     </div>
                     <div className="bg-emerald-50 dark:bg-emerald-900/20 px-6 py-4 rounded-3xl border border-emerald-100 shadow-inner">
-                       <p className="text-[9px] text-emerald-600/60 font-black mb-1">TOTAL REVENUE</p>
-                       <p className="text-3xl font-black text-emerald-600">৳{totalAmount.toLocaleString()}</p>
+                       <p className="text-[9px] text-emerald-600/60 font-black mb-1">{t.coll_total_revenue}</p>
+                       <p className="text-3xl font-black text-emerald-600">৳{totalAmount.toLocaleString('en-US')}</p>
                     </div>
                  </div>
                  <div className="space-y-3">
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[4px]">Collector Summary</p>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[4px]">{t.coll_collector_summary}</p>
                     <div className="flex flex-wrap gap-2">
                        {staffStats.map(([name, data], idx) => (
                          <div key={name} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl border-2 border-indigo-100 flex items-center space-x-3 shadow-sm">
-                            <span className="text-[11px] font-black uppercase">{name}</span>
-                            <span className="text-[11px] font-black">৳{data.amount.toLocaleString()}</span>
+                            <span className="text-[11px] font-black uppercase">{name === 'Admin / Direct' ? t.coll_admin_direct : name}</span>
+                            <span className="text-[11px] font-black">৳{data.amount.toLocaleString('en-US')}</span>
                          </div>
                        ))}
                     </div>
@@ -196,7 +198,7 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
               <div className="overflow-x-auto">
                  <table className="w-full text-left">
                     <thead>
-                       <tr className="text-[11px] text-slate-400 border-b-2 font-black uppercase"><th>#</th><th>CUST. ID</th><th>SUBSCRIBER DETAILS</th><th>ADDRESS / ZONE</th><th>PAY METHOD</th><th>DATE</th><th>COLLECTOR</th><th className="text-right">AMOUNT</th><th className="text-center">ACTION</th></tr>
+                       <tr className="text-[11px] text-slate-400 border-b-2 font-black uppercase"><th>#</th><th>{t.coll_cust_id}</th><th>{t.coll_subscriber_details}</th><th>{t.coll_address_zone}</th><th>{t.coll_pay_method}</th><th>{t.coll_date}</th><th>{t.coll_collector}</th><th className="text-right">{t.coll_amount}</th><th className="text-center">{t.coll_action}</th></tr>
                     </thead>
                     <tbody className="divide-y">
                        {filteredPayments.map((p, idx) => {
@@ -209,7 +211,7 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
                                <td className="py-6 text-sm text-slate-600 font-black uppercase">{customer?.address || customer?.zone || '---'}</td>
                                <td className="py-6"><span className="px-4 py-1.5 bg-slate-100 rounded-xl text-[9px] font-black uppercase">{p.paymentMethod || 'Cash'}</span></td>
                                <td className="py-6 text-xs font-black">{p.paymentDate || p.payment_date}</td>
-                               <td className="py-6 text-xs font-black uppercase italic"><span onClick={() => { if(customer) { setTargetCustomer(customer); setTargetPayment(p); setNewCollector(p.collectedBy || ''); setShowCollectorModal(true); } }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all">{p.collectedBy || 'Admin'}</span></td>
+                               <td className="py-6 text-xs font-black uppercase italic"><span onClick={() => { if(customer) { setTargetCustomer(customer); setTargetPayment(p); setNewCollector(p.collectedBy || ''); setShowCollectorModal(true); } }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all">{p.collectedBy || t.coll_admin_direct}</span></td>
                                <td className="py-6 text-right font-black text-emerald-600 text-xl">৳{p.amount}</td>
                                <td className="py-6 text-center"><button onClick={() => { setPaymentToDelete(p); setShowDeleteModal(true); }} className="text-rose-400 hover:text-rose-600"><i className="fas fa-trash-alt"></i></button></td>
                             </tr>
@@ -225,7 +227,7 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
            <div className="overflow-x-auto">
               <table className="w-full text-left">
                  <thead>
-                    <tr className="text-[11px] text-slate-400 border-b-2 font-black uppercase"><th>CUSTOMER</th><th>ZONE</th><th>COLLECTOR</th><th className="text-right">BILL</th><th className="text-right">DUE</th></tr>
+                    <tr className="text-[11px] text-slate-400 border-b-2 font-black uppercase"><th>{t.customer}</th><th>{t.zone}</th><th>{t.coll_collector}</th><th className="text-right">{t.coll_bill}</th><th className="text-right">{t.coll_due}</th></tr>
                  </thead>
                  <tbody className="divide-y">
                     {filteredDueCustomers.map(c => (
@@ -248,13 +250,13 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
       {showCollectorModal && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[7000] flex items-center justify-center p-6 font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-md p-12 shadow-2xl border-4 border-indigo-500/20 space-y-8">
-             <h3 className="text-3xl font-black uppercase">Change Collector</h3>
+             <h3 className="text-3xl font-black uppercase">{t.coll_change_collector}</h3>
              <select value={newCollector} onChange={e => setNewCollector(e.target.value)} className="w-full bg-slate-50 p-5 rounded-3xl font-black outline-none border-none shadow-inner">
-                <option value="">No Collector</option>
+                <option value="">{t.coll_no_collector}</option>
                 {store.staff?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
              </select>
-             <button onClick={handleUpdateCollector} disabled={isUpdatingCollector} className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black">CONFIRM CHANGE</button>
-             <button onClick={() => setShowCollectorModal(false)} className="w-full text-rose-500 font-black">CANCEL</button>
+             <button onClick={handleUpdateCollector} disabled={isUpdatingCollector} className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black">{t.coll_confirm_change}</button>
+             <button onClick={() => setShowCollectorModal(false)} className="w-full text-rose-500 font-black">{t.coll_cancel}</button>
           </div>
         </div>
       )}
@@ -262,10 +264,10 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[5000] flex items-center justify-center p-6 font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-md p-12 shadow-2xl text-center space-y-8">
-             <h3 className="text-3xl font-black">Confirm Delete?</h3>
+             <h3 className="text-3xl font-black">{t.coll_confirm_delete}</h3>
              <div className="flex space-x-4">
-                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-slate-100 py-5 rounded-2xl font-black text-slate-500">CANCEL</button>
-                <button onClick={confirmDelete} disabled={isDeleting} className="flex-1 bg-rose-600 text-white py-5 rounded-2xl font-black">DELETE</button>
+                <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-slate-100 py-5 rounded-2xl font-black text-slate-500">{t.coll_cancel}</button>
+                <button onClick={confirmDelete} disabled={isDeleting} className="flex-1 bg-rose-600 text-white py-5 rounded-2xl font-black">{t.coll_delete}</button>
              </div>
           </div>
         </div>

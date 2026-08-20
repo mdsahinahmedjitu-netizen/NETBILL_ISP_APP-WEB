@@ -194,18 +194,18 @@ const SalaryHistory = ({ store, session, t, lang }) => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
          <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] border border-slate-100 dark:border-slate-700 shadow-xl text-center">
-            <p className="text-[10px] text-slate-400 font-black tracking-widest mb-2 uppercase">{t.total_salary_accrued}</p>
-            <p className="text-4xl font-black text-teal-600 tracking-tighter">৳{toBanglaNumber(totalAdded)}</p>
+            <p className="text-xs text-slate-400 font-black tracking-widest mb-2 uppercase">{t.total_salary_accrued}</p>
+            <p className="text-4xl font-black text-teal-600 tracking-tighter">৳{totalAdded}</p>
          </div>
          <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] border border-slate-100 dark:border-slate-700 shadow-xl text-center">
-            <p className="text-[10px] text-slate-400 font-black tracking-widest mb-2 uppercase">{t.total_disbursed}</p>
-            <p className="text-4xl font-black text-rose-500 tracking-tighter">৳{toBanglaNumber(totalPaid)}</p>
+            <p className="text-xs text-slate-400 font-black tracking-widest mb-2 uppercase">{t.total_disbursed}</p>
+            <p className="text-4xl font-black text-rose-500 tracking-tighter">৳{totalPaid}</p>
          </div>
          <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] border border-slate-100 dark:border-slate-700 shadow-xl text-center">
-            <p className="text-[10px] text-slate-400 font-black tracking-widest mb-2 uppercase">{t.net_balance}</p>
+            <p className="text-xs text-slate-400 font-black tracking-widest mb-2 uppercase">{t.net_balance}</p>
             <p className={`text-4xl font-black tracking-tighter ${totalAdded - totalPaid >= 0 ? 'text-indigo-600' : 'text-orange-500'}`}>
-               ৳{toBanglaNumber(Math.abs(totalAdded - totalPaid))}
-               <span className="text-xs ml-2 font-bold opacity-50">{totalAdded - totalPaid >= 0 ? `(${t.pao_na})` : `(${t.advance_label})`}</span>
+               ৳{Math.abs(totalAdded - totalPaid)}
+               <span className={`text-lg ml-2 font-black italic ${totalAdded - totalPaid >= 0 ? 'text-indigo-700' : 'text-orange-600'}`}>{totalAdded - totalPaid >= 0 ? `(${t.pao_na})` : `(${t.advance_label})`}</span>
             </p>
          </div>
       </div>
@@ -243,17 +243,17 @@ const SalaryHistory = ({ store, session, t, lang }) => {
                         </td>
                       )}
                       <td className="p-6">
-                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase shadow-sm ${p.type === 'salary_add' ? 'bg-teal-100 text-teal-700' : 'bg-rose-100 text-rose-700'}`}>
+                        <span className={`px-5 py-2 rounded-full text-[11px] font-black uppercase shadow-sm ${p.type === 'salary_add' ? 'bg-teal-100 text-teal-700' : 'bg-rose-100 text-rose-700'}`}>
                            {p.type === 'salary_add' ? t.salary_accrued : t.cash_disbursed}
                         </span>
                       </td>
                       <td className={`p-6 text-xl font-black ${p.type === 'salary_add' ? 'text-teal-600' : 'text-rose-600'}`}>
-                        {p.type === 'salary_add' ? '+' : '-'} ৳{toBanglaNumber(p.amount)}
+                        {p.type === 'salary_add' ? '+' : '-'} ৳{p.amount}
                       </td>
                       <td className="p-6">
                         <div className="bg-slate-100 dark:bg-slate-900/50 px-6 py-3 rounded-2xl inline-block border-2 border-slate-200 dark:border-slate-700 shadow-inner">
-                           <p className="text-2xl font-black text-slate-900 dark:text-white leading-none">৳{toBanglaNumber(p.newBalance)}</p>
-                           <p className="text-[10px] text-teal-600 font-black mt-1.5 uppercase tracking-[3px] leading-none text-center">{t.running_bal}</p>
+                           <p className="text-2xl font-black text-slate-900 dark:text-white leading-none">৳{p.newBalance}</p>
+                           <p className="text-xs text-teal-600 font-black mt-2 uppercase tracking-[3px] leading-none text-center">{t.running_bal}</p>
                         </div>
                       </td>
                       <td className="p-6 text-xs text-slate-500 font-bold max-w-xs truncate italic">{p.remarks || '---'}</td>

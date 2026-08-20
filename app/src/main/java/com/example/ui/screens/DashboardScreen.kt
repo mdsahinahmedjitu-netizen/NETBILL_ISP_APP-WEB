@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import java.util.Locale
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
@@ -27,24 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoneyOff
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Pending
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ReportProblem
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.animation.AnimatedContent
@@ -64,6 +49,12 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.material3.Divider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -114,6 +105,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.SupportTicketEntity
+import com.example.data.entity.UserRolePermissions
 import com.example.localization.AppTranslation
 import com.example.ui.components.ReadonlyDateField
 import com.example.ui.components.BillSummaryGridIcon
@@ -155,17 +147,19 @@ fun DashboardScreen(
     onNavigateToAlerts: () -> Unit = {},
     onSelectCustomer: (CustomerEntity) -> Unit = {}
 ) {
+    val permissions by viewModel.currentPermissions.collectAsState()
     val stats by viewModel.dashboardStats.collectAsState()
     val payments by viewModel.paymentsList.collectAsState()
+    val paymentRequests by viewModel.paymentRequestsList.collectAsState()
     val customersList by viewModel.customersList.collectAsState()
     val supportTickets by viewModel.supportTickets.collectAsState()
-    val expiringCustomers by viewModel.expiringTomorrowCustomers.collectAsState()
     val currentLang by viewModel.currentLanguage.collectAsState()
-    val isBangla = currentLang == com.example.localization.AppLanguage.BANGLA
+    val isDarkMode by viewModel.isDarkMode.collectAsState()
+    
     val currency = AppTranslation("currency_symbol")
-    val msgCollection = AppTranslation("grid_collection")
-    val msgCollectionReport = AppTranslation("grid_collection_report")
-    val msgBillSummary = AppTranslation("grid_bill_summary")
+    
+    @Composable
+    fun t(key: String) = AppTranslation(key)
 
     // State for interactive Dialogs triggered by Grid Actions
     var showCreateCustomerDialog by remember { mutableStateOf(false) }
@@ -196,590 +190,126 @@ fun DashboardScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(com.example.ui.theme.SleekBg)
+            .background(if (isDarkMode) Color(0xFF0F172A) else Color(0xFFF8FAFC))
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Customer Expiry Alert Admin Banner
-        if (expiringCustomers.isNotEmpty()) {
+        // 1. TOP NOTIFICATION BAR - CUSTOMER COMPLAINTS / TICKETS
+        val unresolvedTickets = supportTickets.filter { it.status == "Open" || it.status == "Pending" }
+        if (unresolvedTickets.isNotEmpty() && permissions.canSeeComplaintsAlert) {
             item {
                 Card(
+                    onClick = { showComplaintsDialog = true },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+                    shape = RoundedCornerShape(32.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFBBF24)),
+                    border = BorderStroke(1.dp, Color(0xFFB45309)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.NotificationsActive,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = AppTranslation("customer_expiry_alert_title"),
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 14.sp
-                            )
-                            val countStr = if (isBangla) com.example.ui.screens.toBanglaDigits(expiringCustomers.size) else expiringCustomers.size.toString()
-                            val bodyText = if (isBangla) {
-                                "$countStr জন গ্রাহকের লাইনের মেয়াদ আগামীকাল শেষ হবে।"
-                            } else {
-                                if (expiringCustomers.size == 1) "1 customer will expire tomorrow."
-                                else "$countStr customers will expire tomorrow."
-                            }
-                            Text(
-                                text = bodyText,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = onNavigateToAlerts,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(AppTranslation("view_alerts"), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-
-        // PRIMARY 8-CARD FEATURE GRID (Identical to uploaded screenshot)
-        item {
-            ISPFeatureGridSection(
-                onCollectionClick = {
-                    viewModel.showToast(msgCollection)
-                    onNavigateToPayments()
-                },
-                onCollectionReportClick = {
-                    viewModel.showToast(msgCollectionReport)
-                    onNavigateToReports()
-                },
-                onListReportClick = {
-                    viewModel.updateFilter(query = "", zone = "All", pkg = "All", status = "All", onlyDue = false)
-                    onNavigateToCustomers()
-                },
-                onDueListClick = {
-                    viewModel.updateFilter(query = "", zone = "All", pkg = "All", status = "All", onlyDue = true)
-                    onNavigateToCustomers()
-                },
-                onCreateNewClick = {
-                    showCreateCustomerDialog = true
-                },
-                onSearchClick = {
-                    showSearchCustomerDialog = true
-                },
-                onComplinListClick = {
-                    showComplaintsDialog = true
-                },
-                onBillSummaryClick = {
-                    viewModel.showToast(msgBillSummary)
-                    onNavigateToBilling()
-                }
-            )
-        }
-
-        // Primary Hero Collection Card (Restored TodaysCollectionCard)
-        item {
-            TodaysCollectionCard(
-                payments = payments,
-                selectedFilter = activeFilter,
-                onFilterSelected = { activeFilter = it }
-            )
-        }
-
-        // Hero Collection Summary Banner (Red-marked option from user screenshot)
-        item {
-            val displayCollection = activeSummary?.grandTotal ?: stats.todaysCollection
-            val periodTitle = when (activeFilter) {
-                com.example.ui.components.CollectionFilterPeriod.TODAY -> "আজকের সংগ্রহ (Today's Collection)"
-                com.example.ui.components.CollectionFilterPeriod.YESTERDAY -> "গতকালকের সংগ্রহ (Yesterday's Collection)"
-                com.example.ui.components.CollectionFilterPeriod.LAST_7_DAYS -> "গত ৭ দিনের সংগ্রহ (Last 7 Days Collection)"
-                com.example.ui.components.CollectionFilterPeriod.THIS_MONTH -> "চলতি মাসের সংগ্রহ (This Month's Collection)"
-                com.example.ui.components.CollectionFilterPeriod.CUSTOM -> "কাস্টম তারিখের সংগ্রহ (${activeSummary?.periodLabel ?: ""})"
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = com.example.ui.theme.Teal600)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(com.example.ui.theme.Teal600, com.example.ui.theme.Teal700)
-                            )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        // Bottom Border Simulation (border-b-4 border-amber-700)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .background(Color(0xFFB45309))
+                                .align(Alignment.BottomCenter)
                         )
-                        .padding(20.dp)
-                ) {
-                    Column {
+                        
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
+                            modifier = Modifier.padding(24.dp).padding(bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(
-                                    text = periodTitle,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = com.example.ui.theme.Teal100,
-                                    letterSpacing = 0.5.sp
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "$currency ${displayCollection.toInt()}",
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White.copy(alpha = 0.2f)),
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color.Black.copy(alpha = 0.1f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.TrendingUp,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Column {
-                                Text(
-                                    text = "TARGET",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = com.example.ui.theme.Teal100
-                                )
-                                Text(
-                                    text = "$currency 25,000",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .width(1.dp)
-                                    .height(28.dp)
-                                    .background(Color.White.copy(alpha = 0.2f))
-                            )
-                            Column {
-                                Text(
-                                    text = "TOTAL DUE",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = com.example.ui.theme.Teal100
-                                )
-                                Text(
-                                    text = "$currency ${stats.totalDue.toInt()}",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Dashboard Metrics Grid Cards
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Row 1: Total Customers & Active Customers
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MetricCard(
-                        title = AppTranslation("total_customers"),
-                        value = "${stats.totalCustomers}",
-                        subtitle = "509 Customers Goal",
-                        icon = Icons.Default.People,
-                        accentColor = ElectricBlue,
-                        onClick = {
-                            viewModel.updateFilter(query = "", zone = "All", pkg = "All", status = "All", onlyDue = false)
-                            onNavigateToCustomers()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    MetricCard(
-                        title = AppTranslation("active_customers"),
-                        value = "${stats.activeCustomers}",
-                        subtitle = "Online PPPoE",
-                        icon = Icons.Default.CheckCircle,
-                        accentColor = EmeraldSuccess,
-                        onClick = {
-                            viewModel.updateFilter(query = "", zone = "All", pkg = "All", status = "Active", onlyDue = false)
-                            onNavigateToCustomers()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Row 2: Expired Customers & Inactive Customers
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MetricCard(
-                        title = AppTranslation("expired_customers"),
-                        value = "${stats.expiredCustomers}",
-                        subtitle = "Validity Over",
-                        icon = Icons.Default.NotificationsActive,
-                        accentColor = Color(0xFFE11D48),
-                        onClick = onNavigateToAlerts,
-                        modifier = Modifier.weight(1f)
-                    )
-                    MetricCard(
-                        title = AppTranslation("inactive_customers"),
-                        value = "${stats.inactiveCustomers}",
-                        subtitle = "Suspended / Offline",
-                        icon = Icons.Default.Pending,
-                        accentColor = Slate600,
-                        onClick = {
-                            viewModel.updateFilter(query = "", zone = "All", pkg = "All", status = "Inactive", onlyDue = false)
-                            onNavigateToCustomers()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Row 3: Running Month Expense & New Customers
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MetricCard(
-                        title = AppTranslation("monthly_expense"),
-                        value = "$currency ${stats.monthlyExpense.toInt()}",
-                        subtitle = "Current Month Outflow",
-                        icon = Icons.Default.ArrowUpward,
-                        accentColor = BkashPink,
-                        onClick = {
-                            onNavigateToReports()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    MetricCard(
-                        title = AppTranslation("new_customers"),
-                        value = "${stats.newCustomers}",
-                        subtitle = "Joined this month",
-                        icon = Icons.Default.PersonAdd,
-                        accentColor = ElectricBlue,
-                        onClick = { showNewCustomersDialog = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Row 4: Bandwidth Usage
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MetricCard(
-                        title = AppTranslation("bandwidth_usage"),
-                        value = "${stats.bandwidthUsageMbps} Mbps",
-                        subtitle = "Live IIG Traffic",
-                        icon = Icons.Default.Speed,
-                        accentColor = CyanAccent,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Box(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-
-        // Dedicated Customer Complaints Section (Replaced New Customers section)
-        item {
-            val unresolvedComplaints = supportTickets.filter { it.status != "Resolved" }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = com.example.ui.theme.SleekCard),
-                border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.CoralWarning.copy(alpha = 0.3f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(com.example.ui.theme.CoralWarning.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ReportProblem,
-                                    contentDescription = null,
-                                    tint = com.example.ui.theme.CoralWarning,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "গ্রাহকের কমপ্লিন তালিকা (Complaints)",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = com.example.ui.theme.Slate900
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(com.example.ui.theme.CoralWarning)
-                                            .padding(horizontal = 7.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = "${unresolvedComplaints.size}",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White
-                                        )
-                                    }
+                                Icon(Icons.Default.SupportAgent, null, tint = Color(0xFF0F172A), modifier = Modifier.size(28.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(22.dp)
+                                        .background(Color(0xFF0F172A), CircleShape)
+                                        .border(2.dp, Color(0xFFFBBF24), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "${unresolvedTickets.size}", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Black)
                                 }
+                            }
+                            Spacer(modifier = Modifier.width(20.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "সমাধান না হওয়া পর্যন্ত ড্যাসবোর্ডে দৃশ্যমান থাকবে",
+                                    text = t("tickets_attention").uppercase(),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 18.sp,
+                                    color = Color(0xFF0F172A),
+                                    letterSpacing = (-1).sp
+                                )
+                                Text(
+                                    text = "${unresolvedTickets.size} ${t("tickets_pending_msg")}".uppercase(),
                                     fontSize = 11.sp,
-                                    color = com.example.ui.theme.Slate500
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF0F172A).copy(alpha = 0.7f),
+                                    letterSpacing = 1.sp
                                 )
                             }
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedButton(
-                                onClick = { showComplainSetupDialog = true },
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, com.example.ui.theme.Teal600),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Icon(Icons.Default.Settings, contentDescription = null, tint = com.example.ui.theme.Teal600, modifier = Modifier.size(13.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("কমপ্লিন সেটাপ", fontSize = 11.sp, color = com.example.ui.theme.Teal600, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.width(4.dp))
-                            TextButton(onClick = { showComplaintsDialog = true }) {
-                                Text("সব দেখুন", fontSize = 12.sp, color = com.example.ui.theme.CoralWarning, fontWeight = FontWeight.Bold)
+                            Box(modifier = Modifier.size(44.dp).background(Color(0xFF0F172A), CircleShape), contentAlignment = Alignment.Center) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.White, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
+                }
+            }
+        }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+        // 2. PENDING VERIFICATION ALERTS
+        val pendingRequests = paymentRequests.filter { it.status == "pending" }
+        if (pendingRequests.isNotEmpty() && permissions.canSeeVerificationAlert) {
+            item {
+                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                val alpha by infiniteTransition.animateFloat(
+                    initialValue = 0.6f, targetValue = 1f,
+                    animationSpec = infiniteRepeatable(animation = tween(1000), repeatMode = RepeatMode.Reverse),
+                    label = "alpha"
+                )
 
-                    AnimatedContent(
-                        targetState = unresolvedComplaints.isEmpty(),
-                        transitionSpec = {
-                            (fadeIn(animationSpec = tween(400)) + expandVertically())
-                                .togetherWith(fadeOut(animationSpec = tween(300)) + shrinkVertically())
-                        },
-                        label = "unresolvedComplaintsAnimation"
-                    ) { isEmpty ->
-                        if (isEmpty) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(com.example.ui.theme.Teal50)
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = com.example.ui.theme.Teal600)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "সব কমপ্লিন সমাধান করা হয়েছে! কোন অমীমাংসিত অভিযোগ নেই।",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(44.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F2).copy(alpha = alpha)),
+                    border = BorderStroke(4.dp, Color(0xFFF43F5E).copy(alpha = 0.2f))
+                ) {
+                    Column(modifier = Modifier.padding(32.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFF43F5E), modifier = Modifier.size(56.dp), shadowElevation = 8.dp) {
+                                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.NotificationsActive, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
                             }
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                unresolvedComplaints.forEach { complaint ->
-                                    AnimatedVisibility(
-                                        visible = complaint.status != "Resolved",
-                                        enter = fadeIn(animationSpec = tween(300)) + expandVertically() + slideInVertically(),
-                                        exit = fadeOut(animationSpec = tween(300)) + shrinkVertically()
-                                    ) {
-                                        Card(
-                                            shape = RoundedCornerShape(14.dp),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                            border = androidx.compose.foundation.BorderStroke(
-                                                1.dp,
-                                                com.example.ui.theme.CoralWarning.copy(alpha = 0.4f)
-                                            ),
-                                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Column(modifier = Modifier.padding(12.dp)) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier.weight(1f)
-                                                    ) {
-                                                        // Red mark / Alert indicator right next to each complaint
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(32.dp)
-                                                                .clip(CircleShape)
-                                                                .background(com.example.ui.theme.CoralWarning),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = Icons.Default.ReportProblem,
-                                                                contentDescription = "Alert Mark",
-                                                                tint = Color.White,
-                                                                modifier = Modifier.size(18.dp)
-                                                            )
-                                                        }
-
-                                                        Spacer(modifier = Modifier.width(10.dp))
-
-                                                        Column {
-                                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                Text(
-                                                                    text = complaint.customerName,
-                                                                    fontWeight = FontWeight.Bold,
-                                                                    fontSize = 14.sp,
-                                                                    color = com.example.ui.theme.Slate900
-                                                                )
-                                                                Spacer(modifier = Modifier.width(6.dp))
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .clip(RoundedCornerShape(4.dp))
-                                                                        .background(ElectricBlue.copy(alpha = 0.15f))
-                                                                        .padding(horizontal = 5.dp, vertical = 1.dp)
-                                                                ) {
-                                                                    Text(
-                                                                        text = complaint.customerCode,
-                                                                        fontSize = 10.sp,
-                                                                        color = ElectricBlue,
-                                                                        fontWeight = FontWeight.Bold
-                                                                    )
-                                                                }
-                                                            }
-                                                            Text(
-                                                                text = "📱 ${complaint.customerPhone} • 📅 ${complaint.createdAt}",
-                                                                fontSize = 11.sp,
-                                                                color = com.example.ui.theme.Slate600
-                                                            )
-                                                        }
-                                                    }
-
-                                                    // Red status tag
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(8.dp))
-                                                            .background(com.example.ui.theme.CoralWarning.copy(alpha = 0.15f))
-                                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                    ) {
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .size(6.dp)
-                                                                    .clip(CircleShape)
-                                                                    .background(com.example.ui.theme.CoralWarning)
-                                                            )
-                                                            Spacer(modifier = Modifier.width(4.dp))
-                                                            Text(
-                                                                text = complaint.status,
-                                                                fontSize = 11.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = com.example.ui.theme.CoralWarning
-                                                            )
-                                                        }
-                                                    }
+                            Spacer(modifier = Modifier.width(20.dp))
+                            Text(text = "${t("needs_verification")}: ${pendingRequests.size}".uppercase(), fontWeight = FontWeight.Black, fontSize = 22.sp, color = Color(0xFFE11D48), letterSpacing = (-1).sp)
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            pendingRequests.forEach { req ->
+                                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(32.dp), border = BorderStroke(1.dp, Color(0xFFF1F5F9))) {
+                                    Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFFEEF2FF)).padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                                    Text(req.collectedBy.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF4F46E5), letterSpacing = 1.sp)
                                                 }
-
-                                                Spacer(modifier = Modifier.height(8.dp))
-
-                                                // Issue details
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(MaterialTheme.colorScheme.surface)
-                                                        .padding(8.dp)
-                                                ) {
-                                                    Column {
-                                                        Text(
-                                                            text = "⚠️ ${complaint.issueType}",
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = com.example.ui.theme.CoralWarning
-                                                        )
-                                                        Text(
-                                                            text = complaint.description,
-                                                            fontSize = 11.sp,
-                                                            color = com.example.ui.theme.Slate700
-                                                        )
-                                                    }
-                                                }
-
-                                                Spacer(modifier = Modifier.height(10.dp))
-
-                                                // Quick resolution button
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.End,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Button(
-                                                        onClick = {
-                                                            viewModel.updateSupportTicket(complaint.copy(status = "Resolved"))
-                                                            viewModel.showToast("অভিযোগটি সমাধান হিসেবে সম্পন্ন করা হয়েছে!")
-                                                        },
-                                                        colors = ButtonDefaults.buttonColors(
-                                                            containerColor = com.example.ui.theme.Teal600,
-                                                            contentColor = Color.White
-                                                        ),
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                                        modifier = Modifier.height(34.dp)
-                                                    ) {
-                                                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text("সমাধান সম্পন্ন", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                                    }
-                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text("TRX: ${req.trxId}", fontSize = 11.sp, color = Slate400, fontWeight = FontWeight.Bold)
                                             }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(req.customerName.uppercase(), fontWeight = FontWeight.Black, fontSize = 18.sp, color = Slate900, letterSpacing = (-0.5).sp)
+                                            Text("৳ ${String.format(java.util.Locale.US, "%,.0f", req.amount)}", fontWeight = FontWeight.Black, color = EmeraldSuccess, fontSize = 24.sp)
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            IconButton(onClick = { viewModel.approvePaymentRequest(req) }, modifier = Modifier.background(EmeraldSuccess, RoundedCornerShape(16.dp)).size(56.dp)) { Icon(Icons.Default.CheckCircle, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
+                                            IconButton(onClick = { viewModel.rejectPaymentRequest(req) }, modifier = Modifier.background(Color(0xFFFFF1F2), RoundedCornerShape(16.dp)).size(56.dp)) { Icon(Icons.Default.Close, null, tint = Color(0xFFF43F5E), modifier = Modifier.size(28.dp)) }
                                         }
                                     }
                                 }
@@ -790,67 +320,120 @@ fun DashboardScreen(
             }
         }
 
-        // Income vs Expense Chart Card
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = com.example.ui.theme.SleekCard),
-                border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.SleekBorder)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = AppTranslation("monthly_income_graph"),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = com.example.ui.theme.Slate900
-                    )
-                    Text(
-                        text = "Monthly Collections ($currency) vs Expense ($currency)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = com.example.ui.theme.Slate500
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    MonthlyIncomeExpenseCanvasChart(
-                        monthlyIncome = stats.monthlyCollection,
-                        monthlyExpense = stats.todaysExpense * 15
-                    )
-                }
+        // 3. Stats Grid (FeatureCard Grid)
+        if (permissions.canSeeStatsCards) {
+            item {
+                ISPFeatureGridSection(
+                    onCollectionClick = { onNavigateToPayments() },
+                    onCollectionReportClick = { onNavigateToReports() },
+                    onListReportClick = { onNavigateToCustomers() },
+                    onDueListClick = { onNavigateToCustomers() },
+                    onCreateNewClick = { showCreateCustomerDialog = true },
+                    onSearchClick = { showSearchCustomerDialog = true },
+                    onComplinListClick = { showComplaintsDialog = true },
+                    onBillSummaryClick = { onNavigateToBilling() }
+                )
             }
         }
 
-        // Customer Growth Chart Card
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = com.example.ui.theme.SleekCard),
-                border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.SleekBorder)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = AppTranslation("customer_growth"),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = com.example.ui.theme.Slate900
-                    )
-                    Text(
-                        text = "Subscriber acquisition over recent 6 months",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = com.example.ui.theme.Slate500
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    CustomerGrowthTrendCanvasChart()
-                }
+        // 4. Collection Breakdown Card
+        if (permissions.canSeeTodayCollection) {
+            item {
+                TodaysCollectionCard(
+                    payments = payments,
+                    selectedFilter = activeFilter,
+                    onFilterSelected = { activeFilter = it }
+                )
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
+        // 5. Main Stats Summary (Hero Summary)
+        if (permissions.canSeeTotalCollection) {
+            item {
+                val displayCollection = activeSummary?.grandTotal ?: stats.todaysCollection
+                val periodTitle = when (activeFilter) {
+                    com.example.ui.components.CollectionFilterPeriod.TODAY -> t("today")
+                    com.example.ui.components.CollectionFilterPeriod.YESTERDAY -> t("yesterday")
+                    com.example.ui.components.CollectionFilterPeriod.LAST_7_DAYS -> t("last_7_days")
+                    com.example.ui.components.CollectionFilterPeriod.THIS_MONTH -> t("this_month")
+                    com.example.ui.components.CollectionFilterPeriod.CUSTOM -> t("custom_date")
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(44.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0D9488)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Brush.verticalGradient(listOf(Color(0xFF0D9488), Color(0xFF0F766E))))
+                            .padding(32.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = t("financial_total").uppercase(),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        letterSpacing = 4.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "$currency ${String.format(java.util.Locale.US, "%,.0f", displayCollection)}",
+                                        fontSize = 56.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        letterSpacing = (-2).sp,
+                                        lineHeight = 56.sp
+                                    )
+                                    Text(
+                                        text = periodTitle.uppercase(),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        letterSpacing = 2.sp,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color.White.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.TrendingUp, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(40.dp))
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(40.dp)
+                            ) {
+                                Column {
+                                    Text(text = t("target_plan").uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.6f), letterSpacing = 2.sp)
+                                    Text(text = "$currency 25,000", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                }
+                                Box(modifier = Modifier.width(1.dp).height(48.dp).background(Color.White.copy(alpha = 0.2f)))
+                                Column {
+                                    Text(text = t("total_outstanding").uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047), letterSpacing = 2.sp)
+                                    Text(text = "$currency ${String.format(java.util.Locale.US, "%,.0f", stats.totalDue)}", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -858,6 +441,7 @@ fun DashboardScreen(
     if (showCreateCustomerDialog) {
         CreateCustomerDashboardDialog(
             viewModel = viewModel,
+            permissions = permissions,
             onDismiss = { showCreateCustomerDialog = false }
         )
     }
@@ -866,7 +450,7 @@ fun DashboardScreen(
     if (showSearchCustomerDialog) {
         SearchCustomerDashboardDialog(
             customersList = customersList,
-            onSelectCustomer = { customer ->
+            onSelectCustomer = { customer: CustomerEntity ->
                 showSearchCustomerDialog = false
                 onSelectCustomer(customer)
             },
@@ -878,7 +462,7 @@ fun DashboardScreen(
     if (showNewCustomersDialog) {
         NewCustomersDashboardDialog(
             customersList = customersList,
-            onSelectCustomer = { customer ->
+            onSelectCustomer = { customer: CustomerEntity ->
                 showNewCustomersDialog = false
                 onSelectCustomer(customer)
             },
@@ -893,10 +477,10 @@ fun DashboardScreen(
             allCustomers = customersList,
             titlesList = complainTitlesList,
             onOpenSetup = { showComplainSetupDialog = true },
-            onUpdateStatus = { ticket, newStatus ->
+            onUpdateStatus = { ticket: SupportTicketEntity, newStatus: String ->
                 viewModel.updateSupportTicket(ticket.copy(status = newStatus))
             },
-            onAddComplaint = { type, desc, name, phone, sDate, sTime, customer ->
+            onAddComplaint = { type: String, desc: String, name: String, phone: String, sDate: String, sTime: String, customer: CustomerEntity? ->
                 viewModel.createSupportTicket(
                     customer = customer,
                     type = type,
@@ -934,120 +518,97 @@ fun ISPFeatureGridSection(
     onBillSummaryClick: () -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Row 1: Collection (Blue/Violet) & Collection Report (Lime Green)
+        // Row 1: Collection (grad-collection) & Report (grad-invoices)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
                 label = AppTranslation("grid_collection"),
                 modifier = Modifier.weight(1f),
-                textColor = Color.White,
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFF6200EE), Color(0xFF3700B3), Color(0xFF0052D4))
-                ),
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFF4F46E5), Color(0xFF2563EB))),
                 onClick = onCollectionClick,
-                iconContent = { CollectionGridIcon(Modifier.size(56.dp)) }
+                iconContent = { CollectionGridIcon(Modifier.size(52.dp)) }
             )
             ISPFeatureCard(
                 label = AppTranslation("grid_collection_report"),
                 modifier = Modifier.weight(1f),
-                textColor = Color.White,
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFF00E65B), Color(0xFF00B33C), Color(0xFF008026))
-                ),
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF059669))),
                 onClick = onCollectionReportClick,
-                iconContent = { CollectionReportGridIcon(Modifier.size(56.dp)) }
+                iconContent = { CollectionReportGridIcon(Modifier.size(52.dp)) }
             )
         }
 
-        // Row 2: List Report (Magenta/Purple) & Due List (Orange/Red)
+        // Row 2: CRM (grad-subscribers) & Tickets (grad-tickets)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
                 label = AppTranslation("grid_list_report"),
                 modifier = Modifier.weight(1f),
-                textColor = Color.White,
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFFFF007A), Color(0xFFD900FF), Color(0xFF8B00FF))
-                ),
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFFEC4899), Color(0xFF8B5CF6))),
                 onClick = onListReportClick,
-                iconContent = { ListReportGridIcon(Modifier.size(56.dp)) }
+                iconContent = { ListReportGridIcon(Modifier.size(52.dp)) }
             )
             ISPFeatureCard(
-                label = AppTranslation("grid_due_list"),
+                label = AppTranslation("grid_complaint_list"),
                 modifier = Modifier.weight(1f),
-                textColor = Color.White,
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFFFF8000), Color(0xFFFF4500), Color(0xFFE52E00))
-                ),
-                onClick = onDueListClick,
-                iconContent = { DueListGridIcon(Modifier.size(56.dp)) }
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFFFBBF24), Color(0xFFF59E0B))),
+                onClick = onComplinListClick,
+                iconContent = { ComplinListGridIcon(Modifier.size(52.dp)) }
             )
         }
 
-        // Row 3: Create New (Cyan/Blue) & Search (Violet/Deep Purple)
+        // Row 3: Create New (grad-create) & Search (grad-search)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
                 label = AppTranslation("grid_create_new"),
                 modifier = Modifier.weight(1f),
-                textColor = Color.White,
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFF00D2FF), Color(0xFF0080FF), Color(0xFF0052D4))
-                ),
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFF06B6D4), Color(0xFF3B82F6))),
                 onClick = onCreateNewClick,
-                iconContent = { CreateNewGridIcon(Modifier.size(56.dp)) }
+                iconContent = { CreateNewGridIcon(Modifier.size(52.dp)) }
             )
             ISPFeatureCard(
                 label = AppTranslation("grid_search"),
                 modifier = Modifier.weight(1f),
-                textColor = Color.White,
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFF8A00FF), Color(0xFF6200EA), Color(0xFF4A00E0))
-                ),
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9))),
                 onClick = onSearchClick,
-                iconContent = { SearchGridIcon(Modifier.size(56.dp)) }
+                iconContent = { SearchGridIcon(Modifier.size(52.dp)) }
             )
         }
 
-        // Row 4: Complin List (Bright Yellow) & Bill Summary (Pink/Magenta)
+        // Row 4: Due List (grad-due) & Summary (grad-summary)
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
-                label = AppTranslation("grid_complaint_list"),
+                label = AppTranslation("grid_due_list"),
                 modifier = Modifier.weight(1f),
-                textColor = Color(0xFF5B1A00),
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFFFFE500), Color(0xFFFFB700), Color(0xFFFF8800))
-                ),
-                onClick = onComplinListClick,
-                iconContent = { ComplinListGridIcon(Modifier.size(56.dp)) }
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFFF97316), Color(0xFFEA580C))),
+                onClick = onDueListClick,
+                iconContent = { DueListGridIcon(Modifier.size(52.dp)) }
             )
             ISPFeatureCard(
                 label = AppTranslation("grid_bill_summary"),
                 modifier = Modifier.weight(1f),
-                textColor = Color.White,
-                gradientBrush = Brush.linearGradient(
-                    listOf(Color(0xFFFF007A), Color(0xFFE000FF), Color(0xFF8000FF))
-                ),
+                gradientBrush = Brush.linearGradient(listOf(Color(0xFFF43F5E), Color(0xFF9D174D))),
                 onClick = onBillSummaryClick,
-                iconContent = { BillSummaryGridIcon(Modifier.size(56.dp)) }
+                iconContent = { BillSummaryGridIcon(Modifier.size(52.dp)) }
             )
         }
     }
 }
 
 // INTERACTIVE DIALOG: NEW CUSTOMERS LIST
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewCustomersDashboardDialog(
     customersList: List<CustomerEntity>,
@@ -1113,12 +674,12 @@ fun NewCustomersDashboardDialog(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(customer.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = com.example.ui.theme.Slate900)
+                                            Text(customer.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Slate900)
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text("(${customer.customerCode})", fontSize = 11.sp, color = ElectricBlue, fontWeight = FontWeight.Bold)
                                         }
-                                        Text("📱 ${customer.mobile} • 📍 ${customer.zone}", fontSize = 11.sp, color = com.example.ui.theme.Slate600)
-                                        Text("📦 ${customer.packageName} • ৳${customer.monthlyBill.toInt()}/mo", fontSize = 11.sp, color = com.example.ui.theme.Teal600, fontWeight = FontWeight.SemiBold)
+                                        Text("📱 ${customer.mobile} • 📍 ${customer.zone}", fontSize = 11.sp, color = Slate600)
+                                        Text("📦 ${customer.packageName} • ৳${String.format(java.util.Locale.US, "%,.0f", customer.monthlyBill)}/mo", fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.SemiBold)
                                     }
 
                                     Box(
@@ -1144,6 +705,7 @@ fun NewCustomersDashboardDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ISPFeatureCard(
     label: String,
@@ -1158,23 +720,23 @@ fun ISPFeatureCard(
     Card(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(44.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 10.dp
+            defaultElevation = 0.dp
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(140.dp)
                 .then(
                     if (gradientBrush != null) Modifier.background(gradientBrush)
                     else Modifier.background(backgroundColor)
                 )
-                .padding(vertical = 12.dp, horizontal = 8.dp),
+                .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -1182,21 +744,22 @@ fun ISPFeatureCard(
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
-                    modifier = Modifier.size(60.dp),
+                    modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     iconContent()
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = label,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = label.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
                     color = textColor,
                     textAlign = TextAlign.Center,
-                    maxLines = 1
+                    maxLines = 1,
+                    letterSpacing = 2.sp
                 )
             }
         }
@@ -1204,13 +767,16 @@ fun ISPFeatureCard(
 }
 
 // INTERACTIVE DIALOG 1: CREATE NEW CUSTOMER
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateCustomerDashboardDialog(
     viewModel: MainViewModel,
+    permissions: UserRolePermissions,
     onDismiss: () -> Unit
 ) {
     AddEditCustomerDialog(
         customer = null,
+        permissions = permissions,
         onDismiss = onDismiss,
         onSave = { newCustomer, choice ->
             viewModel.addOrUpdateCustomer(newCustomer, choice)
@@ -1220,6 +786,7 @@ fun CreateCustomerDashboardDialog(
 }
 
 // INTERACTIVE DIALOG 2: SEARCH CUSTOMERS
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchCustomerDashboardDialog(
     customersList: List<CustomerEntity>,
@@ -1241,12 +808,12 @@ fun SearchCustomerDashboardDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("বন্ধ করুন", color = com.example.ui.theme.Teal700)
+                Text("বন্ধ করুন", color = Teal700)
             }
         },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = com.example.ui.theme.Teal600)
+                Icon(Icons.Default.Search, contentDescription = null, tint = Teal600)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(AppTranslation("grid_search") + " (Search Customer)", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
@@ -1295,7 +862,7 @@ fun SearchCustomerDashboardDialog(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(customer.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         Text("${customer.customerCode} • ${customer.zone}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text("Pkg: ${customer.packageName} • Due: ৳${customer.currentDue.toInt()}", fontSize = 11.sp, color = if (customer.currentDue > 0) CoralWarning else EmeraldSuccess, fontWeight = FontWeight.Bold)
+                                        Text("Pkg: ${customer.packageName} • Due: ৳${String.format(java.util.Locale.US, "%,.0f", customer.currentDue)}", fontSize = 11.sp, color = if (customer.currentDue > 0) CoralWarning else EmeraldSuccess, fontWeight = FontWeight.Bold)
                                     }
                                     IconButton(
                                         onClick = {
@@ -1316,6 +883,7 @@ fun SearchCustomerDashboardDialog(
 }
 
 // INTERACTIVE DIALOG 3: COMPLAINTS / SUPPORT TICKETS LIST
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComplaintsDashboardDialog(
     complaints: List<SupportTicketEntity>,
@@ -1405,7 +973,7 @@ fun ComplaintsDashboardDialog(
                                         onClick = { selectedFilter = status },
                                         label = { Text(status, fontSize = 11.sp) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = com.example.ui.theme.Teal600,
+                                            selectedContainerColor = Teal600,
                                             selectedLabelColor = Color.White
                                         )
                                     )
@@ -1434,7 +1002,7 @@ fun ComplaintsDashboardDialog(
                                 items(
                                     items = filteredList,
                                     key = { it.id }
-                                ) { ticket ->
+                                ) { ticket: SupportTicketEntity ->
                                     val animatedBgColor by animateColorAsState(
                                         targetValue = when (ticket.status) {
                                             "Resolved" -> EmeraldSuccess.copy(alpha = 0.15f)
@@ -1493,7 +1061,12 @@ fun ComplaintsDashboardDialog(
                                                                 modifier = Modifier.size(12.dp)
                                                             )
                                                             Spacer(modifier = Modifier.width(4.dp))
-                                                            Text(currentStatus, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                            androidx.compose.material3.Text(
+                                                    text = ticket.status,
+                                                    color = Color.White,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
                                                         }
                                                     }
                                                 }
@@ -1503,7 +1076,6 @@ fun ComplaintsDashboardDialog(
                                             Text(ticket.description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(modifier = Modifier.height(6.dp))
 
-                                            // Display Request Date & Time and Scheduled Resolution Date & Time
                                             Surface(
                                                 color = MaterialTheme.colorScheme.surfaceVariant,
                                                 shape = RoundedCornerShape(6.dp),
@@ -1588,211 +1160,208 @@ fun ComplaintsDashboardDialog(
                             }
                         }
                     } else {
-                    // New Complaint Form View
-                    Column(
-                        modifier = Modifier.verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text("Log New Support Ticket / Service Request", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Column(
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text("Log New Support Ticket / Service Request", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
-                        // Customer Search Section
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Search & Select Customer:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal600)
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                placeholder = { Text("ID, Name or Phone...", fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            
-                            if (filteredCustomers.isNotEmpty()) {
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Column {
-                                        filteredCustomers.forEach { cust ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        selectedCustomer = cust
-                                                        newCustName = cust.name
-                                                        newPhone = cust.mobile
-                                                        searchQuery = ""
-                                                    }
-                                                    .padding(10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = Teal600)
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("${cust.name} (${cust.customerCode})", fontSize = 12.sp)
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Search & Select Customer:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal600)
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    placeholder = { Text("ID, Name or Phone...", fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                
+                                if (filteredCustomers.isNotEmpty()) {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Column {
+                                            filteredCustomers.forEach { cust ->
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            selectedCustomer = cust
+                                                            newCustName = cust.name
+                                                            newPhone = cust.mobile
+                                                            searchQuery = ""
+                                                        }
+                                                        .padding(10.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp), tint = Teal600)
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("${cust.name} (${cust.customerCode})", fontSize = 12.sp)
+                                                }
+                                                if (cust != filteredCustomers.last()) HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = Slate200)
                                             }
-                                            if (cust != filteredCustomers.last()) HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = Slate200)
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        if (selectedCustomer != null) {
-                            Surface(
-                                color = EmeraldSuccess.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(8.dp),
+                            if (selectedCustomer != null) {
+                                Surface(
+                                    color = EmeraldSuccess.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = EmeraldSuccess, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Selected: ${selectedCustomer?.name}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        TextButton(onClick = { selectedCustomer = null; newCustName = ""; newPhone = "" }) {
+                                            Text("Clear", color = CoralWarning, fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = newCustName,
+                                onValueChange = { newCustName = it },
+                                label = { Text("Customer Name") },
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = selectedCustomer != null
+                            )
+
+                            OutlinedTextField(
+                                value = newPhone,
+                                onValueChange = { newPhone = it },
+                                label = { Text("Phone Number") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                modifier = Modifier.fillMaxWidth(),
+                                readOnly = selectedCustomer != null
+                            )
+
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("কমপ্লিন টাইটেল সিলেক্ট করুন:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    TextButton(onClick = onOpenSetup) {
+                                        Text("+ Complain Setup", fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                if (titlesList.isNotEmpty()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        titlesList.forEach { titleItem ->
+                                            FilterChip(
+                                                selected = newIssue == titleItem.title,
+                                                onClick = { newIssue = titleItem.title },
+                                                label = { Text(titleItem.title, fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    selectedContainerColor = Teal600,
+                                                    selectedLabelColor = Color.White
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = newIssue,
+                                onValueChange = { newIssue = it },
+                                label = { Text("Issue Type (e.g. LOS Red Light / Speed)") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = newDetails,
+                                onValueChange = { newDetails = it },
+                                label = { Text("Details / Staff Notes") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Text("📌 রিকোয়েস্টের তারিখ ও সময় (Request Date & Time)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                ReadonlyDateField(
+                                    value = newReqDate,
+                                    label = "আবেদনের তারিখ",
+                                    onDateSelected = { newReqDate = it },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = newReqTime,
+                                    onValueChange = { newReqTime = it },
+                                    label = { Text("আবেদনের সময়") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+
+                            Text("⏱️ টেকনিশিয়ান ভিজিটের নির্ধারিত সময় (Scheduled Visit)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                ReadonlyDateField(
+                                    value = newSchedDate,
+                                    label = "ভিজিটের তারিখ",
+                                    onDateSelected = { newSchedDate = it },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = newSchedTime,
+                                    onValueChange = { newSchedTime = it },
+                                    label = { Text("ভিজিটের সময়") },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true
+                                )
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.End,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = EmeraldSuccess, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Selected: ${selectedCustomer?.name}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldSuccess)
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    TextButton(onClick = { selectedCustomer = null; newCustName = ""; newPhone = "" }) {
-                                        Text("Clear", color = CoralWarning, fontSize = 11.sp)
-                                    }
+                                TextButton(onClick = { showNewComplaintForm = false }) {
+                                    Text("Back")
                                 }
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = newCustName,
-                            onValueChange = { newCustName = it },
-                            label = { Text("Customer Name") },
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = selectedCustomer != null
-                        )
-
-                        OutlinedTextField(
-                            value = newPhone,
-                            onValueChange = { newPhone = it },
-                            label = { Text("Phone Number") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = selectedCustomer != null
-                        )
-
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("কমপ্লিন টাইটেল সিলেক্ট করুন:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                TextButton(onClick = onOpenSetup) {
-                                    Text("+ Complain Setup", fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            if (titlesList.isNotEmpty()) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    titlesList.forEach { titleItem ->
-                                        FilterChip(
-                                            selected = newIssue == titleItem.title,
-                                            onClick = { newIssue = titleItem.title },
-                                            label = { Text(titleItem.title, fontSize = 11.sp) },
-                                            colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = Teal600,
-                                                selectedLabelColor = Color.White
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = {
+                                        if (newCustName.isNotBlank()) {
+                                            onAddComplaint(
+                                                newIssue,
+                                                newDetails,
+                                                newCustName,
+                                                newPhone,
+                                                newSchedDate,
+                                                newSchedTime,
+                                                selectedCustomer
                                             )
-                                        )
-                                    }
+                                            showNewComplaintForm = false
+                                            selectedCustomer = null
+                                            newCustName = ""
+                                            newPhone = ""
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Teal600)
+                                ) {
+                                    Text("Submit Ticket")
                                 }
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = newIssue,
-                            onValueChange = { newIssue = it },
-                            label = { Text("Issue Type (e.g. LOS Red Light / Speed)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = newDetails,
-                            onValueChange = { newDetails = it },
-                            label = { Text("Details / Staff Notes") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Text("📌 রিকোয়েস্টের তারিখ ও সময় (Request Date & Time)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ReadonlyDateField(
-                                value = newReqDate,
-                                label = "আবেদনের তারিখ",
-                                onDateSelected = { newReqDate = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                            OutlinedTextField(
-                                value = newReqTime,
-                                onValueChange = { newReqTime = it },
-                                label = { Text("আবেদনের সময়") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                        }
-
-                        Text("⏱️ টেকনিশিয়ান ভিজিটের নির্ধারিত সময় (Scheduled Visit)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ReadonlyDateField(
-                                value = newSchedDate,
-                                label = "ভিজিটের তারিখ",
-                                onDateSelected = { newSchedDate = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                            OutlinedTextField(
-                                value = newSchedTime,
-                                onValueChange = { newSchedTime = it },
-                                label = { Text("ভিজিটের সময়") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true
-                            )
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.End,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            TextButton(onClick = { showNewComplaintForm = false }) {
-                                Text("Back")
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = {
-                                    if (newCustName.isNotBlank()) {
-                                        onAddComplaint(
-                                            newIssue,
-                                            newDetails,
-                                            newCustName,
-                                            newPhone,
-                                            newSchedDate,
-                                            newSchedTime,
-                                            selectedCustomer
-                                        )
-                                        showNewComplaintForm = false
-                                        selectedCustomer = null
-                                        newCustName = ""
-                                        newPhone = ""
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600)
-                            ) {
-                                Text("Submit Ticket")
                             }
                         }
                     }
                 }
             }
         }
-    }
-)
+    )
 
-    // Edit Date/Time Dialog for existing support ticket request
     editingTicket?.let { ticket ->
         var editSchedDate by remember { mutableStateOf(ticket.scheduledDate) }
         var editSchedTime by remember { mutableStateOf(ticket.scheduledTime) }
@@ -1805,7 +1374,7 @@ fun ComplaintsDashboardDialog(
                         onUpdateStatus(ticket.copy(scheduledDate = editSchedDate, scheduledTime = editSchedTime), ticket.status)
                         editingTicket = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600)
+                    colors = ButtonDefaults.buttonColors(containerColor = Teal600)
                 ) {
                     Text("আপডেট করুন")
                 }
@@ -1856,9 +1425,9 @@ fun MetricCard(
 ) {
     Card(
         modifier = if (onClick != null) modifier.clickable { onClick() } else modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = com.example.ui.theme.SleekCard),
-        border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.SleekBorder)
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(containerColor = SleekCard),
+        border = BorderStroke(1.dp, SleekBorder)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -1888,14 +1457,14 @@ fun MetricCard(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
-                color = com.example.ui.theme.Slate900
+                color = Slate900
             )
 
             Text(
                 text = title,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = com.example.ui.theme.Slate500,
+                color = Slate500,
                 maxLines = 1
             )
 
@@ -1911,10 +1480,11 @@ fun MetricCard(
 
 @Composable
 fun MonthlyIncomeExpenseCanvasChart(monthlyIncome: Double, monthlyExpense: Double) {
+    val gridColor = Slate200
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp)
+            .height(160.dp)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
@@ -1925,24 +1495,37 @@ fun MonthlyIncomeExpenseCanvasChart(monthlyIncome: Double, monthlyExpense: Doubl
             val expenseData = listOf(70000f, 85000f, 90000f, 110000f, 120000f, (monthlyExpense.toFloat() + 95000f))
 
             val maxVal = 400000f
-            val barWidth = 20.dp.toPx()
+            val barWidth = 24.dp.toPx()
             val step = width / months.size
 
-            months.forEachIndexed { i, _ ->
-                val x = i * step + step / 4
+            // Draw Y-axis grid lines
+            for (i in 0..4) {
+                val y = height - (i * height / 5) - 30f
+                drawLine(
+                    color = gridColor,
+                    start = Offset(0f, y),
+                    end = Offset(width, y),
+                    strokeWidth = 1f
+                )
+            }
 
-                val incHeight = (incomeData[i] / maxVal) * (height - 30f)
-                drawRect(
+            months.forEachIndexed { i, _ ->
+                val x = i * step + step / 6
+
+                val incHeight = (incomeData[i] / maxVal) * (height - 50f)
+                drawRoundRect(
                     brush = Brush.verticalGradient(listOf(CyanAccent, ElectricBlue)),
-                    topLeft = Offset(x, height - incHeight - 20f),
-                    size = Size(barWidth, incHeight)
+                    topLeft = Offset(x, height - incHeight - 30f),
+                    size = Size(barWidth, incHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f)
                 )
 
-                val expHeight = (expenseData[i] / maxVal) * (height - 30f)
-                drawRect(
+                val expHeight = (expenseData[i] / maxVal) * (height - 50f)
+                drawRoundRect(
                     brush = Brush.verticalGradient(listOf(BkashPink, CoralWarning)),
-                    topLeft = Offset(x + barWidth + 4f, height - expHeight - 20f),
-                    size = Size(barWidth, expHeight)
+                    topLeft = Offset(x + barWidth + 6f, height - expHeight - 30f),
+                    size = Size(barWidth, expHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f)
                 )
             }
         }
@@ -1954,43 +1537,67 @@ fun CustomerGrowthTrendCanvasChart() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp)
+            .height(140.dp)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
 
-            val points = listOf(
-                Offset(0f, height * 0.8f),
-                Offset(width * 0.2f, height * 0.7f),
-                Offset(width * 0.4f, height * 0.55f),
-                Offset(width * 0.6f, height * 0.45f),
-                Offset(width * 0.8f, height * 0.3f),
-                Offset(width, height * 0.15f)
+            val dataPoints = listOf(0.8f, 0.7f, 0.55f, 0.45f, 0.3f, 0.15f)
+            val step = width / (dataPoints.size - 1)
+            
+            val points = dataPoints.mapIndexed { i, valPct ->
+                Offset(i * step, height * valPct)
+            }
+
+            // Draw Gradient Area under the curve
+            val areaPath = Path().apply {
+                moveTo(0f, height)
+                lineTo(points.first().x, points.first().y)
+                for (i in 0 until points.size - 1) {
+                    val p1 = points[i]
+                    val p2 = points[i+1]
+                    val controlX = (p1.x + p2.x) / 2
+                    cubicTo(controlX, p1.y, controlX, p2.y, p2.x, p2.y)
+                }
+                lineTo(width, height)
+                close()
+            }
+            
+            drawPath(
+                path = areaPath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(EmeraldSuccess.copy(alpha = 0.3f), Color.Transparent)
+                )
             )
 
-            val path = Path().apply {
+            // Draw Smooth Curve Line
+            val linePath = Path().apply {
                 moveTo(points.first().x, points.first().y)
-                points.forEach { point ->
-                    lineTo(point.x, point.y)
+                for (i in 0 until points.size - 1) {
+                    val p1 = points[i]
+                    val p2 = points[i+1]
+                    val controlX = (p1.x + p2.x) / 2
+                    cubicTo(controlX, p1.y, controlX, p2.y, p2.x, p2.y)
                 }
             }
 
             drawPath(
-                path = path,
+                path = linePath,
                 color = EmeraldSuccess,
-                style = Stroke(width = 6f)
+                style = Stroke(width = 8f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
             )
 
+            // Draw indicator points
             points.forEach { point ->
                 drawCircle(
                     color = Color.White,
-                    radius = 8f,
+                    radius = 10f,
                     center = point
                 )
                 drawCircle(
                     color = EmeraldSuccess,
-                    radius = 5f,
+                    radius = 6f,
                     center = point
                 )
             }
@@ -1998,7 +1605,6 @@ fun CustomerGrowthTrendCanvasChart() {
     }
 }
 
-// INTERACTIVE DIALOG 5: COMPLAIN SETUP DIALOG (Matching user screenshot)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComplainSetupDialog(
@@ -2013,7 +1619,7 @@ fun ComplainSetupDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("বন্ধ করুন", color = com.example.ui.theme.Teal700)
+                Text("বন্ধ করুন", color = Teal700)
             }
         },
         title = {
@@ -2026,7 +1632,7 @@ fun ComplainSetupDialog(
                     text = "Complain Setup",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = com.example.ui.theme.Slate900
+                    color = Slate900
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
@@ -2039,21 +1645,19 @@ fun ComplainSetupDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                Divider(color = com.example.ui.theme.SleekBorder)
+                HorizontalDivider(color = SleekBorder)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Create Complain Title Section
                 Text(
                     text = "Create Complain Title",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = com.example.ui.theme.Slate900,
+                    color = Slate900,
                     fontSize = 20.sp
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Text input box with placeholder "Add new complain"
                 OutlinedTextField(
                     value = newTitleInput,
                     onValueChange = { newTitleInput = it },
@@ -2061,7 +1665,7 @@ fun ComplainSetupDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = com.example.ui.theme.Teal600,
+                        focusedBorderColor = Teal600,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     ),
                     singleLine = true
@@ -2069,7 +1673,6 @@ fun ComplainSetupDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Checkbox: Show in Customer Portal
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -2080,7 +1683,7 @@ fun ComplainSetupDialog(
                         checked = showInPortalChecked,
                         onCheckedChange = { showInPortalChecked = it },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = com.example.ui.theme.Teal600
+                            checkedColor = Teal600
                         )
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -2101,7 +1704,6 @@ fun ComplainSetupDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Add button
                 Button(
                     onClick = {
                         if (newTitleInput.isNotBlank()) {
@@ -2134,15 +1736,14 @@ fun ComplainSetupDialog(
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
-                Divider(color = com.example.ui.theme.SleekBorder)
+                HorizontalDivider(color = SleekBorder)
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Existing Complain Titles list
                 Text(
                     text = "বিদ্যমান কমপ্লিন টাইটেল তালিকা (${titlesList.size})",
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    color = com.example.ui.theme.Slate900
+                    color = Slate900
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -2162,7 +1763,7 @@ fun ComplainSetupDialog(
                                 .padding(vertical = 4.dp),
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(1.dp, com.example.ui.theme.SleekBorder)
+                            border = BorderStroke(1.dp, SleekBorder)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -2176,12 +1777,12 @@ fun ComplainSetupDialog(
                                         text = "${idx + 1}. ${item.title}",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp,
-                                        color = com.example.ui.theme.Slate900
+                                        color = Slate900
                                     )
                                     Text(
                                         text = if (item.showInPortal) "🌐 Customer Portal (Active)" else "🔒 Internal Only",
                                         fontSize = 10.sp,
-                                        color = if (item.showInPortal) com.example.ui.theme.Teal600 else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (item.showInPortal) Teal600 else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
 
@@ -2195,7 +1796,7 @@ fun ComplainSetupDialog(
                                     Icon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = "Delete",
-                                        tint = com.example.ui.theme.CoralWarning,
+                                        tint = CoralWarning,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }

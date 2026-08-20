@@ -105,6 +105,28 @@ function App() {
     });
   }, [store.customers]);
 
+  const currentPermissions = React.useMemo(() => {
+    if (!session) return {};
+    if (session.role === 'admin') {
+      return {
+        canCollect: true, canSeeMobile: true, canEdit: true, canDelete: true, canAdd: true, canSeeRevenue: true,
+        canInventory: true, canSuspend: true, canLedger: true, canPasswords: true, canExpenses: true, canSMS: true,
+        canDiscount: true, canBulkBill: true, canEditPayments: true, canManageStock: true, canAssignAssets: true,
+        canManageZones: true, canManageRouters: true, canResolveTickets: true, canSendBulkSMS: true, canEditTemplates: true,
+        canSeeStatsCards: true, canSeeExpiryAlerts: true, canSeeComplaintsAlert: true, canSeeVerificationAlert: true,
+        canSeeTodayCollection: true, canSeeTotalCollection: true,
+        canAccessBilling: true, canAccessReports: true, canAccessInventory: true, canAccessPackages: true, canAccessSMS: true,
+        canAccessSalary: true, canAccessTickets: true, canAccessCustomers: true, canAccessPayments: true, canAccessExpenses: true,
+        canAccessStaff: true, canAccessInfrastructure: true, canAccessSmsLogs: true, canAccessGlobalSettings: true
+      };
+    }
+    if (session.role === 'staff') {
+      const roleName = session.data.role;
+      return store.settings?.rolePermissions?.[roleName] || store.settings?.role_permissions?.[roleName] || {};
+    }
+    return {};
+  }, [session, store.settings]);
+
   useEffect(() => {
     if (isDarkMode) document.body.classList.add('dark-mode');
     else document.body.classList.remove('dark-mode');
@@ -222,7 +244,7 @@ function App() {
 
   return (
     <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${isDarkMode ? 'dark-mode bg-slate-900 text-white' : 'bg-slate-50 text-slate-800'}`}>
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} activePage={activePage} setActivePage={setActivePage} onLogout={handleLogout} t={t} role={session.role} />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} activePage={activePage} setActivePage={setActivePage} onLogout={handleLogout} t={t} role={session.role} permissions={currentPermissions} />
 
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300`}>
         <header className={`h-16 md:h-20 border-b flex justify-between items-center px-4 md:px-10 shrink-0 z-10 transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
@@ -250,11 +272,11 @@ function App() {
           {activePage === 'dashboard' && (
             session.role === 'customer'
               ? <CustomerPortal store={store} customer={session.data} t={t} />
-              : <Dashboard store={store} session={session} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />
+              : <Dashboard store={store} session={session} permissions={currentPermissions} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />
           )}
-          {activePage === 'customers' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
+          {activePage === 'customers' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
-          {activePage === 'new_enrollment' && <Customers store={store} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
+          {activePage === 'new_enrollment' && session.role === 'admin' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
           {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
           {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} initialTab={reportInitialTab} />}
@@ -281,14 +303,18 @@ function App() {
         {/* FLOATING NOTIFICATION ICON (HIDDEN FOR CUSTOMERS) */}
         <div
           onClick={() => setShowExpiryModal(true)}
-          className={`fixed bottom-10 right-10 w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-2xl cursor-pointer hover:scale-110 active:scale-95 transition-all z-[100] animate-bounce ${expiringTomorrow.length > 0 && session?.role !== 'customer' ? 'flex' : 'hidden'}`}
+          className={`fixed bottom-10 right-10 w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-2xl cursor-pointer hover:scale-110 active:scale-95 transition-all z-[100] animate-bounce ${
+            expiringTomorrow.length > 0 &&
+            currentPermissions.canSeeExpiryAlerts
+            ? 'flex' : 'hidden'
+          }`}
         >
            <i className="fas fa-bell text-2xl"></i>
            <span className="absolute -top-1 -right-1 bg-white text-rose-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-rose-600 shadow-sm">{expiringTomorrow.length}</span>
         </div>
 
         {/* EXPIRY ALERT MODAL */}
-        {showExpiryModal && (
+        {showExpiryModal && currentPermissions.canSeeExpiryAlerts && (
           <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[9999] flex items-center justify-center p-6 uppercase font-black">
             <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-2xl p-12 shadow-2xl border-4 border-rose-500/20 space-y-8 relative overflow-hidden">
                <div className="absolute top-0 left-0 w-full h-3 bg-rose-600"></div>
@@ -313,7 +339,7 @@ function App() {
                     >
                        <div className="space-y-1">
                           <p className="text-[10px] opacity-60 font-black tracking-widest">#{c.customerCode}</p>
-                          <h4 className="text-xl font-black">{c.name}</h4>
+                          <h4 className="text-xl font-black">{c.name} <span className="ml-3 text-base text-indigo-600 dark:text-indigo-400 opacity-100">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</span></h4>
                           <div className="flex items-center space-x-3 text-xs md:text-sm font-black uppercase tracking-wider mt-1">
                              <span className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-xl shadow-sm border border-indigo-200/50">{c.zone || 'Global'}</span>
                              <span className="bg-rose-100 dark:bg-rose-900/30 text-rose-600 px-3 py-1 rounded-xl shadow-sm border border-rose-200/50">বকেয়া: ৳{Math.floor(c.currentDue || c.current_due || 0)}</span>

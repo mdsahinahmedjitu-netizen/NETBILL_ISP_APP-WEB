@@ -50,6 +50,7 @@ import com.example.viewmodel.ReportsViewModel
 @Composable
 fun ReportsScreen(mainViewModel: MainViewModel, reportsViewModel: ReportsViewModel = viewModel()) {
     val stats by reportsViewModel.reportStats.collectAsState()
+    val permissions by mainViewModel.currentPermissions.collectAsState()
     val customers by reportsViewModel.customers.collectAsState()
     val allocations: List<PaymentAllocationEntity> by mainViewModel.paymentAllocations.collectAsState()
     val context = LocalContext.current
@@ -107,38 +108,40 @@ fun ReportsScreen(mainViewModel: MainViewModel, reportsViewModel: ReportsViewMod
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Navy800)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Monthly Financial Summary", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
-                        Spacer(modifier = Modifier.height(10.dp))
+            if (permissions.canSeeRevenue) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Navy800)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Monthly Financial Summary", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                        ReportDetailRow("Total Monthly Income", "$currency ${stats.totalRevenue.toInt()}")
-                        ReportDetailRow("Total Monthly Expense", "$currency ${stats.totalExpense.toInt()}")
-                        ReportDetailRow("Net Profit", "$currency ${stats.netProfit.toInt()}")
-                        ReportDetailRow("Outstanding Due", "$currency ${stats.totalOutstanding.toInt()}")
+                            ReportDetailRow("Total Monthly Income", "$currency ${String.format(java.util.Locale.US, "%,.0f", stats.totalRevenue)}")
+                            ReportDetailRow("Total Monthly Expense", "$currency ${String.format(java.util.Locale.US, "%,.0f", stats.totalExpense)}")
+                            ReportDetailRow("Net Profit", "$currency ${String.format(java.util.Locale.US, "%,.0f", stats.netProfit)}")
+                            ReportDetailRow("Outstanding Due", "$currency ${String.format(java.util.Locale.US, "%,.0f", stats.totalOutstanding)}")
+                        }
                     }
                 }
-            }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Navy800)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Carry Forward Due & Outstanding Report", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
-                        Spacer(modifier = Modifier.height(10.dp))
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Navy800)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Carry Forward Due & Outstanding Report", fontWeight = FontWeight.Bold, color = CyanAccent, fontSize = 15.sp)
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                        ReportDetailRow("Total Carried Forward Due", "$currency ${totalCarryForwardDue.toInt()}")
-                        ReportDetailRow("Current Month Bill Due", "$currency ${totalCurrentBillDue.toInt()}")
-                        ReportDetailRow("Net Total Outstanding Balance", "$currency ${totalOutstandingDue.toInt()}")
-                        ReportDetailRow("Customers with Carry Forward Due", "${dueInvoices.distinctBy { it.customerId }.size} Customers")
+                            ReportDetailRow("Total Carried Forward Due", "$currency ${String.format(java.util.Locale.US, "%,.0f", totalCarryForwardDue)}")
+                            ReportDetailRow("Current Month Bill Due", "$currency ${String.format(java.util.Locale.US, "%,.0f", totalCurrentBillDue)}")
+                            ReportDetailRow("Net Total Outstanding Balance", "$currency ${String.format(java.util.Locale.US, "%,.0f", totalOutstandingDue)}")
+                            ReportDetailRow("Customers with Carry Forward Due", "${dueInvoices.distinctBy { it.customerId }.size} Customers")
+                        }
                     }
                 }
             }
@@ -157,7 +160,7 @@ fun ReportsScreen(mainViewModel: MainViewModel, reportsViewModel: ReportsViewMod
                             Text("No zone data available.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         } else {
                             stats.zoneReports.forEach { zone ->
-                                ReportDetailRow(zone.zoneName, "${zone.customerCount} Subscribers ($currency ${zone.monthlyRevenue.toInt()}/mo)")
+                                ReportDetailRow(zone.zoneName, "${zone.customerCount} Subscribers ($currency ${String.format(java.util.Locale.US, "%,.0f", zone.monthlyRevenue)}/mo)")
                             }
                         }
                     }
@@ -190,7 +193,7 @@ fun ReportsScreen(mainViewModel: MainViewModel, reportsViewModel: ReportsViewMod
                                             fontSize = 11.sp
                                         )
                                         Text(
-                                            text = "Allocated: $currency${alloc.allocatedAmount.toInt()}",
+                                            text = "Allocated: $currency${String.format(java.util.Locale.US, "%,.0f", alloc.allocatedAmount)}",
                                             fontWeight = FontWeight.Bold,
                                             color = EmeraldSuccess,
                                             fontSize = 12.sp
