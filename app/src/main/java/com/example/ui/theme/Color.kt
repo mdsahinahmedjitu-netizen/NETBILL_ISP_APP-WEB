@@ -6,6 +6,9 @@ import androidx.compose.ui.graphics.Color
 
 // Brand Colors for ISP Management Tool
 val IspTealPrimary = Color(0xFF0D9488) // Deep Tech Teal
+val IspRose = Color(0xFFF43F5E) // Rose
+val IspIndigo = Color(0xFF4F46E5) // Indigo
+val IspAmber = Color(0xFFF59E0B) // Amber
 val IspTealDark = Color(0xFF0F766E)
 val IspTealLight = Color(0xFF14B8A6)
 val IspTealContainer = Color(0xFFCCFBF1)
@@ -34,6 +37,7 @@ val Slate500: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVaria
 val Slate400: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 val Slate200: Color @Composable get() = MaterialTheme.colorScheme.outlineVariant
 val Slate100: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+val Slate50 = Color(0xFFF8FAFC)
 
 val SlateBg: Color @Composable get() = MaterialTheme.colorScheme.background
 val SlateSurface: Color @Composable get() = MaterialTheme.colorScheme.surface
@@ -45,6 +49,11 @@ val SlateDarkBg = Color(0xFF0B0F19)
 val SlateDarkSurface = Color(0xFF151C2C)
 val SlateDarkSurfaceVariant = Color(0xFF1E293B)
 val SlateDarkBorder = Color(0xFF2D3748)
+
+// Role Specific Sidebar Colors
+val AdminSidebarBg = Color(0xFF0F172A)
+val CustomerSidebarBg = Color(0xFF064E3B)
+val StaffSidebarBg = Color(0xFF1E1B4B)
 
 // Sleek Theme Aliases (Dynamic based on active MaterialTheme.colorScheme)
 val SleekBg: Color @Composable get() = MaterialTheme.colorScheme.background

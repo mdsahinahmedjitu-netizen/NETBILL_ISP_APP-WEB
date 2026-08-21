@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId, isDirectMode }) => {
+const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId, isDirectMode, setPreSelectedCustomer }) => {
   const [search, setSearch] = useState('');
   const [selectedCust, setSelectedCust] = useState(null);
   const [ledger, setLedger] = useState([]);
@@ -42,7 +42,8 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     zone: 'All',
     status: 'All',
     plan: 'All',
-    hideZeroDue: false
+    hideZeroDue: false,
+    hideInactive: false
   });
 
   // Dynamic Import States
@@ -59,6 +60,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     { key: 'pppoeUsername', label: 'PPPoE Username' },
     { key: 'packageName', label: 'Package Plan' },
     { key: 'monthlyBill', label: 'Monthly Bill' },
+    { key: 'discountAmount', label: 'Discount Amount' },
     { key: 'paid', label: 'Paid Amount' },
     { key: 'currentDue', label: 'Due Amount' },
     { key: 'joinDate', label: 'Join Date' },
@@ -74,8 +76,9 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     onuSerialNumber: '', zone: '', subZone: '', boxId: '',
     routerId: '', billingType: 'MONTHLY DATE TO DATE', paymentStatus: 'Unpaid',
     expireDate: '', requestDate: '', connectionType: '', status: 'Active',
-    subscriptionType: 'Prepaid', connectionFee: 0, connectionDate: new Date().toLocaleDateString('en-CA'),
-    assignedStaffId: '', referenceName: '', referenceMobile: ''
+    subscriptionType: 'Prepaid', connectionFee: 0, joinDate: new Date().toLocaleDateString('en-CA'),
+    assignedStaffId: '', referenceName: '', referenceMobile: '',
+    currentDue: 0, discountAmount: 0
   };
   const [formData, setFormData] = useState(initialState);
 
@@ -125,6 +128,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     const planMatch = filters.plan === 'All' || c.packageName === filters.plan;
     const currentDue = parseFloat(c.currentDue) || 0;
     const dueMatch = !filters.hideZeroDue || (currentDue >= 1);
+    const inactiveMatch = !filters.hideInactive || (c.status === 'Active');
 
     // Role-Based Isolation: Collector Staff only see their assigned customers
     if (session?.role === 'staff') {
@@ -132,7 +136,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         if (!isAssigned) return false;
     }
 
-    return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch;
+    return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch && inactiveMatch;
   });
 
   const requestSort = (key) => {
@@ -490,10 +494,25 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
   };
 
   const openDateChangeModal = (cust) => {
+    // Function to convert DD-MMM-YYYY to YYYY-MM-DD for HTML input
+    const toISODate = (str) => {
+        if (!str || str === 'Not Set') return '';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+        const monthsArr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const parts = str.split('-');
+        if (parts.length === 3) {
+            const day = parts[0].padStart(2, '0');
+            const month = (monthsArr.indexOf(parts[1]) + 1).toString().padStart(2, '0');
+            const year = parts[2];
+            if (month !== '00') return `${year}-${month}-${day}`;
+        }
+        return '';
+    };
+
     setCustToChangeDate(cust);
     setNewDates({
-      expireDate: cust.expire_date || '',
-      requestDate: cust.request_date || ''
+      expireDate: toISODate(cust.expireDate || cust.expire_date),
+      requestDate: toISODate(cust.requestDate || cust.request_date)
     });
     setShowDateChangeModal(true);
     setActiveMenuId(null);
@@ -505,8 +524,8 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
       const { error } = await supabase
         .from('customers')
         .update({
-          expire_date: newDates.expireDate,
-          request_date: newDates.requestDate
+          expire_date: newDates.expireDate || null,
+          request_date: newDates.requestDate || null
         })
         .eq('id', custToChangeDate.id);
 
@@ -515,7 +534,8 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
       setShowDateChangeModal(false);
       setCustToChangeDate(null);
     } catch (e) {
-      alert("Failed to update dates.");
+      console.error("Date update error:", e);
+      alert("Failed to update dates. Please try again.");
     }
   };
 
@@ -548,6 +568,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         status: formData.status,
         subscription_type: formData.subscriptionType,
         connection_fee: parseFloat(formData.connectionFee) || 0,
+        join_date: formData.joinDate,
         reference_name: formData.referenceName,
         reference_mobile: formData.referenceMobile,
         assigned_staff_id: formData.assignedStaffId,
@@ -566,33 +587,35 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
       else {
         const today = new Date();
         const day = today.getDate();
-        let currentDue = 0;
+        const previousDue = parseFloat(formData.currentDue) || 0;
+        const discount = parseFloat(formData.discountAmount) || 0;
+        const monthlyBill = parseFloat(formData.monthlyBill) || 0;
+
+        let currentDue = previousDue;
         let billApplied = false;
 
         if (day <= 20) {
-          currentDue = parseFloat(formData.monthlyBill) || 0;
+          currentDue += (monthlyBill - discount);
           billApplied = true;
         } else {
           const choice = window.confirm("গ্রাহক ২০ তারিখের পরে জয়েন করেছেন। চলতি মাসের বিল কি এখনই জেনারেট করবেন?");
           if (choice) {
-            currentDue = parseFloat(formData.monthlyBill) || 0;
+            currentDue += (monthlyBill - discount);
             billApplied = true;
           } else {
-            currentDue = 0;
             billApplied = false;
           }
         }
 
         const newCode = formData.customerCode || `CUST-${Date.now().toString().slice(-4)}`;
-        const joinDate = new Date().toLocaleDateString('en-CA');
+        const joinDate = formData.joinDate;
 
         // Insert new customer and get the data back
         const { data: insertedData, error: custErr } = await supabase.from('customers').insert({
           ...dbData,
           customer_code: newCode,
           current_due: currentDue,
-          advance_balance: 0,
-          join_date: joinDate
+          advance_balance: 0
         }).select();
 
         if (custErr) {
@@ -603,9 +626,23 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
 
         const newCust = insertedData[0];
 
-        if (billApplied && currentDue > 0 && newCust) {
+        // 1. If Previous Due exists, record it in Ledger (even if no bill applied)
+        if (previousDue > 0 && newCust) {
+            await supabase.from('ledger_entries').insert({
+                customer_id: newCust.id,
+                date: joinDate,
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                type: "Opening Balance",
+                amount: previousDue,
+                is_debit: true,
+                description: "Opening Due Balance recorded during enrollment"
+            });
+        }
+
+        if (billApplied && (monthlyBill - discount) > 0 && newCust) {
           const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(today);
           const invNo = "INV-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+          const netBill = monthlyBill - discount;
 
           // 1. Create Invoice
           await supabase.from('invoices').insert({
@@ -613,9 +650,10 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
             customer_id: newCust.id,
             customer_name: formData.name,
             billing_month_year: currentMonth,
-            bill_amount: currentDue,
-            total_payable: currentDue,
-            due_amount: currentDue,
+            bill_amount: monthlyBill,
+            discount_amount: discount,
+            total_payable: netBill,
+            due_amount: netBill,
             status: "Unpaid",
             generated_date: joinDate
           });
@@ -626,9 +664,9 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
             date: joinDate,
             time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             type: "Monthly Bill",
-            amount: currentDue,
+            amount: netBill,
             is_debit: true,
-            description: `${currentMonth} Enrollment Bill Applied`,
+            description: `${currentMonth} Enrollment Bill Applied (Net: ${netBill}, Disc: ${discount})`,
             reference_no: invNo
           });
         }
@@ -806,7 +844,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                          <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
                          {activeMenuId === c.id && (
                            <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
-                              <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => setActivePage('payments')} />
+                              <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
                               <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
                               <ActionItem icon="fa-user-circle" label="Full Profile" color="text-blue-600" onClick={() => setProfileId(c.id)} />
                               <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
@@ -939,8 +977,10 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                 </Section>
                 <Section title={t.client_fee} color="cyan" bgColor="bg-cyan-50 dark:bg-cyan-900/10" borderColor="border-cyan-100" shadowColor="shadow-cyan-400/30">
                   <Field label="Bill *" value={formData.monthlyBill} onChange={v => setFormData({...formData, monthlyBill: parseFloat(v) || 0})} type="number" color="cyan" />
+                  <Field label="Discount (৳)" value={formData.discountAmount} onChange={v => setFormData({...formData, discountAmount: parseFloat(v) || 0})} type="number" color="cyan" />
+                  <Field label="Previous Due (৳)" value={formData.currentDue} onChange={v => setFormData({...formData, currentDue: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Fee" value={formData.connectionFee} onChange={v => setFormData({...formData, connectionFee: parseFloat(v) || 0})} type="number" color="cyan" />
-                  <Field label="Date" value={formData.connectionDate} onChange={v => setFormData({...formData, connectionDate: v})} type="date" color="cyan" />
+                  <Field label="Join Date" value={formData.joinDate} onChange={v => setFormData({...formData, joinDate: v})} type="date" color="cyan" />
                   <div className="pt-4 md:pt-8 border-t-2 border-cyan-200">
                     <Field label={t.assigned_staff + " *"} value={formData.assignedStaffId} onChange={v => setFormData({...formData, assignedStaffId: v})} type="select" options={['No Staff', ...store.staff?.map(s => s.name)]} color="cyan" />
                   </div>
@@ -1099,7 +1139,7 @@ const ActionModals = ({
                    onChange={v => setFilters({...filters, plan: v})}
                 />
 
-                <div className="pt-4">
+                <div className="pt-4 space-y-4">
                   <label className="flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 bg-rose-50 border-rose-100 dark:bg-rose-900/10">
                     <div className="space-y-1">
                       <span className="font-black uppercase tracking-widest text-[11px] text-rose-700 dark:text-rose-400">Hide Paid Customers</span>
@@ -1112,12 +1152,25 @@ const ActionModals = ({
                       className="w-7 h-7 rounded-xl text-rose-600 focus:ring-0 cursor-pointer"
                     />
                   </label>
+
+                  <label className="flex items-center justify-between p-5 rounded-[28px] cursor-pointer transition-all border-2 bg-slate-50 border-slate-100 dark:bg-slate-900/10">
+                    <div className="space-y-1">
+                      <span className="font-black uppercase tracking-widest text-[11px] text-slate-700 dark:text-slate-400">Hide Inactive Customers</span>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase leading-none">Show only Active subscribers</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={filters.hideInactive}
+                      onChange={() => setFilters({...filters, hideInactive: !filters.hideInactive})}
+                      className="w-7 h-7 rounded-xl text-slate-600 focus:ring-0 cursor-pointer"
+                    />
+                  </label>
                 </div>
              </div>
 
              <div className="pt-10 space-y-4">
                 <button
-                   onClick={() => setFilters({collector: 'All', zone: 'All', status: 'All', plan: 'All', hideZeroDue: false})}
+                   onClick={() => setFilters({collector: 'All', zone: 'All', status: 'All', plan: 'All', hideZeroDue: false, hideInactive: false})}
                    className="w-full py-5 rounded-2xl border-2 border-slate-100 text-slate-400 font-black text-xs tracking-[4px] hover:bg-slate-50 transition-all"
                 >RESET FILTERS</button>
                 <button

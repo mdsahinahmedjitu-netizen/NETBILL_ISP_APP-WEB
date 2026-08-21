@@ -12,3 +12,9 @@ val Shapes = Shapes(
     large = RoundedCornerShape(16.dp),
     extraLarge = RoundedCornerShape(24.dp)
 )
+
+val WebStyleShapes = Shapes(
+    medium = RoundedCornerShape(32.dp),
+    large = RoundedCornerShape(44.dp),
+    extraLarge = RoundedCornerShape(64.dp)
+)

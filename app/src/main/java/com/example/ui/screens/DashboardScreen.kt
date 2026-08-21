@@ -145,28 +145,28 @@ fun DashboardScreen(
     onNavigateToReports: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToAlerts: () -> Unit = {},
-    onSelectCustomer: (CustomerEntity) -> Unit = {}
+    onSelectCustomer: (CustomerEntity) -> Unit = {},
+    openSearch: () -> Unit = {},
+    openSummary: () -> Unit = {}
 ) {
     val permissions by viewModel.currentPermissions.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
     val stats by viewModel.dashboardStats.collectAsState()
     val payments by viewModel.paymentsList.collectAsState()
     val paymentRequests by viewModel.paymentRequestsList.collectAsState()
     val customersList by viewModel.customersList.collectAsState()
     val supportTickets by viewModel.supportTickets.collectAsState()
-    val currentLang by viewModel.currentLanguage.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
-    
+
     val currency = AppTranslation("currency_symbol")
-    
+
     @Composable
     fun t(key: String) = AppTranslation(key)
 
-    // State for interactive Dialogs triggered by Grid Actions
+    // State for interactive Dialogs
     var showCreateCustomerDialog by remember { mutableStateOf(false) }
-    var showSearchCustomerDialog by remember { mutableStateOf(false) }
     var showComplaintsDialog by remember { mutableStateOf(false) }
     var showComplainSetupDialog by remember { mutableStateOf(false) }
-    var showNewCustomersDialog by remember { mutableStateOf(false) }
 
     val complainTitlesList = remember {
         mutableStateListOf(
@@ -194,7 +194,7 @@ fun DashboardScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // 1. TOP NOTIFICATION BAR - CUSTOMER COMPLAINTS / TICKETS
+        // 1. TOP NOTIFICATION BAR - CUSTOMER COMPLAINTS / TICKETS (Amber Complaints Bar)
         val unresolvedTickets = supportTickets.filter { it.status == "Open" || it.status == "Pending" }
         if (unresolvedTickets.isNotEmpty() && permissions.canSeeComplaintsAlert) {
             item {
@@ -203,7 +203,6 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(32.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFBBF24)),
-                    border = BorderStroke(1.dp, Color(0xFFB45309)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxWidth()) {
@@ -215,7 +214,7 @@ fun DashboardScreen(
                                 .background(Color(0xFFB45309))
                                 .align(Alignment.BottomCenter)
                         )
-                        
+
                         Row(
                             modifier = Modifier.padding(24.dp).padding(bottom = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -265,7 +264,7 @@ fun DashboardScreen(
             }
         }
 
-        // 2. PENDING VERIFICATION ALERTS
+        // 2. PENDING VERIFICATION ALERTS (Rose Verification Alert)
         val pendingRequests = paymentRequests.filter { it.status == "pending" }
         if (pendingRequests.isNotEmpty() && permissions.canSeeVerificationAlert) {
             item {
@@ -320,18 +319,19 @@ fun DashboardScreen(
             }
         }
 
-        // 3. Stats Grid (FeatureCard Grid)
+        // 3. 8-Card Feature Grid
         if (permissions.canSeeStatsCards) {
             item {
                 ISPFeatureGridSection(
+                    isAdmin = currentUser?.role?.lowercase() == "admin",
                     onCollectionClick = { onNavigateToPayments() },
                     onCollectionReportClick = { onNavigateToReports() },
-                    onListReportClick = { onNavigateToCustomers() },
-                    onDueListClick = { onNavigateToCustomers() },
-                    onCreateNewClick = { showCreateCustomerDialog = true },
-                    onSearchClick = { showSearchCustomerDialog = true },
-                    onComplinListClick = { showComplaintsDialog = true },
-                    onBillSummaryClick = { onNavigateToBilling() }
+                    onSubscribersClick = { onNavigateToCustomers() },
+                    onTicketsClick = { showComplaintsDialog = true },
+                    onAddClick = { showCreateCustomerDialog = true },
+                    onSearchClick = openSearch,
+                    onDueListClick = onNavigateToReports, // Or separate due list
+                    onSummaryClick = openSummary
                 )
             }
         }
@@ -347,21 +347,16 @@ fun DashboardScreen(
             }
         }
 
-        // 5. Main Stats Summary (Hero Summary)
+        // 5. Hero Stats Card (Teal)
         if (permissions.canSeeTotalCollection) {
             item {
                 val displayCollection = activeSummary?.grandTotal ?: stats.todaysCollection
-                val periodTitle = when (activeFilter) {
-                    com.example.ui.components.CollectionFilterPeriod.TODAY -> t("today")
-                    com.example.ui.components.CollectionFilterPeriod.YESTERDAY -> t("yesterday")
-                    com.example.ui.components.CollectionFilterPeriod.LAST_7_DAYS -> t("last_7_days")
-                    com.example.ui.components.CollectionFilterPeriod.THIS_MONTH -> t("this_month")
-                    com.example.ui.components.CollectionFilterPeriod.CUSTOM -> t("custom_date")
-                }
+                val dueTotal = stats.totalDue
+                val targetPlan = 250000.0 // Example target from web
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(44.dp),
+                    shape = RoundedCornerShape(64.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF0D9488)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
                 ) {
@@ -369,7 +364,7 @@ fun DashboardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Brush.verticalGradient(listOf(Color(0xFF0D9488), Color(0xFF0F766E))))
-                            .padding(32.dp)
+                            .padding(40.dp)
                     ) {
                         Column {
                             Row(
@@ -380,54 +375,46 @@ fun DashboardScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = t("financial_total").uppercase(),
-                                        fontSize = 11.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = Color.White.copy(alpha = 0.8f),
-                                        letterSpacing = 4.sp
+                                        color = Color.White.copy(alpha = 0.9f),
+                                        letterSpacing = 5.sp
                                     )
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
                                     Text(
                                         text = "$currency ${String.format(java.util.Locale.US, "%,.0f", displayCollection)}",
-                                        fontSize = 56.sp,
+                                        fontSize = 72.sp,
                                         fontWeight = FontWeight.Black,
                                         color = Color.White,
                                         letterSpacing = (-2).sp,
-                                        lineHeight = 56.sp
-                                    )
-                                    Text(
-                                        text = periodTitle.uppercase(),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White.copy(alpha = 0.5f),
-                                        letterSpacing = 2.sp,
-                                        modifier = Modifier.padding(top = 4.dp)
+                                        lineHeight = 72.sp
                                     )
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .size(64.dp)
-                                        .clip(RoundedCornerShape(20.dp))
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(32.dp))
                                         .background(Color.White.copy(alpha = 0.1f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.TrendingUp, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                    Icon(Icons.Default.TrendingUp, null, tint = Color.White, modifier = Modifier.size(40.dp))
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(40.dp))
+                            Spacer(modifier = Modifier.height(48.dp))
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(40.dp)
+                                horizontalArrangement = Arrangement.spacedBy(64.dp)
                             ) {
                                 Column {
-                                    Text(text = t("target_plan").uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.6f), letterSpacing = 2.sp)
-                                    Text(text = "$currency 25,000", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                    Text(text = t("target_plan").uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.7f), letterSpacing = 3.sp)
+                                    Text(text = "$currency ${String.format(java.util.Locale.US, "%,.0f", targetPlan)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.White)
                                 }
-                                Box(modifier = Modifier.width(1.dp).height(48.dp).background(Color.White.copy(alpha = 0.2f)))
+                                Box(modifier = Modifier.width(1.dp).height(60.dp).background(Color.White.copy(alpha = 0.2f)))
                                 Column {
-                                    Text(text = t("total_outstanding").uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047), letterSpacing = 2.sp)
-                                    Text(text = "$currency ${String.format(java.util.Locale.US, "%,.0f", stats.totalDue)}", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047))
+                                    Text(text = t("total_outstanding").uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047), letterSpacing = 3.sp)
+                                    Text(text = "$currency ${String.format(java.util.Locale.US, "%,.0f", dueTotal)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047))
                                 }
                             }
                         }
@@ -437,7 +424,7 @@ fun DashboardScreen(
         }
     }
 
-    // Interactive Dialog 1: Create New Customer Dialog
+    // Interactive Dialogs
     if (showCreateCustomerDialog) {
         CreateCustomerDashboardDialog(
             viewModel = viewModel,
@@ -446,31 +433,6 @@ fun DashboardScreen(
         )
     }
 
-    // Interactive Dialog 2: Search Customer Dialog
-    if (showSearchCustomerDialog) {
-        SearchCustomerDashboardDialog(
-            customersList = customersList,
-            onSelectCustomer = { customer: CustomerEntity ->
-                showSearchCustomerDialog = false
-                onSelectCustomer(customer)
-            },
-            onDismiss = { showSearchCustomerDialog = false }
-        )
-    }
-
-    // Interactive Dialog: New Customers List Dialog
-    if (showNewCustomersDialog) {
-        NewCustomersDashboardDialog(
-            customersList = customersList,
-            onSelectCustomer = { customer: CustomerEntity ->
-                showNewCustomersDialog = false
-                onSelectCustomer(customer)
-            },
-            onDismiss = { showNewCustomersDialog = false }
-        )
-    }
-
-    // Interactive Dialog 3: Complaints / Support Ticket List Dialog
     if (showComplaintsDialog) {
         ComplaintsDashboardDialog(
             complaints = supportTickets,
@@ -495,7 +457,6 @@ fun DashboardScreen(
         )
     }
 
-    // Interactive Dialog 4: Complain Setup Dialog (Create Complain Title)
     if (showComplainSetupDialog) {
         ComplainSetupDialog(
             titlesList = complainTitlesList,
@@ -505,103 +466,107 @@ fun DashboardScreen(
     }
 }
 
-// PRIMARY 8-CARD FEATURE GRID SECTION
 @Composable
 fun ISPFeatureGridSection(
+    isAdmin: Boolean,
     onCollectionClick: () -> Unit,
     onCollectionReportClick: () -> Unit,
-    onListReportClick: () -> Unit,
-    onDueListClick: () -> Unit,
-    onCreateNewClick: () -> Unit,
+    onSubscribersClick: () -> Unit,
+    onTicketsClick: () -> Unit,
+    onAddClick: () -> Unit,
     onSearchClick: () -> Unit,
-    onComplinListClick: () -> Unit,
-    onBillSummaryClick: () -> Unit
+    onDueListClick: () -> Unit,
+    onSummaryClick: () -> Unit
 ) {
+    @Composable
+    fun t(key: String) = AppTranslation(key)
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Row 1: Collection (grad-collection) & Report (grad-invoices)
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
-                label = AppTranslation("grid_collection"),
+                label = t("grid_collection"),
                 modifier = Modifier.weight(1f),
                 gradientBrush = Brush.linearGradient(listOf(Color(0xFF4F46E5), Color(0xFF2563EB))),
                 onClick = onCollectionClick,
-                iconContent = { CollectionGridIcon(Modifier.size(52.dp)) }
+                iconContent = { Icon(Icons.Default.AccountBalanceWallet, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             )
             ISPFeatureCard(
-                label = AppTranslation("grid_collection_report"),
+                label = t("collection_report"),
                 modifier = Modifier.weight(1f),
                 gradientBrush = Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF059669))),
                 onClick = onCollectionReportClick,
-                iconContent = { CollectionReportGridIcon(Modifier.size(52.dp)) }
+                iconContent = { Icon(Icons.Default.Assessment, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             )
         }
 
-        // Row 2: CRM (grad-subscribers) & Tickets (grad-tickets)
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
-                label = AppTranslation("grid_list_report"),
+                label = t("subscribers_crm"),
                 modifier = Modifier.weight(1f),
                 gradientBrush = Brush.linearGradient(listOf(Color(0xFFEC4899), Color(0xFF8B5CF6))),
-                onClick = onListReportClick,
-                iconContent = { ListReportGridIcon(Modifier.size(52.dp)) }
+                onClick = onSubscribersClick,
+                iconContent = { Icon(Icons.Default.People, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             )
             ISPFeatureCard(
-                label = AppTranslation("grid_complaint_list"),
+                label = t("support_tickets"),
                 modifier = Modifier.weight(1f),
                 gradientBrush = Brush.linearGradient(listOf(Color(0xFFFBBF24), Color(0xFFF59E0B))),
-                onClick = onComplinListClick,
-                iconContent = { ComplinListGridIcon(Modifier.size(52.dp)) }
+                onClick = onTicketsClick,
+                iconContent = { Icon(Icons.Default.ConfirmationNumber, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             )
         }
 
-        // Row 3: Create New (grad-create) & Search (grad-search)
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
+            if (isAdmin) {
+                ISPFeatureCard(
+                    label = t("grid_create_new"),
+                    modifier = Modifier.weight(1f),
+                    gradientBrush = Brush.linearGradient(listOf(Color(0xFF06B6D4), Color(0xFF3B82F6))),
+                    onClick = onAddClick,
+                    iconContent = { Icon(Icons.Default.PersonAdd, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
+                )
+            }
             ISPFeatureCard(
-                label = AppTranslation("grid_create_new"),
-                modifier = Modifier.weight(1f),
-                gradientBrush = Brush.linearGradient(listOf(Color(0xFF06B6D4), Color(0xFF3B82F6))),
-                onClick = onCreateNewClick,
-                iconContent = { CreateNewGridIcon(Modifier.size(52.dp)) }
-            )
-            ISPFeatureCard(
-                label = AppTranslation("grid_search"),
-                modifier = Modifier.weight(1f),
+                label = t("grid_search"),
+                modifier = Modifier.weight(if (isAdmin) 1f else 2f),
                 gradientBrush = Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9))),
                 onClick = onSearchClick,
-                iconContent = { SearchGridIcon(Modifier.size(52.dp)) }
+                iconContent = { Icon(Icons.Default.Search, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             )
+            if (!isAdmin) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
 
-        // Row 4: Due List (grad-due) & Summary (grad-summary)
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             ISPFeatureCard(
-                label = AppTranslation("grid_due_list"),
+                label = t("grid_due_list"),
                 modifier = Modifier.weight(1f),
                 gradientBrush = Brush.linearGradient(listOf(Color(0xFFF97316), Color(0xFFEA580C))),
                 onClick = onDueListClick,
-                iconContent = { DueListGridIcon(Modifier.size(52.dp)) }
+                iconContent = { Icon(Icons.Default.RequestQuote, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             )
             ISPFeatureCard(
-                label = AppTranslation("grid_bill_summary"),
+                label = t("grid_bill_summary"),
                 modifier = Modifier.weight(1f),
                 gradientBrush = Brush.linearGradient(listOf(Color(0xFFF43F5E), Color(0xFF9D174D))),
-                onClick = onBillSummaryClick,
-                iconContent = { BillSummaryGridIcon(Modifier.size(52.dp)) }
+                onClick = onSummaryClick,
+                iconContent = { Icon(Icons.Default.PieChart, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
             )
         }
     }
@@ -778,8 +743,8 @@ fun CreateCustomerDashboardDialog(
         customer = null,
         permissions = permissions,
         onDismiss = onDismiss,
-        onSave = { newCustomer, choice ->
-            viewModel.addOrUpdateCustomer(newCustomer, choice)
+        onSave = { newCustomer, disc, choice ->
+            viewModel.addOrUpdateCustomer(newCustomer, disc, choice)
             onDismiss()
         }
     )

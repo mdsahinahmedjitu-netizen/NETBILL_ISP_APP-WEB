@@ -41,6 +41,7 @@ function App() {
   const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'bn');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isDirectAddMode, setIsDirectAddMode] = useState(false);
+  const [preSelectedCustomer, setPreSelectedCustomer] = useState(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -274,11 +275,11 @@ function App() {
               ? <CustomerPortal store={store} customer={session.data} t={t} />
               : <Dashboard store={store} session={session} permissions={currentPermissions} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />
           )}
-          {activePage === 'customers' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
+          {activePage === 'customers' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} setPreSelectedCustomer={setPreSelectedCustomer} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
           {activePage === 'new_enrollment' && session.role === 'admin' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
-          {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} />}
+          {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} preSelectedCustomer={preSelectedCustomer} setPreSelectedCustomer={setPreSelectedCustomer} />}
           {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} initialTab={reportInitialTab} />}
           {activePage === 'expenses' && <Expenses store={store} session={session} t={t} />}
           {activePage === 'staff' && session.role === 'admin' && <Staff store={store} session={session} t={t} lang={lang} />}

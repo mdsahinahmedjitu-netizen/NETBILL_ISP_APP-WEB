@@ -16,9 +16,11 @@ const CustomerPortal = ({ customer, store, t, onLogout }) => {
     .filter(p => p.customerId === customer.id || p.customer_id === customer.id)
     .sort((a,b) => (b.paymentDate || b.payment_date)?.localeCompare(a.paymentDate || a.payment_date));
 
-  const myPaidInvoices = store.invoices
-    .filter(inv => (inv.customerId === customer.id || inv.customer_id === customer.id) && inv.status === 'Paid')
-    .sort((a,b) => (b.generatedDate || b.generated_date)?.localeCompare(a.generatedDate || a.generated_date));
+  const myInvoices = store.invoices
+    .filter(inv => (inv.customerId === customer.id || inv.customer_id === customer.id))
+    .sort((a,b) => (b.billingMonthYear || b.billing_month_year)?.localeCompare(a.billingMonthYear || a.billing_month_year));
+
+  const myPaidInvoices = myInvoices.filter(inv => inv.status === 'Paid');
 
   const paidUpTo = myPaidInvoices.length > 0 ? (myPaidInvoices[0].billingMonthYear || myPaidInvoices[0].billing_month_year) : "No Records";
 
@@ -212,6 +214,21 @@ const CustomerPortal = ({ customer, store, t, onLogout }) => {
             <div className="pt-8 border-t space-y-6">
                <h4 className="text-xs font-black tracking-[4px] text-slate-400 uppercase">Support Center</h4>
                <button onClick={() => setShowTicketModal(true)} className="w-full flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-900 rounded-[32px] group hover:bg-amber-50 transition-all shadow-sm"><span className="font-black text-[11px] tracking-widest group-hover:text-amber-600">REPORT A PROBLEM</span><i className="fas fa-chevron-right text-slate-300 group-hover:text-amber-500"></i></button>
+            </div>
+         </div>
+
+         {/* Monthly Billing Status */}
+         <div className="lg:col-span-3 bg-white dark:bg-slate-800 p-10 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-8 uppercase font-black">
+            <h4 className="text-xl font-black uppercase tracking-[4px] border-b pb-4">Monthly Bill Status / মাসিক বিলের অবস্থা</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {myInvoices.map(inv => (
+                    <div key={inv.id} className={`p-4 rounded-3xl border-2 flex flex-col items-center justify-center space-y-2 ${inv.status === 'Paid' ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                        <p className="text-[9px] font-black text-slate-400 leading-none">{inv.billingMonthYear || inv.billing_month_year}</p>
+                        <p className={`text-sm font-black ${inv.status === 'Paid' ? 'text-emerald-600' : 'text-rose-600'}`}>{inv.status.toUpperCase()}</p>
+                        <p className="text-[10px] font-black text-slate-800 dark:text-white">৳{inv.totalPayable || inv.total_payable}</p>
+                    </div>
+                ))}
+                {myInvoices.length === 0 && <p className="col-span-full text-center py-6 text-slate-400 text-xs tracking-widest">No Invoice Records</p>}
             </div>
          </div>
 

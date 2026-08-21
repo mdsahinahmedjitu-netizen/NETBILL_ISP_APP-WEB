@@ -2,542 +2,370 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import com.example.ui.theme.*
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Payment
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.PaymentCollectionEntity
 import com.example.util.AppUtils
 import com.example.localization.AppTranslation
-import com.example.ui.components.ReadonlyDateField
-import com.example.ui.theme.BkashPink
+import com.example.ui.theme.*
+import com.example.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.NagadOrange
-import com.example.ui.theme.Navy800
-import com.example.ui.theme.Navy900
-import com.example.ui.theme.RocketViolet
-import com.example.ui.theme.Teal600
-import com.example.viewmodel.MainViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentCollectionScreen(viewModel: MainViewModel) {
     val payments by viewModel.paymentsList.collectAsState()
     val customers by viewModel.customersList.collectAsState()
-    val selectedReceipt by viewModel.selectedReceipt.collectAsState()
     val permissions by viewModel.currentPermissions.collectAsState()
     val currency = AppTranslation("currency_symbol")
-
-    var showAddPaymentDialog by remember { mutableStateOf(false) }
-    var showOnlineGatewayDialog by remember { mutableStateOf(false) }
-    var showReconciliationDialog by remember { mutableStateOf(false) }
-
-    Scaffold(
-        floatingActionButton = {
-            if (permissions.canCollect) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    ExtendedFloatingActionButton(
-                        text = { Text("bKash / Nagad Direct", fontWeight = FontWeight.Bold, fontSize = 12.sp) },
-                        icon = { Icon(Icons.Default.Payment, contentDescription = null) },
-                        onClick = { showOnlineGatewayDialog = true },
-                        containerColor = BkashPink,
-                        contentColor = Color.White
-                    )
-
-                    FloatingActionButton(
-                        onClick = { showAddPaymentDialog = true },
-                        containerColor = Teal600,
-                        contentColor = Color.White
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Record Cash Payment")
-                    }
-                }
-            }
-        },
-        containerColor = SleekBg
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = AppTranslation("payment_collection"),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
-
-                if (permissions.canSeeRevenue) {
-                    Button(
-                        onClick = { showReconciliationDialog = true },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Teal600,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Verify Gateway Trx", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            if (payments.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No payment collections recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(payments, key = { it.id }) { pymt ->
-                        PaymentCard(
-                            payment = pymt,
-                            currency = currency,
-                            onClick = { viewModel.setSelectedReceipt(pymt) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showAddPaymentDialog) {
-        RecordPaymentDialog(
-            customers = customers,
-            viewModel = viewModel,
-            onDismiss = { showAddPaymentDialog = false },
-            onSave = { customerId, amount, method, txnId, remarks, date, collector, month ->
-                if (permissions.canCollectDirect) {
-                    viewModel.collectPayment(
-                        customerId = customerId,
-                        amount = amount,
-                        method = method,
-                        trxId = txnId,
-                        remarks = remarks,
-                        date = date,
-                        collectorName = collector,
-                        billingMonth = month
-                    )
-                } else {
-                    viewModel.submitPaymentRequest(
-                        customerId = customerId,
-                        amount = amount,
-                        method = method,
-                        trxId = txnId
-                    ) { success, msg ->
-                        viewModel.showToast(msg)
-                    }
-                }
-                showAddPaymentDialog = false
-            }
-        )
-    }
-
-    if (showOnlineGatewayDialog) {
-        OnlineGatewayCheckoutDialog(
-            viewModel = viewModel,
-            onDismiss = { showOnlineGatewayDialog = false }
-        )
-    }
-
-    if (showReconciliationDialog) {
-        GatewayReconciliationDialog(
-            viewModel = viewModel,
-            onDismiss = { showReconciliationDialog = false }
-        )
-    }
-
-    // Modal Receipt Dialog when selectedReceipt != null
-    selectedReceipt?.let { receipt ->
-        InvoiceReceiptDialog(
-            payment = receipt,
-            viewModel = viewModel,
-            onDismiss = { viewModel.setSelectedReceipt(null) }
-        )
-    }
-}
-
-@Composable
-fun PaymentCard(payment: PaymentCollectionEntity, currency: String, onClick: () -> Unit) {
-    val methodColor = when (payment.paymentMethod) {
-        "bKash" -> BkashPink
-        "Nagad" -> NagadOrange
-        "Rocket" -> RocketViolet
-        "Cash" -> EmeraldSuccess
-        else -> ElectricBlue
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SleekCard),
-        border = BorderStroke(1.dp, SleekBorder)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(methodColor)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(payment.paymentMethod, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(payment.receiptNo, fontWeight = FontWeight.Bold, color = Teal600, fontSize = 12.sp)
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(payment.customerName, fontWeight = FontWeight.ExtraBold, color = Slate900, fontSize = 18.sp)
-                Text(
-                    text = "Month: ${payment.billingMonth} • ${AppUtils.formatDateForDisplay(payment.paymentDate)}", 
-                    color = Slate600, 
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text("Txn: ${payment.transactionId.ifEmpty { "CASH-ENTRY" }} • Col: ${payment.collectorName}", color = Teal600, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "$currency ${String.format(java.util.Locale.US, "%,.0f", payment.amount)}",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = EmeraldSuccess
-                )
-
-                Text(
-                    text = "Receipt >",
-                    color = Teal600,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RecordPaymentDialog(
-    customers: List<CustomerEntity>,
-    viewModel: MainViewModel,
-    onDismiss: () -> Unit,
-    onSave: (String, Double, String, String, String, String, String, String) -> Unit
-) {
     val currentUser by viewModel.currentUser.collectAsState()
     val staffList by viewModel.staffList.collectAsState()
-    
+    val preSelectedCustomer by viewModel.preSelectedCustomerForPayment.collectAsState()
+
+    var searchTerm by remember { mutableStateOf("") }
     var selectedCustomer by remember { mutableStateOf<CustomerEntity?>(null) }
-    var customerSearchQuery by remember { mutableStateOf("") }
-    var expandedCustomerDropdown by remember { mutableStateOf(false) }
-
-    val filteredList = remember(customerSearchQuery, customers) {
-        if (customerSearchQuery.isEmpty()) emptyList()
-        else customers.filter { 
-            it.name.contains(customerSearchQuery, ignoreCase = true) || 
-            it.customerCode.contains(customerSearchQuery, ignoreCase = true) ||
-            it.pppoeUsername.contains(customerSearchQuery, ignoreCase = true)
-        }.take(10)
-    }
-
     var amount by remember { mutableStateOf("") }
     var method by remember { mutableStateOf("Cash") }
-    var txnId by remember { mutableStateOf("") }
-    var remarks by remember { mutableStateOf("") }
-    var paymentDate by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
-    
+
+    // Observe pre-selected customer
+    LaunchedEffect(preSelectedCustomer) {
+        preSelectedCustomer?.let {
+            selectedCustomer = it
+            searchTerm = it.name
+            amount = it.currentDue.toInt().toString()
+            // Clear the pre-selection after use
+            viewModel.setPreSelectedCustomerForPayment(null)
+        }
+    }
     val currentMonth = SimpleDateFormat("MMMM yyyy", Locale.US).format(Date())
     var billingMonth by remember { mutableStateOf(currentMonth) }
-    var expandedMonthDropdown by remember { mutableStateOf(false) }
     
     val months = remember {
         val list = mutableListOf<String>()
         val cal = Calendar.getInstance()
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.US)
         repeat(6) {
-            list.add(SimpleDateFormat("MMMM yyyy", Locale.US).format(cal.time))
+            list.add(sdf.format(cal.time))
             cal.add(Calendar.MONTH, -1)
         }
         list
     }
 
-    var selectedCollector by remember { 
-        mutableStateOf(currentUser?.name ?: "Admin") 
-    }
-    var expandedCollectorDropdown by remember { mutableStateOf(false) }
+    // Dynamic Billing Month Selection Logic
+    LaunchedEffect(amount, selectedCustomer) {
+        val cust = selectedCustomer ?: return@LaunchedEffect
+        val totalDue = cust.currentDue
+        val monthlyBill = cust.monthlyBill
+        val payAmt = amount.toDoubleOrNull() ?: 0.0
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New Collection (Web Style)", color = Slate900, fontWeight = FontWeight.ExtraBold) },
-        text = {
+        if (monthlyBill > 0) {
+            val monthsDue = Math.ceil(totalDue / monthlyBill).toInt()
+            if (payAmt < totalDue && monthsDue >= 2) {
+                // Suggest the oldest month
+                if (monthsDue <= months.size) {
+                    billingMonth = months[monthsDue - 1]
+                }
+            } else {
+                billingMonth = months[0]
+            }
+        }
+    }
+    var selectedCollector by remember { mutableStateOf(currentUser?.name ?: "Super Admin") }
+    var expandedCollectorDropdown by remember { mutableStateOf(false) }
+    var expandedCustomerDropdown by remember { mutableStateOf(false) }
+
+    val filteredCustomers = remember(searchTerm, customers) {
+        if (searchTerm.isEmpty()) emptyList()
+        else customers.filter {
+            it.name.contains(searchTerm, ignoreCase = true) ||
+            it.customerCode.contains(searchTerm, ignoreCase = true) ||
+            it.pppoeUsername?.contains(searchTerm, ignoreCase = true) == true
+        }.take(10)
+    }
+
+    Scaffold(containerColor = SleekBg) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Header
             Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.height(550.dp) // Large box like web
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(44.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(44.dp))
+                    .padding(28.dp)
             ) {
-                // Collector Selector (Session Lock for Staff)
-                val isAdmin = currentUser?.role?.contains("Admin", ignoreCase = true) == true
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Collected By:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Teal600)
-                    ExposedDropdownMenuBox(
-                        expanded = expandedCollectorDropdown && isAdmin,
-                        onExpandedChange = { if (isAdmin) expandedCollectorDropdown = it }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedCollector,
-                            onValueChange = {},
-                            readOnly = true,
-                            enabled = isAdmin,
-                            trailingIcon = { if (isAdmin) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCollectorDropdown) },
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        if (isAdmin) {
+                Text(
+                    text = AppTranslation("payment_collection").uppercase(),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 32.sp,
+                    letterSpacing = 2.sp,
+                    color = Slate900
+                )
+                Text(
+                    text = "ENTERPRISE COLLECTION HUB • REAL-TIME SYNC",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 4.sp,
+                    color = IspTealPrimary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // Panel 1: New Collection Form
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(44.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, SleekBorder),
+                shadowElevation = 12.dp
+            ) {
+                Column(modifier = Modifier.padding(32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                    // Collector Selector
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("COLLECTOR ASSIGNMENT", fontSize = 10.sp, fontWeight = FontWeight.Black, color = IspIndigo, letterSpacing = 2.sp)
+                        ExposedDropdownMenuBox(
+                            expanded = expandedCollectorDropdown,
+                            onExpandedChange = { expandedCollectorDropdown = it }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedCollector.uppercase(),
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCollectorDropdown) },
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                textStyle = TextStyle(fontWeight = FontWeight.Black, letterSpacing = 2.sp, fontSize = 14.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color(0xFFF1F5F9),
+                                    unfocusedContainerColor = Color(0xFFF1F5F9),
+                                    focusedBorderColor = Color(0xFFE2E8F0),
+                                    unfocusedBorderColor = Color(0xFFE2E8F0)
+                                )
+                            )
                             ExposedDropdownMenu(
                                 expanded = expandedCollectorDropdown,
                                 onDismissRequest = { expandedCollectorDropdown = false }
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text(currentUser?.name ?: "Admin") },
-                                    onClick = { selectedCollector = currentUser?.name ?: "Admin"; expandedCollectorDropdown = false }
-                                )
                                 staffList.forEach { staff ->
                                     DropdownMenuItem(
-                                        text = { Text(staff.name) },
+                                        text = { Text(staff.name.uppercase(), fontWeight = FontWeight.Black, letterSpacing = 2.sp) },
                                         onClick = { selectedCollector = staff.name; expandedCollectorDropdown = false }
                                     )
                                 }
                             }
                         }
                     }
-                }
 
-                // Searchable Customer Selector
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Find Subscriber:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate600)
-                    ExposedDropdownMenuBox(
-                        expanded = expandedCustomerDropdown,
-                        onExpandedChange = { expandedCustomerDropdown = it }
-                    ) {
+                    // Subscriber Search
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("FIND SUBSCRIBER", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 3.sp)
                         OutlinedTextField(
-                            value = if (selectedCustomer != null && !expandedCustomerDropdown) "${selectedCustomer?.name} (${selectedCustomer?.customerCode})" else customerSearchQuery,
-                            onValueChange = { 
-                                customerSearchQuery = it
-                                expandedCustomerDropdown = true 
-                            },
-                            placeholder = { Text("Search Name/ID/PPPoE") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCustomerDropdown) },
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                            value = searchTerm.uppercase(),
+                            onValueChange = { searchTerm = it; expandedCustomerDropdown = true },
+                            placeholder = { Text("SEARCH NAME / ID / PPPOE", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.LightGray, letterSpacing = 2.sp) },
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF8FAFC),
+                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                                focusedBorderColor = IspTealPrimary,
+                                unfocusedBorderColor = Color.Transparent
+                            )
                         )
-
-                        if (filteredList.isNotEmpty()) {
-                            ExposedDropdownMenu(
-                                expanded = expandedCustomerDropdown,
-                                onDismissRequest = { expandedCustomerDropdown = false }
+                        if (searchTerm.isNotEmpty() && expandedCustomerDropdown) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 250.dp),
+                                shape = RoundedCornerShape(28.dp),
+                                color = Color.White,
+                                shadowElevation = 16.dp,
+                                border = BorderStroke(4.dp, IspTealPrimary.copy(alpha = 0.1f))
                             ) {
-                                filteredList.forEach { cust ->
-                                    DropdownMenuItem(
-                                        text = { 
-                                            Column {
-                                                Text(cust.name, fontWeight = FontWeight.Bold)
-                                                Text("ID: ${cust.customerCode} • Due: ৳${String.format(Locale.US, "%,.0f", cust.currentDue)}", fontSize = 11.sp)
-                                            }
-                                        },
-                                        onClick = {
-                                            selectedCustomer = cust
-                                            amount = Math.floor(cust.currentDue).toInt().toString()
-                                            customerSearchQuery = ""
-                                            expandedCustomerDropdown = false
+                                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                    filteredCustomers.forEach { cust ->
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedCustomer = cust
+                                                    amount = cust.currentDue.toInt().toString()
+                                                    searchTerm = cust.name
+                                                    expandedCustomerDropdown = false
+                                                }
+                                                .padding(20.dp)
+                                        ) {
+                                            Text(cust.name.uppercase(), fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 1.sp)
+                                            Text("ZONE: ${cust.zone} • DUE: $currency${cust.currentDue.toInt()}", fontSize = 12.sp, fontWeight = FontWeight.Black, color = IspRose, letterSpacing = 1.sp)
                                         }
-                                    )
+                                        HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f))
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Billing Month
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Billing Month:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate600)
-                        ExposedDropdownMenuBox(
-                            expanded = expandedMonthDropdown,
-                            onExpandedChange = { expandedMonthDropdown = it }
-                        ) {
-                            OutlinedTextField(
-                                value = billingMonth,
-                                onValueChange = {},
-                                readOnly = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMonthDropdown) },
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.menuAnchor().fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expandedMonthDropdown,
-                                onDismissRequest = { expandedMonthDropdown = false }
-                            ) {
-                                months.forEach { m ->
-                                    DropdownMenuItem(text = { Text(m) }, onClick = { billingMonth = m; expandedMonthDropdown = false })
-                                }
-                            }
-                        }
-                    }
-                    // Method
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Method:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Slate600)
-                        var expandedMethod by remember { mutableStateOf(false) }
-                        ExposedDropdownMenuBox(
-                            expanded = expandedMethod,
-                            onExpandedChange = { expandedMethod = it }
-                        ) {
-                            OutlinedTextField(
-                                value = method,
-                                onValueChange = {},
-                                readOnly = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMethod) },
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.menuAnchor().fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expandedMethod,
-                                onDismissRequest = { expandedMethod = false }
-                            ) {
-                                listOf("Cash", "bKash", "Nagad", "Rocket", "Bank").forEach { m ->
-                                    DropdownMenuItem(text = { Text(m) }, onClick = { method = m; expandedMethod = false })
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Amount (BIG LIKE WEB)
-                Column(
-                    modifier = Modifier.fillMaxWidth().background(Slate100, RoundedCornerShape(24.dp)).padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("ENTER COLLECTION AMOUNT (৳)", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Slate600)
-                    OutlinedTextField(
-                        value = amount,
-                        onValueChange = { amount = it },
-                        textStyle = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.ExtraBold, 
-                            color = Teal600,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        ),
-                        placeholder = { Text("0.00") },
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = Color.Transparent
+                    // Amount Input (Massive centered style)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF1F5F9), RoundedCornerShape(40.dp))
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("COLLECTION AMOUNT (৳)", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 4.sp)
+                        BasicTextField(
+                            value = amount,
+                            onValueChange = { amount = it },
+                            textStyle = TextStyle(
+                                fontWeight = FontWeight.Black,
+                                color = IspTealPrimary,
+                                textAlign = TextAlign.Center,
+                                fontSize = 64.sp,
+                                letterSpacing = 2.sp
+                            ),
+                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
-                    )
+                    }
+
+                    // Commit Button
+                    Button(
+                        onClick = {
+                            selectedCustomer?.let { cust ->
+                                viewModel.collectPayment(
+                                    customerId = cust.id,
+                                    amount = amount.toDoubleOrNull() ?: 0.0,
+                                    method = method,
+                                    trxId = "",
+                                    remarks = "",
+                                    date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()),
+                                    collectorName = selectedCollector,
+                                    billingMonth = billingMonth
+                                )
+                                searchTerm = ""; amount = ""; selectedCustomer = null
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(80.dp),
+                        shape = RoundedCornerShape(40.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = IspTealPrimary),
+                        border = BorderStroke(8.dp, Color(0xFF134E4A).copy(alpha = 0.2f))
+                    ) {
+                        Text("COMMIT TRANSACTION", fontWeight = FontWeight.Black, letterSpacing = 4.sp, fontSize = 18.sp)
+                    }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    selectedCustomer?.let { cust ->
-                        onSave(cust.id, amount.toDoubleOrNull() ?: 0.0, method, txnId, remarks, paymentDate, selectedCollector, billingMonth)
+
+            // History Section
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("COLLECTION HISTORY", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 4.sp, color = Slate800)
+                    Surface(shape = RoundedCornerShape(100.dp), color = Color(0xFFF1F5F9)) {
+                        Text("LATEST 20", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 2.sp)
                     }
-                },
-                modifier = Modifier.fillMaxWidth().height(60.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Teal600)
-            ) {
-                Text("COMMIT PAYMENT (SYNC)", fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
+                }
+
+                if (payments.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        Text("NO HISTORY FOUND", color = Slate300, fontWeight = FontWeight.Black, letterSpacing = 8.sp)
+                    }
+                } else {
+                    payments.take(20).forEach { pymt ->
+                        PaymentHistoryCard(payment = pymt, currency = currency)
+                    }
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("CANCEL", fontWeight = FontWeight.Bold, color = Slate400) }
-        },
-        containerColor = Color.White,
-        shape = RoundedCornerShape(40.dp)
-    )
+
+            Spacer(modifier = Modifier.height(100.dp))
+        }
+    }
+}
+
+@Composable
+fun PaymentHistoryCard(payment: PaymentCollectionEntity, currency: String) {
+    val methodIcon = when (payment.paymentMethod) {
+        "Cash" -> Icons.Default.AccountBalanceWallet
+        "Bank" -> Icons.Default.AccountBalance
+        else -> Icons.Default.PhoneAndroid
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(44.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SleekBorder),
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(64.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(methodIcon, contentDescription = null, tint = IspTealPrimary, modifier = Modifier.size(28.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                Column {
+                    Text(text = payment.billingMonth.uppercase(), fontWeight = FontWeight.Black, color = Slate900, fontSize = 18.sp, letterSpacing = 1.sp)
+                    Text(text = "${payment.paymentMethod.uppercase()} • REF: ${payment.receiptNo.uppercase()}", color = Slate400, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Text(text = payment.customerName.uppercase(), color = IspIndigo, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(text = "$currency${payment.amount.toInt()}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = EmeraldSuccess, letterSpacing = 2.sp)
+                Text(
+                    text = payment.paymentDate.uppercase(), 
+                    color = Color(0xFF0F172A), 
+                    fontSize = 15.sp, 
+                    fontWeight = FontWeight.ExtraBold, 
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+    }
 }

@@ -105,7 +105,9 @@ const Dashboard = ({ store, session, permissions, setActivePage, setReportInitia
             advance_balance: newAdvance,
             payment_status: newDue <= 0 ? 'Paid' : 'Unpaid'
         };
-        if (newDue <= 0 && req.suggested_expire_date) {
+        // Only set expire_date if customer ALREADY has one set
+        const currentExpire = customer.expireDate || customer.expire_date;
+        if (newDue <= 0 && req.suggested_expire_date && currentExpire) {
             updatePayload.expire_date = req.suggested_expire_date;
         }
         await supabase.from('customers').update(updatePayload).eq('id', req.customer_id);

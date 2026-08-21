@@ -71,6 +71,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _loginUiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val loginUiState: StateFlow<LoginUiState> = _loginUiState.asStateFlow()
 
+    private val _preSelectedCustomerForPayment = MutableStateFlow<CustomerEntity?>(null)
+    val preSelectedCustomerForPayment: StateFlow<CustomerEntity?> = _preSelectedCustomerForPayment.asStateFlow()
+
+    fun setPreSelectedCustomerForPayment(customer: CustomerEntity?) {
+        _preSelectedCustomerForPayment.value = customer
+    }
+
 
 
     private val _filterState = MutableStateFlow(CustomerFilterState())
@@ -327,49 +334,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addOrUpdateCustomer(customer: CustomerEntity, billChoice: String = "Standard") {
+    fun addOrUpdateCustomer(customer: CustomerEntity, discountAmount: Double = 0.0, billChoice: String = "Standard") {
         viewModelScope.launch {
-            // 1. Initial due logic based on your rules
-            var finalCustomer = customer
+            val isNew = !customersList.value.any { it.id == customer.id }
             
-            // If new customer and not explicitly manually set a large due
-            if (customer.currentDue == 0.0) {
+            if (isNew) {
+                // 1. Initial due logic based on your rules (Only for NEW enrollment)
+                var finalCustomer = customer
+                val baseDue = customer.currentDue
+                val netBill = (customer.monthlyBill - discountAmount).coerceAtLeast(0.0)
+                
                 if (customer.joinDayOfMonth <= 20 || billChoice == "CurrentMonth") {
-                    // Set monthly bill as current due immediately
-                    finalCustomer = customer.copy(currentDue = customer.monthlyBill)
+                    finalCustomer = customer.copy(currentDue = baseDue + netBill)
                 } else {
-                    // Joined after 20th and selected NextMonth
-                    finalCustomer = customer.copy(currentDue = 0.0)
+                    finalCustomer = customer.copy(currentDue = baseDue)
                 }
-            }
 
-            repository.insertCustomer(finalCustomer)
-            
-            // 2. Generate initial invoice if bill is applied
-            if (finalCustomer.currentDue > 0.0) {
-                val currentMonth = SimpleDateFormat("MMMM yyyy", Locale.US).format(Date())
-                repository.invoiceDao.insertInvoice(
-                    InvoiceEntity(
-                        id = UUID.randomUUID().toString(),
-                        invoiceNo = "INV-NEW-${System.currentTimeMillis().toString().takeLast(6)}",
-                        customerId = finalCustomer.id,
-                        customerCode = finalCustomer.customerCode,
-                        customerName = finalCustomer.name,
-                        packageName = finalCustomer.packageName,
-                        billingMonthYear = currentMonth,
-                        billAmount = finalCustomer.monthlyBill,
-                        totalPayable = finalCustomer.currentDue,
-                        dueAmount = finalCustomer.currentDue,
-                        status = "Unpaid",
-                        generatedDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()),
-                        is20thDayOverrideChoice = billChoice
+                repository.insertCustomer(finalCustomer)
+                
+                // 2. Generate initial invoice if bill is applied
+                if (finalCustomer.currentDue > baseDue) {
+                    val joinDateStr = finalCustomer.joinDate?.ifBlank { null } ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                    val joinDateObj = try { SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(joinDateStr) } catch(e: Exception) { Date() }
+                    val billingMonth = SimpleDateFormat("MMMM yyyy", Locale.US).format(joinDateObj ?: Date())
+
+                    repository.invoiceDao.insertInvoice(
+                        InvoiceEntity(
+                            id = UUID.randomUUID().toString(),
+                            invoiceNo = "INV-NEW-${System.currentTimeMillis().toString().takeLast(6)}",
+                            customerId = finalCustomer.id,
+                            customerCode = finalCustomer.customerCode,
+                            customerName = finalCustomer.name,
+                            packageName = finalCustomer.packageName,
+                            billingMonthYear = billingMonth,
+                            billAmount = finalCustomer.monthlyBill,
+                            discountAmount = discountAmount,
+                            totalPayable = netBill,
+                            dueAmount = netBill,
+                            status = "Unpaid",
+                            generatedDate = joinDateStr,
+                            is20thDayOverrideChoice = billChoice
+                        )
                     )
-                )
+                }
+            } else {
+                // Just update for EXISTING customer
+                repository.updateCustomer(customer)
             }
 
             // 3. MikroTik Sync
-            if (finalCustomer.status == "Active" && finalCustomer.pppoeUsername.isNotBlank()) {
-                repository.syncCustomerToMikroTik(finalCustomer.id)
+            if (customer.status == "Active" && customer.pppoeUsername.isNotBlank()) {
+                repository.syncCustomerToMikroTik(customer.id)
             }
             
             showToast("Customer saved.")

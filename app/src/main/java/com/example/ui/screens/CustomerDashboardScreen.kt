@@ -1,9 +1,6 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,6 +37,7 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
     val customer by viewModel.currentCustomer.collectAsState()
     val payments by viewModel.paymentsList.collectAsState()
     val tickets by viewModel.supportTickets.collectAsState()
+    val invoices by viewModel.invoicesList.collectAsState()
     val settings by viewModel.settingsState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
     val currency = "৳"
@@ -57,6 +55,10 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
     
     val myPayments = remember(payments, cust.id) {
         payments.filter { it.customerId == cust.id }.sortedByDescending { it.paymentDate }
+    }
+    
+    val myInvoices = remember(invoices, cust.id) {
+        invoices.filter { it.customerId == cust.id }.sortedByDescending { it.billingMonthYear }
     }
     
     val myTickets = remember(tickets, cust.id) {
@@ -158,6 +160,37 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     InfoSmallCard(label = "CURRENT PLAN", value = cust.packageName, icon = Icons.Default.Wifi, color = ElectricBlue, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
                     InfoSmallCard(label = "ZONE / AREA", value = cust.zone.orEmpty().ifEmpty { "Global" }, icon = Icons.Default.Place, color = Teal600, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
+                }
+            }
+
+            // MONTHLY BILL STATUS
+            if (myInvoices.isNotEmpty()) {
+                item {
+                    Text("MONTHLY BILL STATUS / মাসিক বিলের অবস্থা", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 3.sp)
+                }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        myInvoices.forEach { inv ->
+                            Card(
+                                modifier = Modifier.width(140.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (inv.status == "Paid") EmeraldSuccess.copy(alpha = 0.1f) else IspRose.copy(alpha = 0.1f)
+                                ),
+                                border = BorderStroke(1.dp, if (inv.status == "Paid") EmeraldSuccess.copy(alpha = 0.2f) else IspRose.copy(alpha = 0.2f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(inv.billingMonthYear, fontSize = 9.sp, fontWeight = FontWeight.Black, color = Slate500)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(inv.status.uppercase(), fontSize = 14.sp, fontWeight = FontWeight.Black, color = if (inv.status == "Paid") EmeraldSuccess else IspRose)
+                                    Text("$currency ${inv.totalPayable.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900)
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

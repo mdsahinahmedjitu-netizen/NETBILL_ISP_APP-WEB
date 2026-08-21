@@ -1,12 +1,54 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Payments = ({ store, session, t }) => {
+const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustomer }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [amount, setAmount] = useState('');
+
+  const months = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      result.push(d.toLocaleString('default', { month: 'long', year: 'numeric' }));
+    }
+    return result;
+  }, []);
+
+  useEffect(() => {
+    if (preSelectedCustomer) {
+      setSelectedCustomerId(preSelectedCustomer.id);
+      setAmount(Math.floor(preSelectedCustomer.currentDue || preSelectedCustomer.current_due || 0).toString());
+      setSearchTerm(preSelectedCustomer.name);
+      setPreSelectedCustomer(null); // Clear after applying
+    }
+  }, [preSelectedCustomer, setPreSelectedCustomer]);
   const [method, setMethod] = useState('Cash');
   const [billingMonth, setBillingMonth] = useState(new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
+
+  // Dynamic Billing Month Selection Logic
+  useEffect(() => {
+    const cust = store.customers.find(c => c.id === selectedCustomerId);
+    if (!cust) return;
+
+    const totalDue = parseFloat(cust.currentDue || cust.current_due || 0);
+    const monthlyBill = parseFloat(cust.monthlyBill || cust.monthly_bill || 0);
+    const payAmt = parseFloat(amount) || 0;
+
+    if (monthlyBill > 0) {
+        const monthsDue = Math.ceil(totalDue / monthlyBill);
+        if (payAmt < totalDue && monthsDue >= 2) {
+            // Suggest the oldest month (e.g. if 2 months due, index 1 in the last-6-months list)
+            if (monthsDue <= months.length) {
+                setBillingMonth(months[monthsDue - 1]);
+            }
+        } else {
+            // Suggest current month (index 0)
+            setBillingMonth(months[0]);
+        }
+    }
+  }, [amount, selectedCustomerId, store.customers, months]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [customerPayments, setCustomerPayments] = useState([]);
   const [selectedCollector, setSelectedCollector] = useState({
@@ -32,16 +74,6 @@ const Payments = ({ store, session, t }) => {
     }
     return dateStr;
   };
-
-  const months = useMemo(() => {
-    const result = [];
-    for (let i = 0; i < 6; i++) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      result.push(d.toLocaleString('default', { month: 'long', year: 'numeric' }));
-    }
-    return result;
-  }, []);
 
   useEffect(() => {
     setCustomerPayments([]);
@@ -159,7 +191,7 @@ const Payments = ({ store, session, t }) => {
       }
 
       let nextExpireDate = currentExpireDateStr;
-      if (newDue <= 0) {
+      if (newDue <= 0 && currentExpireDateStr) {
           let baseDate = now;
           if (currentExpireObj && (currentExpireObj > now || (currentRequestObj && currentRequestObj > now))) {
               baseDate = currentExpireObj;
@@ -218,7 +250,9 @@ const Payments = ({ store, session, t }) => {
       if (pmtErr) throw pmtErr;
 
       const updatePayload = { current_due: newDue, advance_balance: newAdvance, payment_status: newDue <= 0 ? 'Paid' : 'Unpaid' };
-      if (newDue <= 0 && finalExpireDate) updatePayload.expire_date = finalExpireDate;
+      // Only set expire_date if customer ALREADY has one set
+      const currentExpire = customer.expireDate || customer.expire_date;
+      if (newDue <= 0 && finalExpireDate && currentExpire) updatePayload.expire_date = finalExpireDate;
 
       const { error: custUpdateErr } = await supabase.from('customers').update(updatePayload).eq('id', custId);
       if (custUpdateErr) throw custUpdateErr;
@@ -304,7 +338,10 @@ const Payments = ({ store, session, t }) => {
                          <button onClick={() => openEditModal(p)} className="text-[8px] font-black text-indigo-600 underline tracking-[2px] opacity-0 group-hover:opacity-100 transition-all uppercase">Edit</button>
                       </div>
                    </div>
-                   <div className="text-right space-y-1 font-black"><p className="text-2xl font-black text-emerald-600 tracking-tighter leading-none">৳ {p.amount}</p><p className="text-[9px] font-black text-slate-400 uppercase tracking-[2px]">{formatDateDisplay(p.paymentDate)}</p></div>
+                   <div className="text-right space-y-1 font-black">
+                      <p className="text-2xl font-black text-emerald-600 tracking-tighter leading-none">৳ {p.amount}</p>
+                      <p className="text-[14px] font-black text-slate-900 uppercase tracking-[2px] mt-1">{formatDateDisplay(p.paymentDate)}</p>
+                   </div>
                 </div>
               )) : (<div className="text-center py-20 opacity-10 uppercase"><i className="fas fa-hand-holding-dollar text-[80px]"></i><p className="text-lg font-black mt-4 tracking-[10px]">No History</p></div>)}
            </div>

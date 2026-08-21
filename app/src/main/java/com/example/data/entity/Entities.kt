@@ -87,6 +87,7 @@ data class InvoiceEntity(
     @SerialName("package_name") val packageName: String = "",
     @SerialName("billing_month_year") val billingMonthYear: String = "",
     @SerialName("bill_amount") val billAmount: Double = 0.0,
+    @SerialName("discount_amount") val discountAmount: Double = 0.0,
     @SerialName("previous_due") val previousDue: Double = 0.0,
     @SerialName("total_payable") val totalPayable: Double = 0.0,
     @SerialName("due_amount") val dueAmount: Double = 0.0,

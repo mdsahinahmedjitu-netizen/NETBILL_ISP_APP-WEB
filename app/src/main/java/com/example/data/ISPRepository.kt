@@ -176,7 +176,46 @@ class ISPRepository(private val db: AppDatabase) {
 
     suspend fun updateCustomer(customer: CustomerEntity) {
         customerDao.updateCustomer(customer)
-        try { supabase.postgrest.from("customers").update(customer) { filter { eq("id", customer.id) } } } catch (e: Exception) { Log.e("ISPRepository", "Supabase Customer update failed", e) }
+        try { 
+            // Construct a map of all fields to ensure correct serialization and update in Supabase
+            val updates = mapOf(
+                "customer_code" to customer.customerCode,
+                "name" to customer.name,
+                "mobile" to customer.mobile,
+                "alt_mobile" to customer.altMobile,
+                "address" to customer.address,
+                "zone" to customer.zone,
+                "sub_zone" to customer.subZone,
+                "box_id" to customer.boxId,
+                "package_name" to customer.packageName,
+                "monthly_bill" to customer.monthlyBill,
+                "current_due" to customer.currentDue,
+                "advance_balance" to customer.advanceBalance,
+                "pppoe_username" to customer.pppoeUsername,
+                "pppoe_password" to customer.pppoePassword,
+                "onu_mac" to customer.onuMac,
+                "onu_serial" to customer.onuSerial,
+                "router_id" to customer.routerId,
+                "billing_type" to customer.billingType,
+                "payment_status" to customer.paymentStatus,
+                "status" to customer.status,
+                "subscription_type" to customer.subscriptionType,
+                "join_date" to customer.joinDate,
+                "expire_date" to customer.expireDate,
+                "expire_time" to customer.expireTime,
+                "request_date" to customer.requestDate,
+                "connection_type" to customer.connectionType,
+                "connection_fee" to customer.connectionFee,
+                "notes" to customer.notes
+            )
+            
+            supabase.postgrest.from("customers").update(updates) {
+                filter { eq("id", customer.id) }
+            }
+            Log.d("ISPRepository", "Cloud Update Success: ${customer.name}")
+        } catch (e: Exception) { 
+            Log.e("ISPRepository", "Supabase Customer update failed", e) 
+        }
     }
 
     suspend fun deleteCustomerById(id: String) {

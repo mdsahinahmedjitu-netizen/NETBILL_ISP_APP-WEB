@@ -1,104 +1,53 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
-import com.example.ui.theme.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.localization.AppTranslation
 import com.example.ui.components.ReadonlyDateField
-import java.util.UUID
-import com.example.ui.theme.AmberAlert
-import com.example.ui.theme.CoralWarning
-import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.Navy800
-import com.example.ui.theme.Navy900
+import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerManagementScreen(
     viewModel: MainViewModel,
-    onSelectCustomer: (CustomerEntity) -> Unit
+    onSelectCustomer: (CustomerEntity) -> Unit,
+    onNavigateToPayment: () -> Unit = {}
 ) {
     val customers by viewModel.filteredCustomers.collectAsState()
+    val allCustomers by viewModel.customersList.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
     val permissions by viewModel.currentPermissions.collectAsState()
     val currency = AppTranslation("currency_symbol")
 
     var showAddCustomerDialog by remember { mutableStateOf(false) }
     var customerToEdit by remember { mutableStateOf<CustomerEntity?>(null) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var activeMenuId by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         floatingActionButton = {
@@ -108,10 +57,12 @@ fun CustomerManagementScreen(
                         customerToEdit = null
                         showAddCustomerDialog = true
                     },
-                    containerColor = ElectricBlue,
-                    contentColor = Color.White
+                    containerColor = IspTealPrimary,
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.padding(bottom = 16.dp, end = 8.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Customer")
+                    Icon(Icons.Default.Add, contentDescription = "Add Customer", modifier = Modifier.size(32.dp))
                 }
             }
         },
@@ -121,140 +72,150 @@ fun CustomerManagementScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Search Input with Clear Button
-            OutlinedTextField(
-                value = filterState.searchQuery,
-                onValueChange = { viewModel.updateFilter(query = it) },
-                placeholder = { Text("Search by Customer ID, Name, Phone Number, or PPPoE...", color = Slate600, fontSize = 12.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = Teal600) },
-                trailingIcon = {
-                    if (filterState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.updateFilter(query = "") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear search", tint = Slate600)
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Teal600,
-                    unfocusedBorderColor = Slate200,
-                    focusedContainerColor = SleekCard,
-                    unfocusedContainerColor = SleekCard
-                )
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Search results counter & active filters badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Header & Stats Row
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(44.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(44.dp))
+                    .padding(28.dp)
             ) {
-                Text(
-                    text = if (filterState.searchQuery.isNotEmpty()) "Found ${customers.size} customer(s) matching \"${filterState.searchQuery}\"" else "Total Customers: ${customers.size}",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (filterState.searchQuery.isNotEmpty()) Teal600 else Slate600
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = AppTranslation("subscribers_crm").uppercase(),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 32.sp,
+                        letterSpacing = 2.sp,
+                        color = Slate900
+                    )
+                    Text(
+                        text = "ENTERPRISE SUBSCRIBER MANAGEMENT SYSTEM",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 3.sp,
+                        color = IspTealPrimary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
 
-                if (filterState.searchQuery.isNotEmpty()) {
-                    TextButton(
-                        onClick = { viewModel.updateFilter(query = "") },
-                        modifier = Modifier.height(28.dp)
-                    ) {
-                        Text("Reset Search", fontSize = 11.sp, color = CoralWarning)
-                    }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatBox(label = "TOTAL", value = allCustomers.size.toString(), color = Color(0xFF64748B), modifier = Modifier.weight(1f))
+                    StatBox(label = "MARKED", value = selectedIds.size.toString(), color = IspIndigo, modifier = Modifier.weight(1f))
+                    StatBox(label = "ACTIVE", value = allCustomers.count { it.status == "Active" }.toString(), color = EmeraldSuccess, modifier = Modifier.weight(1f))
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Filters Row: Status Chips & Due Only Switch
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("All", "Active", "Suspended").forEach { status ->
-                        val isSelected = filterState.selectedStatus == status
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.updateFilter(status = status) },
-                            label = { Text(status, fontSize = 12.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Teal600,
-                                selectedLabelColor = Color.White,
-                                containerColor = SleekCard,
-                                labelColor = Slate700
-                            )
-                        )
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Due Only", color = CoralWarning, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Switch(
-                        checked = filterState.onlyDueCustomers,
-                        onCheckedChange = { viewModel.updateFilter(onlyDue = it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = CoralWarning
+            // Toolbar
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(32.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, SleekBorder),
+                    shadowElevation = 8.dp
+                ) {
+                    OutlinedTextField(
+                        value = filterState.searchQuery,
+                        onValueChange = { viewModel.updateFilter(query = it) },
+                        placeholder = { Text(AppTranslation("search_placeholder").uppercase(), color = Color.LightGray, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Slate300, modifier = Modifier.size(28.dp)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(32.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
                         )
                     )
                 }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    WebActionButton(label = "ADVANCED FILTER", icon = Icons.Default.FilterList, color = Color.White, textColor = IspTealPrimary, borderColor = IspTealPrimary.copy(alpha = 0.2f)) { /* Filter */ }
+                    WebActionButton(label = "DOWNLOAD EXCEL", icon = Icons.Default.FileDownload, color = Color(0xFF20879E), textColor = Color.White) { /* Excel */ }
+                    WebActionButton(label = "SMS BROADCAST", icon = Icons.Default.Send, color = Color(0xFF20879E), textColor = Color.White) { /* SMS */ }
+                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // Table
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(44.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, SleekBorder),
+                shadowElevation = 10.dp
+            ) {
+                Box(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    Column {
+                        // Table Header
+                        Row(
+                            modifier = Modifier
+                                .background(Color(0xFFF8FAFC))
+                                .padding(vertical = 20.dp, horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TableHeaderCell("SL", width = 50.dp)
+                            TableHeaderCell("ID", width = 80.dp)
+                            TableHeaderCell("CUSTOMER", width = 250.dp, textAlign = TextAlign.Left)
+                            TableHeaderCell("PLAN", width = 100.dp)
+                            TableHeaderCell("BILL", width = 100.dp)
+                            TableHeaderCell("DUE", width = 100.dp)
+                            TableHeaderCell("JOIN DATE", width = 150.dp)
+                            TableHeaderCell("EXPIRY", width = 150.dp)
+                            TableHeaderCell("STATUS", width = 120.dp)
+                            TableHeaderCell("ACTION", width = 100.dp)
+                        }
 
-            // Customer List
-            if (customers.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No customers found", color = Slate600)
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(customers, key = { it.id }) { customer ->
-                        CustomerCard(
-                            customer = customer,
-                            currency = currency,
-                            permissions = permissions,
-                            onClick = { onSelectCustomer(customer) },
-                            onEdit = {
-                                customerToEdit = customer
-                                showAddCustomerDialog = true
-                            },
-                            onDelete = { viewModel.deleteCustomer(customer) },
-                            onToggleStatus = { viewModel.toggleCustomerStatus(customer) }
-                        )
+                        HorizontalDivider(color = SleekBorder)
+
+                        customers.forEachIndexed { index, customer ->
+                            TableRow(
+                                customer = customer,
+                                index = index,
+                                currency = currency,
+                                activeMenuId = activeMenuId,
+                                onMenuToggle = { activeMenuId = if (activeMenuId == it) null else it },
+                                onPaymentClick = {
+                                    viewModel.setPreSelectedCustomerForPayment(it)
+                                    onNavigateToPayment()
+                                },
+                                onSelectCustomer = onSelectCustomer,
+                                onEdit = {
+                                    customerToEdit = customer
+                                    showAddCustomerDialog = true
+                                },
+                                onDelete = { viewModel.deleteCustomer(customer) }
+                            )
+                            HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f))
+                        }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 
-    // Add / Edit Customer Dialog
     if (showAddCustomerDialog) {
         AddEditCustomerDialog(
             customer = customerToEdit,
             permissions = permissions,
             onDismiss = { showAddCustomerDialog = false },
-            onSave = { newCust, choice ->
-                viewModel.addOrUpdateCustomer(newCust, choice)
+            onSave = { newCust, disc, choice ->
+                viewModel.addOrUpdateCustomer(newCust, disc, choice)
                 showAddCustomerDialog = false
             }
         )
@@ -262,174 +223,145 @@ fun CustomerManagementScreen(
 }
 
 @Composable
-fun CustomerCard(
-    customer: CustomerEntity,
-    currency: String,
-    permissions: com.example.data.entity.UserRolePermissions,
-    onClick: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onToggleStatus: () -> Unit
-) {
-    val isDue = customer.currentDue > 0
+fun StatBox(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(color.copy(alpha = 0.05f), RoundedCornerShape(24.dp))
+            .border(1.dp, color.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+            .padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = label, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = color.copy(alpha = 0.6f))
+        Text(text = value, fontSize = 24.sp, fontWeight = FontWeight.Black, color = color, letterSpacing = 2.sp)
+    }
+}
 
-    Card(
+@Composable
+fun TableHeaderCell(text: String, width: Dp, textAlign: TextAlign = TextAlign.Center) {
+    Text(
+        text = text,
+        modifier = Modifier.width(width),
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Black,
+        color = Color(0xFF64748B),
+        letterSpacing = 2.sp,
+        textAlign = textAlign
+    )
+}
+
+@Composable
+fun TableRow(
+    customer: CustomerEntity,
+    index: Int,
+    currency: String,
+    activeMenuId: String?,
+    onMenuToggle: (String) -> Unit,
+    onPaymentClick: (CustomerEntity) -> Unit = {},
+    onSelectCustomer: (CustomerEntity) -> Unit = {},
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = SleekCard),
-        border = BorderStroke(1.dp, SleekBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .padding(vertical = 24.dp, horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        // SL
+        Text(text = (index + 1).toString(), modifier = Modifier.width(50.dp), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, textAlign = TextAlign.Center)
+        // ID
+        Text(text = "#${customer.customerCode.takeLast(4)}", modifier = Modifier.width(80.dp), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate600, textAlign = TextAlign.Center)
+        // CUSTOMER
+        Column(modifier = Modifier.width(250.dp)) {
+            Text(text = customer.name.uppercase(), fontWeight = FontWeight.Black, fontSize = 18.sp, color = Slate900, letterSpacing = 1.sp)
+            Text(text = customer.mobile.uppercase(), fontWeight = FontWeight.Black, fontSize = 16.sp, color = IspIndigo, letterSpacing = 1.sp)
+        }
+        // PLAN
+        Text(text = "${customer.packageName.filter { it.isDigit() }}MB", modifier = Modifier.width(100.dp), fontSize = 18.sp, fontWeight = FontWeight.Black, color = IspTealPrimary, textAlign = TextAlign.Center)
+        // BILL
+        Text(text = "$currency${customer.monthlyBill.toInt()}", modifier = Modifier.width(100.dp), fontSize = 16.sp, fontWeight = FontWeight.Black, color = Slate800, textAlign = TextAlign.Center)
+        // DUE
+        Text(text = "$currency${customer.currentDue.toInt()}", modifier = Modifier.width(100.dp), fontSize = 16.sp, fontWeight = FontWeight.Black, color = IspRose, textAlign = TextAlign.Center)
+        // JOIN DATE
+        Text(text = customer.joinDate ?: "---", modifier = Modifier.width(150.dp), fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color(0xFF0F172A), textAlign = TextAlign.Center, letterSpacing = 1.sp)
+        // EXPIRY
+        Text(text = customer.expireDate ?: "---", modifier = Modifier.width(150.dp), fontSize = 16.sp, fontWeight = FontWeight.Black, color = IspRose, textAlign = TextAlign.Center, letterSpacing = 1.sp)
+        // STATUS
+        Box(modifier = Modifier.width(120.dp), contentAlignment = Alignment.Center) {
+            StatusBadge(text = customer.status.uppercase(), color = if (customer.status == "Active") Color(0xFFD1FAE5) else Color(0xFFFEE2E2), textColor = if (customer.status == "Active") Color(0xFF047857) else Color(0xFFB91C1C))
+        }
+        // ACTION
+        Box(modifier = Modifier.width(100.dp), contentAlignment = Alignment.Center) {
+            IconButton(
+                onClick = { onMenuToggle(customer.id) },
+                modifier = Modifier.size(40.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(if (customer.status == "Active") ElectricBlue.copy(alpha = 0.2f) else CoralWarning.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = customer.customerCode.takeLast(4),
-                            fontWeight = FontWeight.Bold,
-                            color = if (customer.status == "Active") Teal600 else CoralWarning,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column {
-                        Text(
-                            text = customer.name,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Slate900
-                        )
-                        Text(
-                            text = "PPPoE: ${customer.pppoeUsername} • ${customer.zone}",
-                            fontSize = 12.sp,
-                            color = Slate600
-                        )
-                        if (permissions.canSeeMobile) {
-                            Text(
-                                text = "Mobile: ${customer.mobile}",
-                                fontSize = 11.sp,
-                                color = Teal600,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                // Due Tag
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isDue) CoralWarning.copy(alpha = 0.2f) else EmeraldSuccess.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = if (isDue) "Due: $currency ${String.format(java.util.Locale.US, "%,.0f", customer.currentDue)}" else "Paid",
-                        color = if (isDue) CoralWarning else EmeraldSuccess,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
-                    )
-                }
+                Icon(Icons.Default.MoreVert, contentDescription = null, tint = Slate500)
             }
 
-            // Extra detail tags row (NID, ONU, Fiber Core, Billing Type)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            DropdownMenu(
+                expanded = activeMenuId == customer.id,
+                onDismissRequest = { onMenuToggle(customer.id) },
+                modifier = Modifier.background(Color.White, RoundedCornerShape(32.dp)).border(1.dp, SleekBorder, RoundedCornerShape(32.dp)).padding(vertical = 8.dp)
             ) {
-                if (customer.billingType.orEmpty().isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Teal600.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(text = customer.billingType!!, fontSize = 10.sp, color = Teal600, fontWeight = FontWeight.Medium)
-                    }
+                ActionMenuItem(icon = Icons.Default.Payments, label = "PAYMENT", color = EmeraldSuccess) { 
+                    onPaymentClick(customer)
+                    onMenuToggle(customer.id) 
                 }
-                if (customer.expireDate.orEmpty().isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "মেয়াদ: ${customer.expireDate} ${customer.expireTime.orEmpty()}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                ActionMenuItem(icon = Icons.Default.Person, label = "FULL PROFILE", color = Color(0xFF2563EB)) { 
+                    onSelectCustomer(customer)
+                    onMenuToggle(customer.id) 
+                }
+                ActionMenuItem(icon = Icons.Default.Edit, label = "EDIT / IDENTITY", color = Slate600) { 
+                    onEdit()
+                    onMenuToggle(customer.id) 
+                }
+                ActionMenuItem(icon = Icons.Default.Delete, label = "DELETE", color = Color(0xFFEF4444)) { 
+                    onDelete()
+                    onMenuToggle(customer.id) 
                 }
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(6.dp))
+@Composable
+fun StatusBadge(text: String, color: Color, textColor: Color) {
+    Surface(color = color, shape = RoundedCornerShape(100.dp)) {
+        Text(text = text, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontSize = 9.sp, fontWeight = FontWeight.Black, color = textColor, letterSpacing = 2.sp)
+    }
+}
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Pkg: ${customer.packageName} ($currency ${String.format(java.util.Locale.US, "%,.0f", customer.monthlyBill)}/mo)",
-                    fontSize = 12.sp,
-                    color = CyanAccent,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (permissions.canSuspend) {
-                        IconButton(onClick = onToggleStatus, modifier = Modifier.size(32.dp)) {
-                            Icon(
-                                imageVector = if (customer.status == "Active") Icons.Default.CheckCircle else Icons.Default.Block,
-                                contentDescription = "Toggle Status",
-                                tint = if (customer.status == "Active") EmeraldSuccess else CoralWarning,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    if (permissions.canEdit) {
-                        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = CyanAccent, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                    if (permissions.canDelete) {
-                        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = CoralWarning, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
+@Composable
+fun ActionMenuItem(icon: ImageVector, label: String, color: Color, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+                Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.Black, color = color, letterSpacing = 2.sp)
             }
+        },
+        onClick = onClick
+    )
+}
 
-            // 20th Day Join Indicator
-            if (customer.joinDayOfMonth > 20) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = AmberAlert, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Joined on day ${customer.joinDayOfMonth} (Special 20th Day Rule)",
-                        color = AmberAlert,
-                        fontSize = 10.sp
-                    )
-                }
-            }
+@Composable
+fun WebActionButton(label: String, icon: ImageVector, color: Color, textColor: Color, borderColor: Color? = null, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = color,
+        border = if (borderColor != null) BorderStroke(2.dp, borderColor) else null,
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = textColor, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = textColor)
         }
     }
 }
@@ -439,7 +371,7 @@ fun AddEditCustomerDialog(
     customer: CustomerEntity?,
     permissions: com.example.data.entity.UserRolePermissions,
     onDismiss: () -> Unit,
-    onSave: (CustomerEntity, String) -> Unit
+    onSave: (CustomerEntity, Double, String) -> Unit
 ) {
     var code by remember { mutableStateOf(customer?.customerCode ?: "NET-${(1000..9999).random()}") }
     var name by remember { mutableStateOf(customer?.name ?: "") }
@@ -453,12 +385,16 @@ fun AddEditCustomerDialog(
 
     var pkgName by remember { mutableStateOf(customer?.packageName ?: "20 Mbps Super") }
     var billAmt by remember { mutableStateOf(customer?.monthlyBill?.toString() ?: "800") }
+    var discountAmt by remember { mutableStateOf("0") }
+    var currentDue by remember { mutableStateOf(customer?.currentDue?.toString() ?: "0") }
     var connectionFee by remember { mutableStateOf(customer?.connectionFee?.toString() ?: "1000") }
     var billingType by remember { mutableStateOf(customer?.billingType ?: "Prepaid") }
-    var joinDate by remember { mutableStateOf(customer?.joinDate?.ifEmpty { "2026-08-12" } ?: "2026-08-12") }
-    var currentDue by remember { mutableStateOf(customer?.currentDue?.toString() ?: "0") }
-    var expireDate by remember { mutableStateOf(customer?.expireDate?.ifEmpty { "2026-09-12" } ?: "2026-09-12") }
-    var expireTime by remember { mutableStateOf(customer?.expireTime?.ifEmpty { "23:59" } ?: "23:59") }
+    
+    val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+    var joinDate by remember { mutableStateOf(customer?.joinDate?.ifBlank { today } ?: today) }
+    var requestDate by remember { mutableStateOf(customer?.requestDate?.ifBlank { today } ?: today) }
+    var expireDate by remember { mutableStateOf(customer?.expireDate?.ifBlank { "" } ?: "") }
+    var expireTime by remember { mutableStateOf(customer?.expireTime?.ifBlank { "23:59" } ?: "23:59") }
 
     var connectionType by remember { mutableStateOf(customer?.connectionType ?: "PPPoE") }
     var pppoeUser by remember { mutableStateOf(customer?.pppoeUsername ?: "") }
@@ -466,9 +402,9 @@ fun AddEditCustomerDialog(
     var onuMac by remember { mutableStateOf(customer?.onuMac ?: "") }
     var onuSerial by remember { mutableStateOf(customer?.onuSerial ?: "") }
     var notes by remember { mutableStateOf(customer?.notes ?: "") }
+    var status by remember { mutableStateOf(customer?.status ?: "Active") }
 
-    // New state for 20th day rule billing choice
-    var billChoiceFor21stPlus by remember { mutableStateOf("NextMonth") } // "CurrentMonth" or "NextMonth"
+    var billChoiceFor21stPlus by remember { mutableStateOf("NextMonth") }
 
     val joinDayInt = try { joinDate.split("-").last().toInt() } catch(e: Exception) { 15 }
     val show20thDayWarning = joinDayInt > 20
@@ -478,16 +414,11 @@ fun AddEditCustomerDialog(
         title = {
             Column {
                 Text(
-                    text = if (customer == null) "নতুন গ্রাহক যোগ করুন (Add Customer)" else "গ্রাহকের তথ্য সংশোধন (Edit Customer)",
+                    text = if (customer == null) "নতুন গ্রাহক (Add Customer)" else "সংশোধন (Edit Customer)",
                     color = Slate900,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp
-                )
-                Text(
-                    text = "Customer Code: $code",
-                    color = Teal600,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Black,
+                    fontSize = 18.sp,
+                    letterSpacing = 2.sp
                 )
             }
         },
@@ -498,334 +429,64 @@ fun AddEditCustomerDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Section 1: Basic Info
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Slate100),
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("👤 প্রাথমিক ও ব্যক্তিগত পরিচয় (Basic Details)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 13.sp)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("NAME", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = mobile, onValueChange = { mobile = it }, label = { Text("MOBILE", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("ADDRESS", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = pkgName, onValueChange = { pkgName = it }, label = { Text("PACKAGE", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = billAmt, onValueChange = { billAmt = it }, label = { Text("MONTHLY BILL", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = discountAmt, onValueChange = { discountAmt = it }, label = { Text("DISCOUNT (৳)", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = currentDue, onValueChange = { currentDue = it }, label = { Text("PREVIOUS DUE (৳)", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                
+                ReadonlyDateField(
+                    value = joinDate,
+                    label = "JOIN DATE (যোগদানের তারিখ)",
+                    onDateSelected = { joinDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("গ্রাহকের নাম (বাংলা / English)") },
-                            placeholder = { Text("যেমন: মো: রফিকুল ইসলাম / Rafiqul Islam", color = Slate600, fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            readOnly = !permissions.canEdit && customer != null
-                        )
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = mobile,
-                                onValueChange = { mobile = it },
-                                label = { Text("মোবাইল নম্বর") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                readOnly = (!permissions.canEdit && customer != null) || !permissions.canSeeMobile
-                            )
-                            OutlinedTextField(
-                                value = altMobile,
-                                onValueChange = { altMobile = it },
-                                label = { Text("বিকল্প মোবাইল") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                readOnly = (!permissions.canEdit && customer != null) || !permissions.canSeeMobile
-                            )
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("STATUS: ", fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    listOf("Active", "Inactive").forEach { s ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { status = s }) {
+                            RadioButton(selected = status == s, onClick = { status = s })
+                            Text(s, fontSize = 12.sp, fontWeight = FontWeight.Black)
                         }
+                        Spacer(Modifier.width(8.dp))
                     }
                 }
 
-                // Section 2: Address & Location Info
-                if (permissions.canSeeAddress) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = Slate100),
-                        border = BorderStroke(1.dp, Slate200)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("🏠 ঠিকানা ও এলাকা তথ্য (Address & Location)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 13.sp)
+                ReadonlyDateField(
+                    value = requestDate,
+                    label = "REQUEST DATE (আবেদনের তারিখ)",
+                    onDateSelected = { requestDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                            OutlinedTextField(
-                                value = address,
-                                onValueChange = { address = it },
-                                label = { Text("পূর্ণাঙ্গ ঠিকানা") },
-                                placeholder = { Text("যেমন: বাড়ি-১২, রোড-০৫, সেক্টর-৩, উত্তরা", color = Slate600, fontSize = 12.sp) },
-                                modifier = Modifier.fillMaxWidth(),
-                                readOnly = !permissions.canEdit && customer != null
-                            )
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(
-                                    value = zone,
-                                    onValueChange = { zone = it },
-                                    label = { Text("জোন / এলাকা") },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    readOnly = !permissions.canEdit && customer != null
-                                )
-                                OutlinedTextField(
-                                    value = subZone,
-                                    onValueChange = { subZone = it },
-                                    label = { Text("সাব-জোন / ব্লক") },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    readOnly = !permissions.canEdit && customer != null
-                                )
-                            }
-
-                            OutlinedTextField(
-                                value = boxId,
-                                onValueChange = { boxId = it },
-                                label = { Text("নেটওয়ার্ক বক্স / Splitter TJ ID") },
-                                placeholder = { Text("যেমন: BOX-101", color = Slate600, fontSize = 12.sp) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                readOnly = !permissions.canEdit && customer != null
-                            )
-                        }
-                    }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ReadonlyDateField(
+                        value = expireDate,
+                        label = "EXPIRE DATE",
+                        onDateSelected = { expireDate = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = expireTime,
+                        onValueChange = { expireTime = it },
+                        label = { Text("TIME") },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
-                // Section 3: Package & Billing
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Slate100),
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("💰 প্যাকেজ ও বিলিং তথ্য (Package & Bill)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 13.sp)
-
-                        OutlinedTextField(
-                            value = pkgName,
-                            onValueChange = { pkgName = it },
-                            label = { Text("ইন্টারনেট প্যাকেজ") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            readOnly = !permissions.canModifyPricing
-                        )
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = billAmt,
-                                onValueChange = { billAmt = it },
-                                label = { Text("মাসিক বিল (৳)") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                readOnly = !permissions.canModifyPricing
-                            )
-                            ReadonlyDateField(
-                                value = joinDate,
-                                label = "যোগদানের তারিখ",
-                                onDateSelected = { joinDate = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("বিলিং টাইপ:", fontSize = 12.sp, color = Slate700, fontWeight = FontWeight.Bold)
-                            listOf("Prepaid", "Postpaid").forEach { type ->
-                                FilterChip(
-                                    selected = billingType == type,
-                                    onClick = { billingType = type },
-                                    label = { Text(type, fontSize = 11.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = Teal600,
-                                        selectedLabelColor = Color.White
-                                    )
-                                )
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = currentDue,
-                            onValueChange = { currentDue = it },
-                            label = { Text("পূর্ববর্তী বকেয়া পরিমাণ (৳)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            readOnly = !permissions.canModifyPricing
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("⏱️ মেয়াদের তারিখ ও সময় (Expiry Date & Time)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 12.sp)
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ReadonlyDateField(
-                                value = expireDate,
-                                label = "মেয়াদ শেষ তারিখ",
-                                onDateSelected = { expireDate = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                            OutlinedTextField(
-                                value = expireTime,
-                                onValueChange = { expireTime = it },
-                                label = { Text("মেয়াদ শেষ সময় (HH:MM / AM-PM)") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                readOnly = !permissions.canEdit && customer != null
-                            )
-                        }
-
-                        if (permissions.canEdit || customer == null) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("দ্রুত সেট:", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.SemiBold)
-                                FilterChip(
-                                    selected = expireDate == "2026-08-31",
-                                    onClick = {
-                                        expireDate = "2026-08-31"
-                                        expireTime = "11:59 PM"
-                                    },
-                                    label = { Text("আজ রাত 11:59", fontSize = 10.sp) }
-                                )
-                                FilterChip(
-                                    selected = expireDate == "2026-09-08",
-                                    onClick = {
-                                        expireDate = "2026-09-08"
-                                        expireTime = "11:59 PM"
-                                    },
-                                    label = { Text("+৭ দিন", fontSize = 10.sp) }
-                                )
-                                FilterChip(
-                                    selected = expireDate == "2026-09-30",
-                                    onClick = {
-                                        expireDate = "2026-09-30"
-                                        expireTime = "11:59 PM"
-                                    },
-                                    label = { Text("+৩০ দিন", fontSize = 10.sp) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Section 4: Network & Technical Details
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Slate100),
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("🌐 নেটওয়ার্ক ও টেকনিক্যাল তথ্য (Network Specs)", fontWeight = FontWeight.Bold, color = Slate800, fontSize = 13.sp)
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = pppoeUser,
-                                onValueChange = { pppoeUser = it },
-                                label = { Text("PPPoE Username") },
-                                placeholder = { Text("অটো জেনারেট হবে", fontSize = 11.sp) },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                readOnly = !permissions.canEdit && customer != null
-                            )
-                            if (permissions.canPasswords || customer == null) {
-                                OutlinedTextField(
-                                    value = pppoePass,
-                                    onValueChange = { pppoePass = it },
-                                    label = { Text("PPPoE Password") },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true,
-                                    readOnly = !permissions.canEdit && customer != null
-                                )
-                            }
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = onuMac,
-                                onValueChange = { onuMac = it },
-                                label = { Text("ONU MAC") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                readOnly = !permissions.canEdit && customer != null
-                            )
-                            OutlinedTextField(
-                                value = onuSerial,
-                                onValueChange = { onuSerial = it },
-                                label = { Text("ONU Serial") },
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                readOnly = !permissions.canEdit && customer != null
-                            )
-                        }
-
-                        OutlinedTextField(
-                            value = notes,
-                            onValueChange = { notes = it },
-                            label = { Text("অন্যান্য মন্তব্য / নোট (Notes)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = !permissions.canEdit && customer != null
-                        )
-                    }
-                }
-
-                // 20th Day Rule Alert Banner
-                AnimatedVisibility(visible = show20thDayWarning) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = AmberAlert.copy(alpha = 0.2f)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Info, contentDescription = null, tint = AmberAlert)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "২১ তারিখ বা তার পরে জয়েনিং। বিলিং অপশন সিলেক্ট করুন:",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AmberAlert
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = billChoiceFor21stPlus == "CurrentMonth",
-                                    onClick = { billChoiceFor21stPlus = "CurrentMonth" },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Teal600)
-                                )
-                                Text("রানিং মাসের বিল ধরুন", fontSize = 11.sp, color = Slate800)
-                                
-                                Spacer(modifier = Modifier.width(16.dp))
-                                
-                                RadioButton(
-                                    selected = billChoiceFor21stPlus == "NextMonth",
-                                    onClick = { billChoiceFor21stPlus = "NextMonth" },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Teal600)
-                                )
-                                Text("আগামী মাস থেকে বিল শুরু", fontSize = 11.sp, color = Slate800)
-                            }
-                        }
-                    }
-                }
+                OutlinedTextField(value = pppoeUser, onValueChange = { pppoeUser = it }, label = { Text("PPPOE USERNAME", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val asciiNamePart = name.filter { it.isLetterOrDigit() && it.code < 128 }.lowercase().replace(" ", "_")
-                    val finalPppoeUser = if (pppoeUser.isNotBlank()) pppoeUser else {
-                        if (asciiNamePart.isNotBlank()) "${asciiNamePart}_${code.takeLast(4)}" else "user_${code.takeLast(4)}"
-                    }
-                    val finalName = if (name.isNotBlank()) name else "গ্রাহক ${code.takeLast(4)}"
                     val entity = CustomerEntity(
                         id = customer?.id ?: UUID.randomUUID().toString(),
                         customerCode = code,
-                        name = finalName,
+                        name = name,
                         mobile = mobile,
                         altMobile = altMobile,
                         address = address,
@@ -836,7 +497,7 @@ fun AddEditCustomerDialog(
                         monthlyBill = billAmt.toDoubleOrNull() ?: 800.0,
                         connectionFee = connectionFee.toDoubleOrNull() ?: 0.0,
                         billingType = billingType,
-                        pppoeUsername = finalPppoeUser,
+                        pppoeUsername = pppoeUser,
                         pppoePassword = pppoePass,
                         onuMac = onuMac,
                         onuSerial = onuSerial,
@@ -844,22 +505,25 @@ fun AddEditCustomerDialog(
                         joinDate = joinDate,
                         expireDate = expireDate,
                         expireTime = expireTime,
-                        status = customer?.status ?: "Active",
+                        requestDate = requestDate,
+                        status = status,
                         currentDue = currentDue.toDoubleOrNull() ?: 0.0,
                         notes = notes
                     )
-                    onSave(entity, billChoiceFor21stPlus)
+                    onSave(entity, discountAmt.toDoubleOrNull() ?: 0.0, billChoiceFor21stPlus)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Teal600)
+                colors = ButtonDefaults.buttonColors(containerColor = IspTealPrimary),
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Text("সংরক্ষণ করুন (Save Customer)", color = Color.White)
+                Text("SAVE CLOUD", fontWeight = FontWeight.Black, letterSpacing = 2.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("বাতিল (Cancel)", color = Slate600)
+                Text("CANCEL", fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = Slate600)
             }
         },
-        containerColor = SleekCard
+        containerColor = Color.White,
+        shape = RoundedCornerShape(44.dp)
     )
 }
