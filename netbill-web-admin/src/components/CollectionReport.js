@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
+const CollectionReport = ({ store, session, t, initialTab = 'collection', setActivePage }) => {
   const [activeTab, setActiveTab] = useState(initialTab); // 'collection', 'due', 'revenue'
   const [search, setSearch] = useState('');
   const [startDate, setDateStart] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'));
@@ -130,6 +130,12 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection' }) => {
 
   return (
     <div className="w-full space-y-6 pb-20 font-sans tracking-tight uppercase">
+      <div className="flex items-center space-x-4 mb-2">
+         <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-teal-600 shadow-sm border">
+            <i className="fas fa-arrow-left"></i>
+         </button>
+         <h3 className="text-xl font-black uppercase tracking-[2px]">Reports & Analytics</h3>
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCardSmall label={t.coll_total_customers} value={store.customers.length} icon="fa-users" color="text-indigo-600" />
         <StatCardSmall label={t.coll_collected} value={`৳${totalAmount.toLocaleString('en-US')}`} icon="fa-money-bill-trend-up" color="text-emerald-600" />

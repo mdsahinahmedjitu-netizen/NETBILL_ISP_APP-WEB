@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const SmsSetup = ({ store, t }) => {
+const SmsSetup = ({ store, t, setActivePage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [gatewayCredit, setGatewayCredit] = useState('Checking...');
 
   // Test SMS State
   const [showTestModal, setShowTestModal] = useState(false);
@@ -15,6 +14,7 @@ const SmsSetup = ({ store, t }) => {
 
   const settings = store.settings || {};
   const templates = store.smsTemplates || [];
+  const gatewayCredit = store.smsBalance || '---';
 
   // Bulk Dispatch States
   const [isDispatching, setIsDispatching] = useState(false);
@@ -27,7 +27,8 @@ const SmsSetup = ({ store, t }) => {
     "Collection to Owner", "Complain Employee", "Complain List",
     "Complain to Customer", "Create Customer", "Create Customer to Owner",
     "Customer Complaint Notification Message", "Free Customer List",
-    "Inactive Customer List", "Failed to Disable at Mikrotik", "Expired Customer"
+    "Inactive Customer List", "Failed to Disable at Mikrotik", "Expired Customer",
+    "Expiry Reminder (Tomorrow)", "Staff Salary Alert"
   ];
 
   const defaultLibrary = {
@@ -41,67 +42,37 @@ const SmsSetup = ({ store, t }) => {
     }
   };
 
-  useEffect(() => {
-    const checkCredit = async () => {
-      const apiKey = settings.smsApiKey || settings.sms_api_key;
-      if (!apiKey) { setGatewayCredit('N/A'); return; }
-      try {
-        const response = await fetch(`https://bulksmsdhaka.net/api/getbalance?apikey=${apiKey}`);
-        const data = await response.json();
-        if (data && data.balance) setGatewayCredit(`৳${data.balance}`);
-        else setGatewayCredit('Error');
-      } catch (e) { setGatewayCredit('৳0.00'); }
-    };
-    checkCredit();
-  }, [settings.smsApiKey]);
-
-  const sendSmsApi = async (mobile, message) => {
+  const sendSmsApi = async (mobile, message, debug = false) => {
     try {
         let cleanMobile = mobile.replace(/[^0-9]/g, "");
-        if (cleanMobile.startsWith('880')) cleanMobile = cleanMobile.substring(2);
-        if (!cleanMobile.startsWith('0')) cleanMobile = '0' + cleanMobile;
-        if (cleanMobile.length !== 11) return false;
+        if (cleanMobile.startsWith('0')) { cleanMobile = '88' + cleanMobile; }
+        else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
+        else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
+
+        if (cleanMobile.length < 11 || cleanMobile.length > 13) return false;
 
         const isUnicode = /[\u0980-\u09FF]/.test(message);
-        const typeParam = isUnicode ? "&type=unicode" : "";
+        const apiKey = (settings.smsApiKey || "").trim();
+        const senderId = (settings.smsSenderId || "").trim();
+        const msgType = isUnicode ? "unicode" : "text";
 
-        const finalUrl = settings.smsApiUrl
-            .replace(/{API_KEY}/g, settings.smsApiKey)
-            .replace(/{SENDER_ID}/g, settings.smsSenderId || '1234')
-            .replace(/{MOBILE}/g, cleanMobile)
-            .replace(/{NUMBER}/g, cleanMobile)
-            .replace(/{MESSAGE}/g, encodeURIComponent(message)) + typeParam;
+        // BulkSMSBD Standard URL
+        let finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(message)}`;
 
-        // FORM SUBMISSION BYPASS (MOST RELIABLE)
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.name = `sms_frame_${Date.now()}`;
-        document.body.appendChild(iframe);
+        console.log("SMS Final URL:", finalUrl);
 
-        const form = document.createElement('form');
-        form.method = 'GET';
-        form.action = finalUrl.split('?')[0];
-        form.target = iframe.name;
+        if (debug) {
+            window.open(finalUrl, '_blank');
+            return true;
+        }
 
-        const urlParams = new URLSearchParams(finalUrl.split('?')[1]);
-        urlParams.forEach((val, key) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = val;
-            form.appendChild(input);
-        });
-
-        document.body.appendChild(form);
-        form.submit();
-
-        setTimeout(() => {
-            document.body.removeChild(form);
-            document.body.removeChild(iframe);
-        }, 3000);
-
+        const img = new Image();
+        img.src = finalUrl;
         return true;
-    } catch (e) { return false; }
+    } catch (e) {
+        console.error("SMS Logic Error:", e);
+        return false;
+    }
   };
 
   const runBroadcast = async (type) => {
@@ -120,14 +91,23 @@ const SmsSetup = ({ store, t }) => {
 
     for (let i = 0; i < targets.length; i++) {
         const c = targets[i];
+        const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
         const msg = (template.messageContent || template.message_content)
             .replace(/{NAME}/g, c.name || '')
             .replace(/{AMOUNT}/g, Math.floor(c.currentDue || c.current_due || 0))
             .replace(/{DUE}/g, Math.floor(c.currentDue || c.current_due || 0))
+            .replace(/{ZONE}/g, c.zone || '')
+            .replace(/{BILL_MONTH}/g, currentMonth)
             .replace(/{CUSTOMER_CODE}/g, c.customerCode || c.customer_code || '');
 
         const ok = await sendSmsApi(c.mobile, msg);
         setDispatchProgress(prev => ({ ...prev, current: i + 1, success: ok ? prev.success + 1 : prev.success, fail: !ok ? prev.fail + 1 : prev.fail }));
+
+        // Special handling for "Failed to Disable at Mikrotik" - Always notify Admin if failed
+        if (type === "Failed to Disable at Mikrotik" && settings.companyPhone) {
+            const adminMsg = `ADMIN ALERT: Failed to disable ${c.name} (${c.customerCode}) on Mikrotik. Please check manually.`;
+            sendSmsApi(settings.companyPhone, adminMsg);
+        }
 
         await supabase.from('sms_logs').insert({
             id: `LOG-${Date.now()}-${i}`, customer_id: c.id, customer_name: c.name, mobile: c.mobile,
@@ -172,9 +152,14 @@ const SmsSetup = ({ store, t }) => {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter">
       <div className="flex justify-between items-end">
-        <div className="space-y-2">
-          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">SMS GATEWAY</h3>
-          <p className="text-xs text-teal-600 tracking-widest font-black italic">Web Control Center</p>
+        <div className="flex items-center space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-2">
+              <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">SMS GATEWAY</h3>
+              <p className="text-xs text-teal-600 tracking-widest font-black italic">Web Control Center</p>
+           </div>
         </div>
         <div className="flex space-x-6">
             <button
@@ -227,8 +212,39 @@ const SmsSetup = ({ store, t }) => {
       {isEditing && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
           <div className="bg-white rounded-[56px] w-full max-w-3xl p-12 shadow-2xl border-4 border-teal-500/20 space-y-8">
-            <h3 className="text-4xl font-black uppercase">{selectedTemplate?.title}</h3>
-            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full h-48 bg-slate-50 p-8 rounded-[40px] font-black text-lg outline-none" />
+            <div className="flex justify-between items-center">
+              <h3 className="text-4xl font-black uppercase">{selectedTemplate?.title}</h3>
+              <button onClick={() => setIsEditing(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
+            </div>
+
+            <div className="space-y-4">
+              <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full h-48 bg-slate-50 p-8 rounded-[40px] font-black text-lg outline-none" />
+
+              <div className="bg-teal-50/50 p-6 rounded-[32px] border-2 border-dashed border-teal-200">
+                <p className="text-[10px] text-teal-600 font-black tracking-widest mb-4">CLICK TO INSERT TAGS / ট্যাগগুলো যুক্ত করতে ক্লিক করুন:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { tag: '{NAME}', label: 'Name' },
+                    { tag: '{AMOUNT}', label: 'Due TK' },
+                    { tag: '{DUE}', label: 'Due TK' },
+                    { tag: '{ZONE}', label: 'Area' },
+                    { tag: '{BILL_MONTH}', label: 'Month' },
+                    { tag: '{CUSTOMER_CODE}', label: 'Cust ID' },
+                    { tag: '{BALANCE}', label: 'Pao-na/Bal' },
+                    { tag: '{TYPE}', label: 'Add/Paid' }
+                  ].map(item => (
+                    <button
+                      key={item.tag}
+                      onClick={() => setEditContent(prev => prev + item.tag)}
+                      className="bg-white px-4 py-2 rounded-xl text-[10px] font-black border border-teal-100 hover:bg-teal-500 hover:text-white transition-all shadow-sm"
+                    >
+                      {item.tag} ({item.label})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="flex space-x-6">
               <button onClick={() => setIsEditing(false)} className="flex-1 bg-slate-100 py-6 rounded-3xl font-black">CANCEL</button>
               <button onClick={handleSaveEdit} disabled={isLoading} className="flex-[2] bg-teal-600 text-white py-6 rounded-3xl font-black shadow-xl">SAVE CHANGES</button>
@@ -272,13 +288,27 @@ const SmsSetup = ({ store, t }) => {
              <div className="grid grid-cols-1 gap-4">
                 <button
                   onClick={async () => {
-                    const ok = await sendSmsApi(testMobile, testMsg);
-                    alert(ok ? "Message Request Sent!" : "Failed to Send!");
-                    if(ok) setShowTestModal(false);
+                    const ok = await sendSmsApi(testMobile, testMsg, true);
+                    if (ok) {
+                        // Insert log for test message
+                        await supabase.from('sms_logs').insert({
+                            id: `LOG-TEST-${Date.now()}`,
+                            customer_name: 'Test Recipient',
+                            mobile: testMobile,
+                            notification_type: 'Test SMS',
+                            message: testMsg,
+                            status: 'Sent',
+                            sent_timestamp: new Date().toISOString()
+                        });
+                        alert("Opening SMS Gateway in new tab for verification...");
+                        setShowTestModal(false);
+                    } else {
+                        alert("Failed to generate URL!");
+                    }
                   }}
                   className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
                 >
-                  SEND TEST SMS
+                  SEND TEST SMS (BROWSER DEBUG)
                 </button>
                 <button onClick={() => setShowTestModal(false)} className="text-slate-400 text-xs font-bold uppercase hover:text-rose-500">Close Panel</button>
              </div>

@@ -40,7 +40,7 @@ fun CustomerSmsLogsBottomSheet(
             log.customerId == customer.id ||
             log.customerCode.equals(customer.customerCode, ignoreCase = true) ||
             log.mobile == customer.mobile
-        }.sortedByDescending { it.id }
+        } // Already sorted by sentTimestamp in DAO
     }
 
     val lastSms = customerLogs.firstOrNull()

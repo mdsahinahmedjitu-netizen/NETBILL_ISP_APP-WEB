@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const SalaryHistory = ({ store, session, t, lang }) => {
+const SalaryHistory = ({ store, session, t, lang, setActivePage }) => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }));
   const [selectedStaffId, setSelectedStaffId] = useState(session.role === 'admin' ? 'all' : session.data.id);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -43,7 +43,24 @@ const SalaryHistory = ({ store, session, t, lang }) => {
     const monthMatch = selectedMonth === 'All Months' || p.month === selectedMonth;
     const staffMatch = selectedStaffId === 'all' || p.staffId === selectedStaffId;
     return monthMatch && staffMatch;
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }).sort((a, b) => {
+      // 1. Primary sort: Staff Name (A-Z)
+      const nameA = (a.staffName || '').toLowerCase();
+      const nameB = (b.staffName || '').toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+
+      // 2. Secondary sort: Date (Oldest First - 1, 2, 3...)
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      if (dateA - dateB !== 0) return dateA - dateB;
+
+      // 3. Tertiary sort: Type (Salary Accrued should be at the top of the date)
+      if (a.type === 'salary_add' && b.type !== 'salary_add') return -1;
+      if (a.type !== 'salary_add' && b.type === 'salary_add') return 1;
+
+      return 0;
+  });
 
   const totalAdded = filteredHistory?.filter(p => p.type === 'salary_add').reduce((s, p) => s + (p.amount || 0), 0) || 0;
   const totalPaid = filteredHistory?.filter(p => p.type === 'payment').reduce((s, p) => s + (p.amount || 0), 0) || 0;
@@ -159,9 +176,14 @@ const SalaryHistory = ({ store, session, t, lang }) => {
     <div className="max-w-7xl mx-auto space-y-8 pb-20 uppercase font-black tracking-tighter transition-all">
       {/* Header */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white dark:bg-slate-800 p-8 rounded-[48px] shadow-xl border border-slate-100 dark:border-slate-700">
-        <div className="space-y-1">
-          <h3 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.payroll_ledger}</h3>
-          <p className="text-[10px] text-teal-600 font-bold tracking-[4px] uppercase mt-2">{t.payroll_subtitle}</p>
+        <div className="flex items-center space-x-6">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-1">
+              <h3 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.payroll_ledger}</h3>
+              <p className="text-[10px] text-teal-600 font-bold tracking-[4px] uppercase mt-2">{t.payroll_subtitle}</p>
+           </div>
         </div>
 
         <div className="flex flex-wrap gap-4 w-full xl:w-auto">

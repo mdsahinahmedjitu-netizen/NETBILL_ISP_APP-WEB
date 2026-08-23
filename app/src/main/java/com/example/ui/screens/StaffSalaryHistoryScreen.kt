@@ -6,10 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -63,20 +66,54 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(AppTranslation("salary_ledger"), fontWeight = FontWeight.Black) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
-        },
         containerColor = SleekBg
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Back Button Row
+            Row(modifier = Modifier.fillMaxWidth()) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ElectricBlue)
+                }
+            }
+
+            // Header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White, RoundedCornerShape(44.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(44.dp))
+                    .padding(28.dp)
+            ) {
+                Text(
+                    text = AppTranslation("salary_ledger").uppercase(),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 28.sp,
+                    letterSpacing = 2.sp,
+                    color = Slate900
+                )
+                Text(
+                    text = "PAYROLL INTELLIGENCE • REAL-TIME AUDIT",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 4.sp,
+                    color = IspTealPrimary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
             // Filters
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isAdmin) {
@@ -158,15 +195,13 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
 
             // List
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(filteredPayouts, key = { it.id }) { p ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                filteredPayouts.forEach { p ->
                     PayoutItemCard(p, isAdmin, onDelete = { viewModel.deleteStaffPayout(p) }, onEdit = { editingPayout = p })
                 }
                 if (filteredPayouts.isEmpty()) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                            Text(AppTranslation("no_records"), color = Slate400, fontWeight = FontWeight.Bold)
-                        }
+                    Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                        Text(AppTranslation("no_records"), color = Slate400, fontWeight = FontWeight.Bold)
                     }
                 }
             }

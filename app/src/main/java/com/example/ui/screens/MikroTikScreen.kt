@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,29 +23,21 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DeveloperBoard
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.NetworkCheck
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Thermostat
@@ -58,10 +49,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -72,7 +60,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -84,25 +72,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.MikroTikRouterEntity
-import com.example.localization.AppTranslation
 import com.example.ui.theme.AmberAlert
 import com.example.ui.theme.CoralWarning
 import com.example.ui.theme.CyanAccent
@@ -111,15 +94,12 @@ import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.SleekBg
 import com.example.ui.theme.SleekBorder
 import com.example.ui.theme.SleekCard
-import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.Teal100
-import com.example.ui.theme.Teal500
 import com.example.ui.theme.Teal600
 import com.example.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 // Enum for Session Filter
@@ -179,8 +159,6 @@ data class RouterLogEntry(
 @Composable
 fun MikroTikScreen(viewModel: MainViewModel) {
     val routers by viewModel.mikrotikRouters.collectAsState()
-    val scope = rememberCoroutineScope()
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     // Active Router Selection
     var selectedRouterId by remember { mutableStateOf<String?>(null) }
@@ -199,7 +177,6 @@ fun MikroTikScreen(viewModel: MainViewModel) {
     var ramUsedMb by remember { mutableStateOf(1240) }
     val ramTotalMb = 4096
     var tempCelsius by remember { mutableStateOf(41.5) }
-    var voltageVolts by remember { mutableStateOf(24.2) }
     var uptimeString by remember { mutableStateOf("18d 14h 22m") }
 
     // Live Real-Time Bandwidth Samples (Download / Upload)
@@ -260,7 +237,7 @@ fun MikroTikScreen(viewModel: MainViewModel) {
     // Continuous Real-Time Sampling Loop
     LaunchedEffect(Unit) {
         while (true) {
-            delay(1200)
+            delay(1200L)
             // Generate subtle live fluctuation in bandwidth metrics
             val newRx = (780f + Random.nextFloat() * 120f).coerceIn(400f, 1200f)
             val newTx = (280f + Random.nextFloat() * 60f).coerceIn(100f, 500f)
@@ -379,7 +356,7 @@ fun MikroTikScreen(viewModel: MainViewModel) {
                                             color = if (isSelected) Color.White else Slate900
                                         )
                                         Text(
-                                            text = "${router.host}",
+                                            text = router.host,
                                             fontSize = 10.sp,
                                             color = if (isSelected) Color.White.copy(alpha = 0.85f) else Slate600
                                         )
@@ -781,13 +758,13 @@ fun MikroTikScreen(viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Filter Tabs (All, PPPoE, Hotspot, DHCP, Queues)
-                    ScrollableTabRow(
+                    SecondaryScrollableTabRow(
                         selectedTabIndex = selectedFilter.ordinal,
                         edgePadding = 0.dp,
                         containerColor = Color.Transparent,
                         divider = {}
                     ) {
-                        SessionTypeFilter.values().forEach { filter ->
+                        SessionTypeFilter.entries.forEach { filter ->
                             Tab(
                                 selected = selectedFilter == filter,
                                 onClick = { selectedFilter = filter },
@@ -1116,8 +1093,8 @@ fun MikroTikScreen(viewModel: MainViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
+                        viewModel.disconnectMikroTikSession(currentRouter, target.username)
                         activeSessions = activeSessions.filter { it.id != target.id }
-                        viewModel.showToast("Session '${target.username}' disconnected from Router!")
                         sessionToDisconnect = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = CoralWarning)
@@ -1172,10 +1149,10 @@ fun MikroTikScreen(viewModel: MainViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
+                        viewModel.updateMikroTikUserSpeed(currentRouter, target.username, selectedSpeed)
                         activeSessions = activeSessions.map { s ->
                             if (s.id == target.id) s.copy(queueLimit = selectedSpeed, status = "Throttled") else s
                         }
-                        viewModel.showToast("Queue limit for '${target.username}' set to $selectedSpeed!")
                         sessionToThrottle = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Teal600)
@@ -1303,7 +1280,7 @@ fun PingDiagnosticModal(ipAddress: String, onDismiss: () -> Unit) {
         }
         delay(300)
         pingResults = pingResults + "--- $ipAddress ping statistics ---" +
-                "5 packets transmitted, 5 received, 0% packet loss, time 2004ms" +
+                "5 packets transmitted, 5 received, 0% packet loss, time 2004ms\n" +
                 "rtt min/avg/max = 8.2/12.4/22.1 ms"
         isPinging = false
     }

@@ -43,7 +43,7 @@ fun NotificationScreen(
     var selectedCustomerForLogs by remember { mutableStateOf<CustomerEntity?>(null) }
 
     val totalSentCount = smsLogs.size
-    val deliveredCount = remember(smsLogs) { smsLogs.count { it.status == "Delivered" } }
+    val deliveredCount = remember(smsLogs) { smsLogs.count { it.status == "Sent" } }
     val failedCount = remember(smsLogs) { smsLogs.count { it.status == "Failed" } }
     val successRate = remember(smsLogs) {
         if (smsLogs.isNotEmpty()) (deliveredCount.toDouble() / smsLogs.size * 100).toInt() else 100
@@ -52,15 +52,15 @@ fun NotificationScreen(
     val filteredLogs = remember(smsLogs, statusFilter, typeFilter) {
         smsLogs.filter { log ->
             val matchStatus = when (statusFilter) {
-                "Delivered" -> log.status == "Delivered"
-                "Failed" -> log.status == "Failed"
+                "Sent" -> log.status == "Sent"
+                "Failed" -> log.status.startsWith("Failed")
                 else -> true
             }
             val matchType = when (typeFilter) {
-                "Billing Alert" -> log.notificationType == "Billing Alert"
-                "Support Update" -> log.notificationType == "Support Update"
-                "Payment Receipt" -> log.notificationType == "Payment Receipt"
-                "20th Day Reminder" -> log.notificationType == "20th Day Reminder"
+                "Billing Alert" -> log.notificationType.contains("Bill", ignoreCase = true) || log.notificationType.contains("Collection", ignoreCase = true)
+                "Support Update" -> log.notificationType.contains("Support", ignoreCase = true) || log.notificationType.contains("Complain", ignoreCase = true)
+                "Payment Receipt" -> log.notificationType.contains("Receipt", ignoreCase = true) || log.notificationType.contains("Collection", ignoreCase = true)
+                "20th Day Reminder" -> log.notificationType.contains("20th", ignoreCase = true) || log.notificationType.contains("Expired", ignoreCase = true)
                 else -> true
             }
             matchStatus && matchType
@@ -290,7 +290,7 @@ fun NotificationScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Filter Delivery Status:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val statusOptions = listOf("All", "Delivered", "Failed")
+                        val statusOptions = listOf("All", "Sent", "Failed")
                         items(statusOptions) { status ->
                             val isSel = statusFilter == status
                             FilterChip(
@@ -298,7 +298,7 @@ fun NotificationScreen(
                                 onClick = { statusFilter = status },
                                 label = {
                                     val txt = when (status) {
-                                        "Delivered" -> AppTranslation("status_delivered")
+                                        "Sent" -> "Sent (সফল)"
                                         "Failed" -> AppTranslation("status_failed")
                                         else -> AppTranslation("status_all")
                                     }
@@ -413,7 +413,7 @@ fun SmsDeliveryLogCard(
     onResend: () -> Unit,
     onViewCustomerLogs: (() -> Unit)? = null
 ) {
-    val isDelivered = log.status == "Delivered"
+    val isDelivered = log.status == "Sent"
     val isFailed = log.status == "Failed"
 
     val statusBg = if (isDelivered) Color(0xFFECFDF5) else Color(0xFFFFF1F2)
@@ -482,7 +482,7 @@ fun SmsDeliveryLogCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isDelivered) AppTranslation("status_delivered") else AppTranslation("status_failed"),
+                            text = if (isDelivered) "Sent" else AppTranslation("status_failed"),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = statusText

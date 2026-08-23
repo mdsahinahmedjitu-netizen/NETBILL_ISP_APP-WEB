@@ -78,7 +78,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     expireDate: '', requestDate: '', connectionType: '', status: 'Active',
     subscriptionType: 'Prepaid', connectionFee: 0, joinDate: new Date().toLocaleDateString('en-CA'),
     assignedStaffId: '', referenceName: '', referenceMobile: '',
-    currentDue: 0, discountAmount: 0
+    currentDue: 0, advanceBalance: 0, discountAmount: 0
   };
   const [formData, setFormData] = useState(initialState);
 
@@ -396,34 +396,49 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
       if (!mobile) continue;
 
       // 1. SMART TAG REPLACEMENT (Replaces all tags)
+      const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
       let cleanMessage = smsMessage
         .replace(/{NAME}/g, customer.name || '')
         .replace(/{CUSTOMER_CODE}/g, customer.customerCode || customer.customer_code || '')
+        .replace(/{ZONE}/g, customer.zone || '')
+        .replace(/{BILL_MONTH}/g, currentMonth)
         .replace(/{AMOUNT}/g, Math.floor(customer.currentDue || customer.current_due || 0))
         .replace(/{DUE}/g, Math.floor(customer.currentDue || customer.current_due || 0))
         .replace(/{TOTAL_DUE}/g, Math.floor(customer.currentDue || customer.current_due || 0));
 
       try {
-        // 2. CLEAN MOBILE (11 Digits)
         let cleanMobile = mobile.replace(/[^0-9]/g, "");
-        if (cleanMobile.startsWith('880')) cleanMobile = cleanMobile.substring(2);
-        if (!cleanMobile.startsWith('0')) cleanMobile = '0' + cleanMobile;
+        if (cleanMobile.startsWith('0')) { cleanMobile = '88' + cleanMobile; }
+        else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
+        else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
 
-        if (cleanMobile.length === 11) {
+        if (cleanMobile.length >= 11 && cleanMobile.length <= 13) {
             const isUnicode = /[\u0980-\u09FF]/.test(cleanMessage);
-            const typeParam = isUnicode ? "&type=unicode" : "";
+            const msgType = isUnicode ? "unicode" : "text";
 
-            // 3. CONSTRUCT FINAL URL
-            const finalUrl = apiUrl
-                .replace(/{API_KEY}/g, apiKey)
-                .replace(/{SENDER_ID}/g, senderId || '1234')
-                .replace(/{MOBILE}/g, cleanMobile)
-                .replace(/{NUMBER}/g, cleanMobile)
-                .replace(/{MESSAGE}/g, encodeURIComponent(cleanMessage)) + typeParam;
+            const currentApiKey = (apiKey || "").trim();
+            const currentSenderId = (senderId || "").trim();
 
-            // 4. DISPATCH USING DYNAMIC IMAGE (The most reliable bypass)
-            const ping = new Image();
-            ping.src = finalUrl;
+            let finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${currentApiKey}&type=${msgType}&number=${cleanMobile}&senderid=${currentSenderId}&message=${encodeURIComponent(cleanMessage)}`;
+
+            const img = new Image();
+            img.src = finalUrl;
+
+            // Restore Log SMS
+            await supabase.from('sms_logs').insert({
+              id: `LOG-${Date.now()}-${i}`,
+              customer_id: customer.id,
+              customer_name: customer.name,
+              mobile: cleanMobile,
+              notification_type: 'Manual Broadcast',
+              message: cleanMessage,
+              status: 'Sent',
+              sent_timestamp: new Date().toISOString()
+            });
+
+            if (i === 0 && targets.length > 1) {
+                console.log("Broadcast Debug (First URL):", finalUrl);
+            }
 
             successCount++;
 
@@ -572,19 +587,25 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         reference_name: formData.referenceName,
         reference_mobile: formData.referenceMobile,
         assigned_staff_id: formData.assignedStaffId,
-        notes: formData.notes
+        notes: formData.notes,
+        current_due: parseFloat(formData.currentDue) || 0,
+        advance_balance: parseFloat(formData.advanceBalance) || 0
       };
 
       if (isEditing) {
         const { error } = await supabase.from('customers').update(dbData).eq('id', formData.id);
-        if (error) {
-          console.error("Supabase Update Error:", error);
-          alert(`Update Failed: ${error.message}`);
-          return;
+        if (error) throw error;
+
+        // MikroTik Sync for existing customer
+        if (dbData.pppoe_username && dbData.router_id) {
+           supabase.functions.invoke('mikrotik-manager', {
+             body: { action: 'sync_customer', payload: { ...dbData, id: formData.id } }
+           });
         }
         alert("Updated!");
       }
       else {
+        // ... (existing logic for new customer)
         const today = new Date();
         const day = today.getDate();
         const previousDue = parseFloat(formData.currentDue) || 0;
@@ -610,7 +631,6 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         const newCode = formData.customerCode || `CUST-${Date.now().toString().slice(-4)}`;
         const joinDate = formData.joinDate;
 
-        // Insert new customer and get the data back
         const { data: insertedData, error: custErr } = await supabase.from('customers').insert({
           ...dbData,
           customer_code: newCode,
@@ -618,15 +638,18 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
           advance_balance: 0
         }).select();
 
-        if (custErr) {
-          console.error("Supabase Customer Insert Error:", custErr);
-          alert(`Insert Failed: ${custErr.message}`);
-          return;
-        }
+        if (custErr) throw custErr;
 
         const newCust = insertedData[0];
 
-        // 1. If Previous Due exists, record it in Ledger (even if no bill applied)
+        // MikroTik Sync for new customer
+        if (newCust.pppoe_username && newCust.router_id) {
+           supabase.functions.invoke('mikrotik-manager', {
+             body: { action: 'sync_customer', payload: newCust }
+           });
+        }
+
+        // ... (remaining invoice/ledger logic)
         if (previousDue > 0 && newCust) {
             await supabase.from('ledger_entries').insert({
                 customer_id: newCust.id,
@@ -644,7 +667,6 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
           const invNo = "INV-" + Math.random().toString(36).substr(2, 6).toUpperCase();
           const netBill = monthlyBill - discount;
 
-          // 1. Create Invoice
           await supabase.from('invoices').insert({
             invoice_no: invNo,
             customer_id: newCust.id,
@@ -658,7 +680,6 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
             generated_date: joinDate
           });
 
-          // 2. Create Ledger Entry
           await supabase.from('ledger_entries').insert({
             customer_id: newCust.id,
             date: joinDate,
@@ -692,7 +713,14 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
 
   const toggleStatus = async (cust) => {
     const nextStatus = cust.status === 'Active' ? 'Inactive' : 'Active';
-    await supabase.from('customers').update({ status: nextStatus }).eq('id', cust.id);
+    const { error } = await supabase.from('customers').update({ status: nextStatus }).eq('id', cust.id);
+
+    if (!error && cust.pppoeUsername && cust.routerId) {
+       // Sync to MikroTik on status toggle
+       supabase.functions.invoke('mikrotik-manager', {
+         body: { action: 'set_status', payload: { username: cust.pppoeUsername, active: nextStatus === 'Active', routerId: cust.routerId } }
+       });
+    }
     setActiveMenuId(null);
   };
 
@@ -713,9 +741,14 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
       ) : (<>
       {/* Header & Stats Row */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
-        <div className="space-y-1">
-          <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.subscribers_crm}</h3>
-          <p className="text-[10px] text-teal-600 font-bold tracking-[4px] uppercase mt-1">Enterprise Subscriber Management System</p>
+        <div className="flex items-center space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-center text-teal-600 hover:bg-teal-600 hover:text-white transition-all shadow-sm">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-1">
+              <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.subscribers_crm}</h3>
+              <p className="text-[10px] text-teal-600 font-bold tracking-[4px] uppercase mt-1">Enterprise Subscriber Management System</p>
+           </div>
         </div>
         <div className="flex flex-wrap gap-3">
            <StatCard label="TOTAL" value={store.customers.length} color="slate" />
@@ -838,7 +871,37 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                         </div>
                       </td>
                     )}
-                    {visibleColumns.online && <td className="p-3 text-center"><div className={`w-3 h-3 rounded-full mx-auto shadow-lg ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-100 dark:ring-emerald-900/30' : 'bg-slate-300'}`}></div></td>}
+                    {visibleColumns.online && (
+                      <td className="p-3 text-center">
+                        {(() => {
+                          const isOnline = store.onlineUsernames?.includes((c.pppoeUsername || '').toLowerCase());
+                          const status = c.status || 'Active';
+
+                          if (isOnline) {
+                            return (
+                              <div className="flex flex-col items-center justify-center space-y-1">
+                                <div className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+                                <span className="text-[8px] font-black text-emerald-600">ONLINE</span>
+                              </div>
+                            );
+                          } else if (status === 'Active') {
+                            return (
+                              <div className="flex flex-col items-center justify-center space-y-1">
+                                <div className="w-4 h-4 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]"></div>
+                                <span className="text-[8px] font-black text-rose-500">OFFLINE</span>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="flex flex-col items-center justify-center space-y-1">
+                                <div className="w-4 h-4 rounded-full bg-slate-300"></div>
+                                <span className="text-[8px] font-black text-slate-400 opacity-50">INACTIVE</span>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </td>
+                    )}
                     {visibleColumns.actions && (
                       <td className="p-4 relative">
                          <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
@@ -979,6 +1042,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                   <Field label="Bill *" value={formData.monthlyBill} onChange={v => setFormData({...formData, monthlyBill: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Discount (৳)" value={formData.discountAmount} onChange={v => setFormData({...formData, discountAmount: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Previous Due (৳)" value={formData.currentDue} onChange={v => setFormData({...formData, currentDue: parseFloat(v) || 0})} type="number" color="cyan" />
+                  <Field label="Advance Balance (৳)" value={formData.advanceBalance} onChange={v => setFormData({...formData, advanceBalance: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Fee" value={formData.connectionFee} onChange={v => setFormData({...formData, connectionFee: parseFloat(v) || 0})} type="number" color="cyan" />
                   <Field label="Join Date" value={formData.joinDate} onChange={v => setFormData({...formData, joinDate: v})} type="date" color="cyan" />
                   <div className="pt-4 md:pt-8 border-t-2 border-cyan-200">

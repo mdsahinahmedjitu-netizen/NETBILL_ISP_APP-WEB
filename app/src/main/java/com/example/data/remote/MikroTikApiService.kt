@@ -165,6 +165,32 @@ class MikroTikApiService {
         }.getOrNull()
     }
 
+    /**
+     * Terminate an active session (Kick user).
+     */
+    suspend fun disconnectSession(
+        router: com.example.data.entity.MikroTikRouterEntity,
+        pppoeUser: String
+    ): Boolean {
+        val findResult = executeCommand(
+            router.host, router.port, router.apiUser, router.apiPass,
+            "/ppp/active/print", mapOf(".proplist" to ".id", "?name" to pppoeUser)
+        )
+
+        return findResult.mapCatching { words ->
+            var internalId = ""
+            words.forEach { if (it.startsWith("=.id=")) internalId = it.substring(5) }
+            
+            if (internalId.isNotEmpty()) {
+                val actionResult = executeCommand(
+                    router.host, router.port, router.apiUser, router.apiPass,
+                    "/ppp/active/remove", mapOf(".id" to internalId)
+                )
+                actionResult.isSuccess
+            } else false
+        }.getOrDefault(false)
+    }
+
     private fun writeSentence(out: DataOutputStream, sentence: List<String>) {
         sentence.forEach { word ->
             writeWord(out, word)

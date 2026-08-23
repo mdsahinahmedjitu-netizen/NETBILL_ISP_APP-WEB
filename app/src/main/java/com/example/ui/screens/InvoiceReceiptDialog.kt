@@ -212,7 +212,7 @@ fun InvoiceReceiptDialog(
                 ) {
                     Button(
                         onClick = { showPrinterSelector = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.Teal600),
+                        colors = ButtonDefaults.buttonColors(containerColor = Teal600),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1f)
                     ) {

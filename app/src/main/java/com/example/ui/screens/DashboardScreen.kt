@@ -235,7 +235,7 @@ fun DashboardScreen(
                                         .border(2.dp, Color(0xFFFBBF24), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = "${unresolvedTickets.size}", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Black)
+                                    Text(text = unresolvedTickets.size.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Black)
                                 }
                             }
                             Spacer(modifier = Modifier.width(20.dp))
@@ -304,7 +304,7 @@ fun DashboardScreen(
                                             }
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(req.customerName.uppercase(), fontWeight = FontWeight.Black, fontSize = 18.sp, color = Slate900, letterSpacing = (-0.5).sp)
-                                            Text("৳ ${String.format(java.util.Locale.US, "%,.0f", req.amount)}", fontWeight = FontWeight.Black, color = EmeraldSuccess, fontSize = 24.sp)
+                                            Text("৳ ${String.format(Locale.US, "%,.0f", req.amount)}", fontWeight = FontWeight.Black, color = EmeraldSuccess, fontSize = 24.sp)
                                         }
                                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                             IconButton(onClick = { viewModel.approvePaymentRequest(req) }, modifier = Modifier.background(EmeraldSuccess, RoundedCornerShape(16.dp)).size(56.dp)) { Icon(Icons.Default.CheckCircle, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
@@ -339,7 +339,7 @@ fun DashboardScreen(
         // 4. Collection Breakdown Card
         if (permissions.canSeeTodayCollection) {
             item {
-                TodaysCollectionCard(
+                    TodaysCollectionCard(
                     payments = payments,
                     selectedFilter = activeFilter,
                     onFilterSelected = { activeFilter = it }
@@ -382,7 +382,7 @@ fun DashboardScreen(
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
-                                        text = "$currency ${String.format(java.util.Locale.US, "%,.0f", displayCollection)}",
+                                        text = "$currency ${String.format(Locale.US, "%,.0f", displayCollection)}",
                                         fontSize = 72.sp,
                                         fontWeight = FontWeight.Black,
                                         color = Color.White,
@@ -397,7 +397,7 @@ fun DashboardScreen(
                                         .background(Color.White.copy(alpha = 0.1f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.TrendingUp, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                                    Icon(Icons.AutoMirrored.Filled.TrendingUp, null, tint = Color.White, modifier = Modifier.size(40.dp))
                                 }
                             }
 
@@ -409,12 +409,12 @@ fun DashboardScreen(
                             ) {
                                 Column {
                                     Text(text = t("target_plan").uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.7f), letterSpacing = 3.sp)
-                                    Text(text = "$currency ${String.format(java.util.Locale.US, "%,.0f", targetPlan)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                    Text(text = "$currency ${String.format(Locale.US, "%,.0f", targetPlan)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.White)
                                 }
                                 Box(modifier = Modifier.width(1.dp).height(60.dp).background(Color.White.copy(alpha = 0.2f)))
                                 Column {
                                     Text(text = t("total_outstanding").uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047), letterSpacing = 3.sp)
-                                    Text(text = "$currency ${String.format(java.util.Locale.US, "%,.0f", dueTotal)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047))
+                                    Text(text = "$currency ${String.format(Locale.US, "%,.0f", dueTotal)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color(0xFFFDE047))
                                 }
                             }
                         }
@@ -428,7 +428,6 @@ fun DashboardScreen(
     if (showCreateCustomerDialog) {
         CreateCustomerDashboardDialog(
             viewModel = viewModel,
-            permissions = permissions,
             onDismiss = { showCreateCustomerDialog = false }
         )
     }
@@ -644,7 +643,7 @@ fun NewCustomersDashboardDialog(
                                             Text("(${customer.customerCode})", fontSize = 11.sp, color = ElectricBlue, fontWeight = FontWeight.Bold)
                                         }
                                         Text("📱 ${customer.mobile} • 📍 ${customer.zone}", fontSize = 11.sp, color = Slate600)
-                                        Text("📦 ${customer.packageName} • ৳${String.format(java.util.Locale.US, "%,.0f", customer.monthlyBill)}/mo", fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.SemiBold)
+                                        Text("📦 ${customer.packageName} • ৳${String.format(Locale.US, "%,.0f", customer.monthlyBill)}/mo", fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.SemiBold)
                                     }
 
                                     Box(
@@ -736,12 +735,10 @@ fun ISPFeatureCard(
 @Composable
 fun CreateCustomerDashboardDialog(
     viewModel: MainViewModel,
-    permissions: UserRolePermissions,
     onDismiss: () -> Unit
 ) {
     AddEditCustomerDialog(
         customer = null,
-        permissions = permissions,
         onDismiss = onDismiss,
         onSave = { newCustomer, disc, choice ->
             viewModel.addOrUpdateCustomer(newCustomer, disc, choice)
@@ -827,7 +824,8 @@ fun SearchCustomerDashboardDialog(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(customer.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                         Text("${customer.customerCode} • ${customer.zone}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text("Pkg: ${customer.packageName} • Due: ৳${String.format(java.util.Locale.US, "%,.0f", customer.currentDue)}", fontSize = 11.sp, color = if (customer.currentDue > 0) CoralWarning else EmeraldSuccess, fontWeight = FontWeight.Bold)
+                                        Text("Pkg: ${customer.packageName} • Due: ৳${String.format(
+                                            Locale.US, "%,.0f", customer.currentDue)}", fontSize = 11.sp, color = if (customer.currentDue > 0) CoralWarning else EmeraldSuccess, fontWeight = FontWeight.Bold)
                                     }
                                     IconButton(
                                         onClick = {
@@ -1026,7 +1024,7 @@ fun ComplaintsDashboardDialog(
                                                                 modifier = Modifier.size(12.dp)
                                                             )
                                                             Spacer(modifier = Modifier.width(4.dp))
-                                                            androidx.compose.material3.Text(
+                                                            Text(
                                                     text = ticket.status,
                                                     color = Color.White,
                                                     fontSize = 10.sp,

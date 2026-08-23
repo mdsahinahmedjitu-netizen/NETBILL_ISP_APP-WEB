@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const SmsLogs = ({ store }) => {
+const SmsLogs = ({ store, setActivePage }) => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [search, setSearch] = useState('');
@@ -11,8 +11,8 @@ const SmsLogs = ({ store }) => {
   // Calculate Stats
   const stats = useMemo(() => {
       const total = logs.length;
-      const sent = logs.filter(l => (l.status || '').toLowerCase() === 'sent').length;
-      const failed = logs.filter(l => (l.status || '').toLowerCase() === 'failed').length;
+      const sent = logs.filter(l => (l.status || '').toLowerCase().includes('sent')).length;
+      const failed = logs.filter(l => (l.status || '').toLowerCase().includes('failed') || (l.status || '').toLowerCase().includes('error')).length;
       const pending = total - (sent + failed);
       const successRate = total > 0 ? Math.round((sent / total) * 100) : 0;
       return { total, sent, failed, pending, successRate };
@@ -21,8 +21,13 @@ const SmsLogs = ({ store }) => {
   const filteredLogs = logs.filter(log =>
     (log.customerName || log.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
     (log.mobile || '').includes(search) ||
-    (log.notificationType || log.notification_type || '').toLowerCase().includes(search.toLowerCase())
-  ).sort((a, b) => new Date(b.sentTimestamp || b.sent_timestamp) - new Date(a.sentTimestamp || a.sent_timestamp));
+    (log.notificationType || log.notification_type || '').toLowerCase().includes(search.toLowerCase()) ||
+    (log.message || '').toLowerCase().includes(search.toLowerCase())
+  ).sort((a, b) => {
+      const dateA = new Date(a.sentTimestamp || a.sent_timestamp || 0);
+      const dateB = new Date(b.sentTimestamp || b.sent_timestamp || 0);
+      return dateB - dateA;
+  });
 
   const toggleSelect = (id) => {
     setSelectedIds(prev =>
@@ -71,9 +76,14 @@ const SmsLogs = ({ store }) => {
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pt-4">
-        <div className="space-y-2">
-          <h3 className="text-5xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">COMMUNICATION LOGS</h3>
-          <p className="text-[10px] text-slate-400 tracking-[3px] font-black italic">Live Delivery Tracking • Gateway History</p>
+        <div className="flex items-center space-x-6">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-100">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-2">
+              <h3 className="text-5xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">COMMUNICATION LOGS</h3>
+              <p className="text-[10px] text-slate-400 tracking-[3px] font-black italic">Live Delivery Tracking • Gateway History</p>
+           </div>
         </div>
 
         <div className="flex gap-4">
@@ -118,7 +128,16 @@ const SmsLogs = ({ store }) => {
                         <span className={`text-[9px] font-black tracking-widest ${(log.status || '').toLowerCase() === 'sent' ? 'text-emerald-600' : 'text-rose-600'}`}>{log.status?.toUpperCase()}</span>
                     </div>
                   </td>
-                  <td className="p-8 text-[10px] font-black text-slate-400">{log.sentTimestamp || log.sent_timestamp}</td>
+                  <td className="p-8 text-[10px] font-black text-slate-400">
+                    {(() => {
+                        const ts = log.sentTimestamp || log.sent_timestamp;
+                        if (!ts) return 'N/A';
+                        try {
+                            const d = new Date(ts);
+                            return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+                        } catch(e) { return ts; }
+                    })()}
+                  </td>
                 </tr>
               ))}
             </tbody>

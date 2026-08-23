@@ -53,7 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun supportTicketDao(): SupportTicketDao
     abstract fun staffPayoutDao(): StaffPayoutDao
     abstract fun staffSalaryDao(): StaffSalaryDao
-    abstract fun paymentRequestDao(): com.example.data.dao.PaymentRequestDao
+    abstract fun paymentRequestDao(): PaymentRequestDao
 
     companion object {
         @Volatile

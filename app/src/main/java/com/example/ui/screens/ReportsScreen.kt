@@ -4,6 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,7 +24,11 @@ import com.example.viewmodel.ReportsViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun ReportsScreen(mainViewModel: MainViewModel, reportsViewModel: ReportsViewModel = viewModel()) {
+fun ReportsScreen(
+    mainViewModel: MainViewModel, 
+    reportsViewModel: ReportsViewModel = viewModel(),
+    onBack: () -> Unit = {}
+) {
     val stats by reportsViewModel.reportStats.collectAsState()
     val currency = AppTranslation("currency_symbol")
 
@@ -38,6 +43,19 @@ fun ReportsScreen(mainViewModel: MainViewModel, reportsViewModel: ReportsViewMod
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // Back Button Row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = IspIndigo)
+            }
+        }
+
         // Header
         Column(
             modifier = Modifier

@@ -180,7 +180,7 @@ fun ExpirySummaryCard(overdueCount: Int, totalAmount: Double, onSendWhatsApp: ()
         Button(
             onClick = onSendWhatsApp,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = com.example.ui.theme.EmeraldSuccess),
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
             shape = RoundedCornerShape(10.dp)
         ) {
             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))

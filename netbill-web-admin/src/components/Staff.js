@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Staff = ({ store, session, t }) => {
+const Staff = ({ store, session, t, lang, setActivePage }) => {
   const [showModal, setShowModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReport, setShowReport] = useState(false);
@@ -9,6 +9,7 @@ const Staff = ({ store, session, t }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sendSms, setSendSms] = useState(true);
 
   // Payment States
   const [payoutData, setPayoutData] = useState({
@@ -159,15 +160,53 @@ const Staff = ({ store, session, t }) => {
       }
 
       // 4. SMS Notification Logic
-      let smsText = "";
-      if (payoutData.type === 'salary_add') {
-        smsText = `Dear ${selectedStaff.name}, BDT ${amt} salary for ${payoutData.month} has been added. Current Balance: BDT ${newBalance}.`;
-      } else {
-        const balanceText = newBalance >= 0 ? `Bakki Pao-na: ${newBalance}` : `Advance: ${Math.abs(newBalance)}`;
-        smsText = `Dear ${selectedStaff.name}, BDT ${amt} has been paid to you. ${balanceText}. Thank you.`;
-      }
+      if (sendSms && store.settings?.smsApiUrl && selectedStaff.mobile) {
+          const template = store.smsTemplates?.find(t => t.title === 'Staff Salary Alert' && (t.isActive || t.is_active));
 
-      console.log(`SENDING SMS TO ${selectedStaff.mobile}: ${smsText}`);
+          let smsText = "";
+          if (template) {
+              smsText = (template.messageContent || template.message_content)
+                  .replace(/{NAME}/g, selectedStaff.name)
+                  .replace(/{AMOUNT}/g, amt)
+                  .replace(/{MONTH}/g, payoutData.month)
+                  .replace(/{TYPE}/g, payoutData.type === 'salary_add' ? 'Added' : 'Paid')
+                  .replace(/{BALANCE}/g, newBalance);
+          } else {
+              if (payoutData.type === 'salary_add') {
+                smsText = `Dear ${selectedStaff.name}, BDT ${amt} salary for ${payoutData.month} has been added. Current Balance: BDT ${newBalance}.`;
+              } else {
+                const balanceText = newBalance >= 0 ? `Bakki Pao-na: ${newBalance}` : `Advance: ${Math.abs(newBalance)}`;
+                smsText = `Dear ${selectedStaff.name}, BDT ${amt} has been paid to you. ${balanceText}. Thank you.`;
+              }
+          }
+
+          const settings = store.settings || {};
+          const apiKey = (settings.smsApiKey || "").trim();
+          const senderId = (settings.smsSenderId || "").trim();
+
+          let cleanMobile = selectedStaff.mobile.replace(/[^0-9]/g, "");
+          if (cleanMobile.startsWith('0')) { cleanMobile = '88' + cleanMobile; }
+          else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
+          else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
+
+          const isUnicode = /[\u0980-\u09FF]/.test(smsText);
+          const msgType = isUnicode ? "unicode" : "text";
+
+          const finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(smsText)}`;
+
+          const img = new Image();
+          img.src = finalUrl;
+
+          // Log to DB
+          await supabase.from('sms_logs').insert({
+              customer_name: selectedStaff.name,
+              mobile: cleanMobile,
+              notification_type: 'Staff Salary Alert (Auto)',
+              message: smsText,
+              status: 'Sent',
+              sent_timestamp: new Date().toISOString()
+          });
+      }
 
       alert(`${actionLabel}. Current Balance: ৳${newBalance}`);
       setShowPayModal(false);
@@ -215,9 +254,14 @@ const Staff = ({ store, session, t }) => {
     <div className="w-full px-4 space-y-8 pb-20 uppercase font-black tracking-tighter transition-all">
       {/* Header */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
-        <div className="space-y-1">
-          <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Staff Team</h3>
-          <p className="text-[10px] text-indigo-600 font-bold tracking-[4px] uppercase mt-1">Lineman & Management Staff</p>
+        <div className="flex items-center space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-1">
+              <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Staff Team</h3>
+              <p className="text-[10px] text-indigo-600 font-bold tracking-[4px] uppercase mt-1">Lineman & Management Staff</p>
+           </div>
         </div>
         <div className="flex flex-wrap gap-3">
            <div className="relative mr-4">
@@ -372,6 +416,22 @@ const Staff = ({ store, session, t }) => {
                 </div>
 
                 <Field label="Payment Remarks" value={payoutData.remarks} onChange={v => setPayoutData({...payoutData, remarks: v})} placeholder="Optional notes..." />
+
+                {/* SMS Toggle */}
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-between group cursor-pointer transition-all hover:border-indigo-500" onClick={() => setSendSms(!sendSms)}>
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${sendSms ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                      <i className={`fas ${sendSms ? 'fa-comment-sms' : 'fa-comment-slash'}`}></i>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-white">Notify Staff via SMS</p>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase leading-none">Send transaction alert to staff</p>
+                    </div>
+                  </div>
+                  <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${sendSms ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${sendSms ? 'left-7' : 'left-1'}`}></div>
+                  </div>
+                </div>
 
                 <button type="submit" className={`w-full py-6 rounded-3xl font-black uppercase tracking-[10px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all border-b-8 ${payoutData.type === 'salary_add' ? 'bg-teal-600 border-teal-900' : 'bg-emerald-600 border-emerald-900'} text-white`}>
                   {payoutData.type === 'salary_add' ? 'CONFIRM SALARY ADD' : 'CONFIRM DISBURSEMENT'}

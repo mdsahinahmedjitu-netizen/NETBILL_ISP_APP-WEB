@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Infrastructure = ({ store, t }) => {
-  const [activeTab, setActiveTab] = useState('zones'); // 'zones', 'subzones', 'boxes'
+const Infrastructure = ({ store, t, setActivePage }) => {
+  const [activeTab, setActiveTab] = useState('zones'); // 'zones', 'subzones', 'boxes', 'routers'
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState(''); // Zone for SubZone, SubZone for Box
+
+  // Router States
+  const [routerHost, setRouterHost] = useState('');
+  const [routerPort, setRouterPort] = useState('8728');
+  const [routerUser, setRouterUser] = useState('admin');
+  const [routerPass, setRouterPass] = useState('');
+
   const [isSyncing, setIsSyncing] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -18,12 +25,26 @@ const Infrastructure = ({ store, t }) => {
         await supabase.from('sub_zones').insert({ name, zone_id: parentId });
       } else if (activeTab === 'boxes') {
         await supabase.from('boxes').insert({ name, sub_zone_id: parentId });
+      } else if (activeTab === 'routers') {
+        const { error } = await supabase.from('mikrotik_routers').insert({
+          name,
+          host: routerHost,
+          port: parseInt(routerPort) || 8728,
+          api_user: routerUser,
+          api_pass: routerPass
+        });
+        if (error) throw error;
       }
       setName('');
       setParentId('');
+      setRouterHost('');
+      setRouterPass('');
+
+      if (window.refreshData) await window.refreshData();
       alert("Added successfully!");
     } catch (e) {
-      alert("Error adding item");
+      console.error("Infrastructure Add Error:", e);
+      alert(`Error: ${e.message || "Operation failed"}`);
     }
   };
 
@@ -81,9 +102,14 @@ const Infrastructure = ({ store, t }) => {
   return (
     <div className="max-w-6xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter transition-all">
       <div className="flex justify-between items-start">
-        <div className="space-y-2 uppercase">
-          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">Network Assets</h3>
-          <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">Zones • Sub-Zones • Distribution Boxes</p>
+        <div className="flex items-center space-x-6">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-2 uppercase">
+              <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">Network Assets</h3>
+              <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">Zones • Sub-Zones • Distribution Boxes</p>
+           </div>
         </div>
         {activeTab === 'zones' && (
           <button
@@ -102,6 +128,7 @@ const Infrastructure = ({ store, t }) => {
            <TabButton label="Zones" active={activeTab === 'zones'} onClick={() => { setActiveTab('zones'); setSearch(''); }} color="teal" />
            <TabButton label="Sub-Zones" active={activeTab === 'subzones'} onClick={() => { setActiveTab('subzones'); setSearch(''); }} color="indigo" />
            <TabButton label="Boxes" active={activeTab === 'boxes'} onClick={() => { setActiveTab('boxes'); setSearch(''); }} color="rose" />
+           <TabButton label="Routers" active={activeTab === 'routers'} onClick={() => { setActiveTab('routers'); setSearch(''); }} color="blue" />
         </div>
 
         <div className="relative flex-1 max-w-md w-full group">
@@ -143,6 +170,28 @@ const Infrastructure = ({ store, t }) => {
                  <label className="text-[10px] text-slate-400 ml-4 tracking-[4px]">{activeTab.slice(0, -1).toUpperCase()} Name</label>
                  <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-lg shadow-inner outline-none border-none" placeholder="Enter Name..." required />
               </div>
+
+              {activeTab === 'routers' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-400 ml-4 tracking-[4px]">IP / HOST</label>
+                    <input type="text" value={routerHost} onChange={e => setRouterHost(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none shadow-inner" placeholder="192.168.88.1" required />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-400 ml-4 tracking-[4px]">API PORT</label>
+                    <input type="number" value={routerPort} onChange={e => setRouterPort(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none shadow-inner" placeholder="8728" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-400 ml-4 tracking-[4px]">API USER</label>
+                    <input type="text" value={routerUser} onChange={e => setRouterUser(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none shadow-inner" placeholder="admin" required />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-400 ml-4 tracking-[4px]">API PASSWORD</label>
+                    <input type="password" value={routerPass} onChange={e => setRouterPass(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none shadow-inner" placeholder="********" />
+                  </div>
+                </>
+              )}
+
               <button type="submit" className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-[10px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all border-b-8 border-slate-700">
                 ADD ASSET
               </button>
@@ -193,9 +242,22 @@ const Infrastructure = ({ store, t }) => {
                />
              );
            })}
+           {activeTab === 'routers' && store.mikrotikRouters?.filter(r => r.name.toLowerCase().includes(search.toLowerCase())).map(r => (
+             <AssetItem
+               key={r.id}
+               item={r}
+               sub={`IP: ${r.host} • Port: ${r.port} • User: ${r.apiUser}`}
+               icon="fa-server"
+               color="text-blue-600"
+               onUpdate={(n) => handleUpdate(r.id, n, 'mikrotik_routers')}
+               onDelete={() => handleDelete(r.id, 'mikrotik_routers')}
+             />
+           ))}
+
            {((activeTab === 'zones' && !store.zones?.filter(z => z.name.toLowerCase().includes(search.toLowerCase())).length) ||
              (activeTab === 'subzones' && !store.subZones?.filter(sz => sz.name.toLowerCase().includes(search.toLowerCase())).length) ||
-             (activeTab === 'boxes' && !store.boxes?.filter(b => b.name.toLowerCase().includes(search.toLowerCase())).length)) && (
+             (activeTab === 'boxes' && !store.boxes?.filter(b => b.name.toLowerCase().includes(search.toLowerCase())).length) ||
+             (activeTab === 'routers' && !store.mikrotikRouters?.filter(r => r.name.toLowerCase().includes(search.toLowerCase())).length)) && (
              <div className="text-center py-40 opacity-10">
                 <i className="fas fa-network-wired text-[100px]"></i>
                 <p className="text-2xl mt-10">No Assets Configured</p>

@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
@@ -37,6 +38,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -87,7 +89,7 @@ import com.example.ui.theme.Teal700
 import com.example.viewmodel.MainViewModel
 
 @Composable
-fun BillingScreen(viewModel: MainViewModel) {
+fun BillingScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val invoices by viewModel.invoicesList.collectAsState()
     val permissions by viewModel.currentPermissions.collectAsState()
     val context = LocalContext.current
@@ -129,6 +131,21 @@ fun BillingScreen(viewModel: MainViewModel) {
             .background(SleekBg)
             .padding(16.dp),
     ) {
+        // Back Button Row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Teal600)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Header
         Row(
             modifier = Modifier.fillMaxWidth(),

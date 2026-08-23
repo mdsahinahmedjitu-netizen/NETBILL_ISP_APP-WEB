@@ -172,6 +172,9 @@ interface SmsLogDao {
     @Update
     suspend fun updateLog(log: SmsLogEntity)
 
+    @Query("DELETE FROM sms_logs WHERE id = :id")
+    suspend fun deleteLogById(id: String)
+
     @Query("DELETE FROM sms_logs")
     suspend fun clearAllLogs()
 }

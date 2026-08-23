@@ -1,6 +1,5 @@
 package com.example
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -292,7 +291,7 @@ fun MainApp(viewModel: MainViewModel) {
                 Surface(
                     shadowElevation = 8.dp,
                     color = if (isDarkMode) Color(0xFF1E293B) else Color.White,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Color(0xFFF1F5F9))
+                    border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Color(0xFFF1F5F9))
                 ) {
                     TopAppBar(
                         modifier = Modifier.height(80.dp),
@@ -326,7 +325,7 @@ fun MainApp(viewModel: MainViewModel) {
                                     .background(if (isDarkMode) Color(0xFF0F172A) else Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
                             ) {
                                 Icon(
-                                    imageVector = if (drawerState.isOpen) Icons.Default.FormatIndentDecrease else Icons.Default.FormatIndentIncrease,
+                                    imageVector = if (drawerState.isOpen) Icons.AutoMirrored.Filled.FormatIndentDecrease else Icons.AutoMirrored.Filled.FormatIndentIncrease,
                                     contentDescription = "Menu",
                                     tint = Color(0xFF0D9488),
                                     modifier = Modifier.size(24.dp)
@@ -434,8 +433,7 @@ fun MainApp(viewModel: MainViewModel) {
                         onNavigateToReports = { activePage = "reports" },
                         onNavigateToNotifications = { activePage = "notifications" },
                         onNavigateToAlerts = { activePage = "alerts" },
-                        onSelectCustomer = { customer -> 
-                            selectedProfileId = customer.id
+                        onSelectCustomer = { _ -> 
                             activePage = "customer_profile"
                         },
                         openSearch = { showGlobalSearch = true },
@@ -443,26 +441,26 @@ fun MainApp(viewModel: MainViewModel) {
                     )
                     "customers" -> CustomerManagementScreen(
                         viewModel = viewModel, 
-                        onSelectCustomer = { customer -> 
-                            selectedProfileId = customer.id
+                        onSelectCustomer = { _ -> 
                             activePage = "customer_profile"
                         },
                         onNavigateToPayment = {
                             activePage = "payments"
-                        }
+                        },
+                        onBack = { activePage = "dashboard" }
                     )
-                    "payments" -> PaymentCollectionScreen(viewModel = viewModel)
-                    "billing" -> BillingScreen(viewModel = viewModel)
-                    "reports" -> ReportsScreen(mainViewModel = viewModel)
+                    "payments" -> PaymentCollectionScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
+                    "billing" -> BillingScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
+                    "reports" -> ReportsScreen(mainViewModel = viewModel, onBack = { activePage = "dashboard" })
                     "salary_ledger" -> StaffSalaryHistoryScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
-                    "staff" -> StaffScreen(viewModel = viewModel, onNavigateToLedger = { activePage = "salary_ledger" })
+                    "staff" -> StaffScreen(viewModel = viewModel, onNavigateToLedger = { activePage = "salary_ledger" }, onBack = { activePage = "dashboard" })
                     "inventory" -> InventoryScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "packages" -> PackageScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "expenses" -> ExpenseScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "crm_tickets" -> SupportTicketsScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "alerts" -> AlertsScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "infrastructure" -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Network Assets (Coming Soon)") }
-                    "sms_setup" -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("SMS Setup (Coming Soon)") }
+                    "sms_setup" -> SmsTemplateManagementScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "sms_logs" -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("SMS History (Coming Soon)") }
                     "settings" -> SettingsScreen(viewModel = viewModel, onBack = { activePage = "dashboard" }, onLogout = { viewModel.logout() })
                     "billing_summary" -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Billing Summary (Coming Soon)") }
@@ -535,7 +533,7 @@ fun GlobalSearchDialog(
         }.take(8)
     }
 
-    AlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -545,7 +543,7 @@ fun GlobalSearchDialog(
             shape = RoundedCornerShape(64.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 8.dp,
-            border = androidx.compose.foundation.BorderStroke(4.dp, Color(0xFF4F46E5).copy(alpha = 0.1f))
+            border = BorderStroke(4.dp, Color(0xFF4F46E5).copy(alpha = 0.1f))
         ) {
             Column(modifier = Modifier.padding(40.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -575,7 +573,7 @@ fun GlobalSearchDialog(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(32.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, Slate100)
+                            border = BorderStroke(2.dp, Slate100)
                         ) {
                             Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
@@ -610,7 +608,7 @@ fun SummarySearchDialog(
         }.take(8)
     }
 
-    AlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -620,7 +618,7 @@ fun SummarySearchDialog(
             shape = RoundedCornerShape(64.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 8.dp,
-            border = androidx.compose.foundation.BorderStroke(4.dp, EmeraldSuccess.copy(alpha = 0.1f))
+            border = BorderStroke(4.dp, EmeraldSuccess.copy(alpha = 0.1f))
         ) {
             Column(modifier = Modifier.padding(40.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -650,7 +648,7 @@ fun SummarySearchDialog(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(32.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, Slate100)
+                            border = BorderStroke(2.dp, Slate100)
                         ) {
                             Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
@@ -673,7 +671,7 @@ fun ExpiryAlertsDialog(
     expiringList: List<CustomerEntity>,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -683,7 +681,7 @@ fun ExpiryAlertsDialog(
             shape = RoundedCornerShape(64.dp),
             color = Color.White,
             tonalElevation = 8.dp,
-            border = androidx.compose.foundation.BorderStroke(4.dp, Color(0xFFE11D48).copy(alpha = 0.1f))
+            border = BorderStroke(4.dp, Color(0xFFE11D48).copy(alpha = 0.1f))
         ) {
             Column(modifier = Modifier.padding(40.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -700,7 +698,7 @@ fun ExpiryAlertsDialog(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(32.dp),
                             colors = CardDefaults.cardColors(containerColor = Slate50),
-                            border = androidx.compose.foundation.BorderStroke(2.dp, Slate100)
+                            border = BorderStroke(2.dp, Slate100)
                         ) {
                             Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {

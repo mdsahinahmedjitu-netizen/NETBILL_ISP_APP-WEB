@@ -1,21 +1,17 @@
 package com.example.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +32,8 @@ import java.util.UUID
 fun CustomerManagementScreen(
     viewModel: MainViewModel,
     onSelectCustomer: (CustomerEntity) -> Unit,
-    onNavigateToPayment: () -> Unit = {}
+    onNavigateToPayment: () -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     val customers by viewModel.filteredCustomers.collectAsState()
     val allCustomers by viewModel.customersList.collectAsState()
@@ -46,7 +43,7 @@ fun CustomerManagementScreen(
 
     var showAddCustomerDialog by remember { mutableStateOf(false) }
     var customerToEdit by remember { mutableStateOf<CustomerEntity?>(null) }
-    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    val selectedIds by remember { mutableStateOf(setOf<String>()) }
     var activeMenuId by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
@@ -76,6 +73,19 @@ fun CustomerManagementScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Back Button Row
+            Row(modifier = Modifier.fillMaxWidth()) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = IspTealPrimary)
+                }
+            }
+
             // Header & Stats Row
             Column(
                 modifier = Modifier
@@ -146,7 +156,7 @@ fun CustomerManagementScreen(
                 ) {
                     WebActionButton(label = "ADVANCED FILTER", icon = Icons.Default.FilterList, color = Color.White, textColor = IspTealPrimary, borderColor = IspTealPrimary.copy(alpha = 0.2f)) { /* Filter */ }
                     WebActionButton(label = "DOWNLOAD EXCEL", icon = Icons.Default.FileDownload, color = Color(0xFF20879E), textColor = Color.White) { /* Excel */ }
-                    WebActionButton(label = "SMS BROADCAST", icon = Icons.Default.Send, color = Color(0xFF20879E), textColor = Color.White) { /* SMS */ }
+                    WebActionButton(label = "SMS BROADCAST", icon = Icons.AutoMirrored.Filled.Send, color = Color(0xFF20879E), textColor = Color.White) { /* SMS */ }
                 }
             }
 
@@ -212,7 +222,6 @@ fun CustomerManagementScreen(
     if (showAddCustomerDialog) {
         AddEditCustomerDialog(
             customer = customerToEdit,
-            permissions = permissions,
             onDismiss = { showAddCustomerDialog = false },
             onSave = { newCust, disc, choice ->
                 viewModel.addOrUpdateCustomer(newCust, disc, choice)
@@ -369,26 +378,25 @@ fun WebActionButton(label: String, icon: ImageVector, color: Color, textColor: C
 @Composable
 fun AddEditCustomerDialog(
     customer: CustomerEntity?,
-    permissions: com.example.data.entity.UserRolePermissions,
     onDismiss: () -> Unit,
     onSave: (CustomerEntity, Double, String) -> Unit
 ) {
-    var code by remember { mutableStateOf(customer?.customerCode ?: "NET-${(1000..9999).random()}") }
+    val code by remember { mutableStateOf(customer?.customerCode ?: "NET-${(1000..9999).random()}") }
     var name by remember { mutableStateOf(customer?.name ?: "") }
     var mobile by remember { mutableStateOf(customer?.mobile ?: "") }
-    var altMobile by remember { mutableStateOf(customer?.altMobile ?: "") }
+    val altMobile by remember { mutableStateOf(customer?.altMobile ?: "") }
 
     var address by remember { mutableStateOf(customer?.address ?: "") }
-    var zone by remember { mutableStateOf(customer?.zone ?: "Uttara Zone") }
-    var subZone by remember { mutableStateOf(customer?.subZone ?: "") }
-    var boxId by remember { mutableStateOf(customer?.boxId ?: "") }
+    val zone by remember { mutableStateOf(customer?.zone ?: "Uttara Zone") }
+    val subZone by remember { mutableStateOf(customer?.subZone ?: "") }
+    val boxId by remember { mutableStateOf(customer?.boxId ?: "") }
 
     var pkgName by remember { mutableStateOf(customer?.packageName ?: "20 Mbps Super") }
     var billAmt by remember { mutableStateOf(customer?.monthlyBill?.toString() ?: "800") }
-    var discountAmt by remember { mutableStateOf("0") }
+    val discountAmt by remember { mutableStateOf("0") }
     var currentDue by remember { mutableStateOf(customer?.currentDue?.toString() ?: "0") }
-    var connectionFee by remember { mutableStateOf(customer?.connectionFee?.toString() ?: "1000") }
-    var billingType by remember { mutableStateOf(customer?.billingType ?: "Prepaid") }
+    val connectionFee by remember { mutableStateOf(customer?.connectionFee?.toString() ?: "1000") }
+    val billingType by remember { mutableStateOf(customer?.billingType ?: "Prepaid") }
     
     val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
     var joinDate by remember { mutableStateOf(customer?.joinDate?.ifBlank { today } ?: today) }
@@ -396,18 +404,15 @@ fun AddEditCustomerDialog(
     var expireDate by remember { mutableStateOf(customer?.expireDate?.ifBlank { "" } ?: "") }
     var expireTime by remember { mutableStateOf(customer?.expireTime?.ifBlank { "23:59" } ?: "23:59") }
 
-    var connectionType by remember { mutableStateOf(customer?.connectionType ?: "PPPoE") }
+    val connectionType by remember { mutableStateOf(customer?.connectionType ?: "PPPoE") }
     var pppoeUser by remember { mutableStateOf(customer?.pppoeUsername ?: "") }
-    var pppoePass by remember { mutableStateOf(customer?.pppoePassword ?: "123456") }
-    var onuMac by remember { mutableStateOf(customer?.onuMac ?: "") }
-    var onuSerial by remember { mutableStateOf(customer?.onuSerial ?: "") }
-    var notes by remember { mutableStateOf(customer?.notes ?: "") }
+    val pppoePass by remember { mutableStateOf(customer?.pppoePassword ?: "123456") }
+    val onuMac by remember { mutableStateOf(customer?.onuMac ?: "") }
+    val onuSerial by remember { mutableStateOf(customer?.onuSerial ?: "") }
+    val notes by remember { mutableStateOf(customer?.notes ?: "") }
     var status by remember { mutableStateOf(customer?.status ?: "Active") }
 
-    var billChoiceFor21stPlus by remember { mutableStateOf("NextMonth") }
-
-    val joinDayInt = try { joinDate.split("-").last().toInt() } catch(e: Exception) { 15 }
-    val show20thDayWarning = joinDayInt > 20
+    val billChoiceFor21stPlus by remember { mutableStateOf("NextMonth") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -434,7 +439,7 @@ fun AddEditCustomerDialog(
                 OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("ADDRESS", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = pkgName, onValueChange = { pkgName = it }, label = { Text("PACKAGE", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = billAmt, onValueChange = { billAmt = it }, label = { Text("MONTHLY BILL", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(value = discountAmt, onValueChange = { discountAmt = it }, label = { Text("DISCOUNT (৳)", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = discountAmt, onValueChange = { _ -> }, label = { Text("DISCOUNT (৳)", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(value = currentDue, onValueChange = { currentDue = it }, label = { Text("PREVIOUS DUE (৳)", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 
                 ReadonlyDateField(

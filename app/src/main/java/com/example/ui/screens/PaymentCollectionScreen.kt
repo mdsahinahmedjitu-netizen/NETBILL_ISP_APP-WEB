@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,7 +39,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PaymentCollectionScreen(viewModel: MainViewModel) {
+fun PaymentCollectionScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val payments by viewModel.paymentsList.collectAsState()
     val customers by viewModel.customersList.collectAsState()
     val permissions by viewModel.currentPermissions.collectAsState()
@@ -117,6 +118,19 @@ fun PaymentCollectionScreen(viewModel: MainViewModel) {
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            // Back Button Row
+            Row(modifier = Modifier.fillMaxWidth()) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = IspTealPrimary)
+                }
+            }
+
             // Header
             Column(
                 modifier = Modifier

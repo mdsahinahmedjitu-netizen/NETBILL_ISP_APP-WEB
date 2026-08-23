@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Expenses = ({ store, session, t }) => {
+const Expenses = ({ store, session, t, setActivePage }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -140,9 +140,14 @@ const Expenses = ({ store, session, t }) => {
     <div className="w-full space-y-8 pb-20 font-sans tracking-tight uppercase font-black">
       {/* HEADER & STATS */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div className="space-y-1">
-          <h3 className="text-4xl md:text-5xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{t.expense_manager}</h3>
-          <p className="text-[10px] text-rose-500 font-bold tracking-[4px] uppercase mt-1">Financial Outflow & Operational Costs</p>
+        <div className="flex items-center space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-rose-500 shadow-sm border border-slate-100">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-1">
+              <h3 className="text-4xl md:text-5xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{t.expense_manager}</h3>
+              <p className="text-[10px] text-rose-500 font-bold tracking-[4px] uppercase mt-1">Financial Outflow & Operational Costs</p>
+           </div>
         </div>
         <div className="flex flex-wrap gap-4">
            <StatBox label={t.total_selected} value={`৳ ${totalExpense.toLocaleString()}`} color="text-rose-600" bgColor="bg-rose-50 dark:bg-rose-900/20" />

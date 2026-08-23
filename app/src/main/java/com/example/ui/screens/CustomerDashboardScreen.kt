@@ -124,7 +124,7 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
                         Column(horizontalAlignment = Alignment.Start) {
                             Text("মোট বকেয়া (TOTAL DUE)", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.7f), letterSpacing = 3.sp)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("$currency ${String.format(java.util.Locale.US, "%,.0f", cust.currentDue)}", fontSize = 64.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = (-2).sp)
+                            Text("$currency ${String.format(Locale.US, "%,.0f", cust.currentDue)}", fontSize = 64.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = (-2).sp)
                             
                             Spacer(modifier = Modifier.height(24.dp))
                             
@@ -243,7 +243,7 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
                                     Text("${pymt.paymentDate} • ${pymt.paymentMethod}", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Text("$currency ${String.format(java.util.Locale.US, "%,.0f", pymt.amount)}", fontSize = 20.sp, fontWeight = FontWeight.Black, color = EmeraldSuccess)
+                            Text("$currency ${String.format(Locale.US, "%,.0f", pymt.amount)}", fontSize = 20.sp, fontWeight = FontWeight.Black, color = EmeraldSuccess)
                         }
                     }
                 }

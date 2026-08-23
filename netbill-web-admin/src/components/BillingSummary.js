@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const BillingSummary = ({ store, initialCustomerId = null, isCustomerView = false }) => {
+const BillingSummary = ({ store, initialCustomerId = null, isCustomerView = false, setActivePage }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCust, setSelectedCust] = useState(() => {
     return store.customers.find(c => c.id === initialCustomerId) || null;
@@ -91,6 +91,14 @@ const BillingSummary = ({ store, initialCustomerId = null, isCustomerView = fals
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-10 pb-20 font-sans tracking-tight no-print">
+      {!isCustomerView && (
+        <div className="flex items-center space-x-4 mb-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-[#20879e] shadow-sm border border-slate-100">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <h3 className="text-xl font-black uppercase tracking-[2px]">Billing Summary</h3>
+        </div>
+      )}
 
       {/* SEARCH INTERFACE - HIDDEN FOR CUSTOMERS */}
       {!isCustomerView && (

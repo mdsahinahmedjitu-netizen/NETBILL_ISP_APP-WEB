@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Billing = ({ store, t }) => {
+const Billing = ({ store, t, setActivePage }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const currentMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date());
 
@@ -91,9 +91,14 @@ const Billing = ({ store, t }) => {
   return (
     <div className="max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white dark:bg-slate-800 p-10 rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-700">
-        <div className="space-y-2 uppercase">
-          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">Billing Engine</h3>
-          <p className="text-[10px] text-teal-600 font-bold tracking-[5px] uppercase mt-2">Fully Automated Background Billing Active</p>
+        <div className="flex items-center space-x-6">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 md:w-16 md:h-16 bg-slate-50 dark:bg-slate-900 rounded-3xl flex items-center justify-center text-teal-600 hover:bg-teal-600 hover:text-white transition-all shadow-sm">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-2 uppercase">
+              <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">Billing Engine</h3>
+              <p className="text-[10px] text-teal-600 font-bold tracking-[5px] uppercase mt-2">Fully Automated Background Billing Active</p>
+           </div>
         </div>
         <div className="bg-emerald-50 text-emerald-600 px-10 py-5 rounded-full text-[11px] font-black border-2 border-emerald-100 shadow-sm flex items-center tracking-[4px]">
            <i className="fas fa-robot mr-3 text-lg animate-bounce"></i> {isProcessing ? 'SYNCING BILLS...' : 'SYSTEM AUTO-SYNC'}

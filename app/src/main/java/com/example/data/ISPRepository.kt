@@ -103,6 +103,7 @@ class ISPRepository(private val db: AppDatabase) {
             launch { syncTable<StaffEntity>("staff", { id -> scope.launch { staffDao.deleteStaffById(id) } }) { entity -> scope.launch { staffDao.insertStaff(entity) } } }
             launch { syncTable<LedgerEntity>("ledger_entries", { id -> scope.launch { ledgerDao.deleteLedgerById(id) } }) { entity -> scope.launch { ledgerDao.insertLedger(entity) } } }
             launch { syncTable<SmsTemplateEntity>("sms_templates", { id -> scope.launch { smsTemplateDao.deleteTemplateById(id) } }) { entity -> scope.launch { smsTemplateDao.insertTemplate(entity) } } }
+            launch { syncTable<SmsLogEntity>("sms_logs", { id -> scope.launch { smsLogDao.deleteLogById(id) } }) { entity -> scope.launch { smsLogDao.insertLog(entity) } } }
             launch { syncTable<StaffPayoutEntity>("staff_payouts", { id -> scope.launch { payoutDao.deletePayoutById(id) } }) { entity -> scope.launch { payoutDao.insertPayout(entity) } } }
             launch { syncTable<PaymentRequestEntity>("payment_requests", { id -> scope.launch { paymentRequestDao.deleteRequestById(id) } }) { entity -> scope.launch { paymentRequestDao.insertRequest(entity) } } }
         }
@@ -118,8 +119,11 @@ class ISPRepository(private val db: AppDatabase) {
         customerCode: String = "",
         customerName: String = ""
     ) {
-        val template = smsTemplateDao.getAllTemplates().firstOrNull()?.find { it.title == type }
-        if (template == null || !template.isActive) return
+        val template = smsTemplateDao.getAllTemplates().first().find { it.title == type }
+        if (template == null || !template.isActive) {
+            Log.w("ISPRepository", "SMS Trigger skipped: Template '$type' not found or inactive.")
+            return
+        }
 
         var message = template.messageContent
         
@@ -228,19 +232,19 @@ class ISPRepository(private val db: AppDatabase) {
         try { supabase.postgrest.from("sms_logs").insert(log) } catch (e: Exception) { Log.e("ISPRepository", "Supabase SMS Log insert failed", e) }
     }
 
-    suspend fun sendAndLogSms(log: SmsLogEntity) {
+    suspend fun sendAndLogSms(log: SmsLogEntity): String {
         val s = settingsDao.getSettings().firstOrNull()
         if (s == null) {
             insertSmsLog(log.copy(status = "Error: Settings Missing"))
-            return
+            return ""
         }
         
         if (!s.isAutoSmsEnabled && !log.notificationType.contains("Manual", ignoreCase = true) && log.notificationType != "Test") {
             insertSmsLog(log.copy(status = "Auto SMS Disabled"))
-            return
+            return ""
         }
 
-        val success = smsService.sendSms(
+        val (success, response, finalUrl) = smsService.sendSms(
             apiUrl = s.smsApiUrl,
             apiKey = s.smsApiKey,
             senderId = s.smsSenderId,
@@ -249,10 +253,11 @@ class ISPRepository(private val db: AppDatabase) {
         )
 
         val finalLog = log.copy(
-            status = if (success) "Sent" else "Failed",
+            status = if (success) "Sent" else "Failed: $response",
             sentTimestamp = SimpleDateFormat("yyyy-MM-dd HH:mm a", Locale.US).format(Date())
         )
         insertSmsLog(finalLog)
+        return finalUrl
     }
 
     suspend fun updateSmsLog(log: SmsLogEntity) {
@@ -350,7 +355,7 @@ class ISPRepository(private val db: AppDatabase) {
     suspend fun findCustomerByLoginInCloud(identifier: String, password: String): CustomerEntity? {
         return try {
             val response = supabase.postgrest.from("customers")
-                .select() {
+                .select {
                     filter {
                         or {
                             eq("pppoe_username", identifier)
@@ -369,12 +374,41 @@ class ISPRepository(private val db: AppDatabase) {
     }
 
     suspend fun syncCustomerToMikroTik(customerId: String) {
-        // Implementation
+        val customer = customerDao.getCustomerById(customerId) ?: return
+        val routers = mikrotikDao.getAllRouters().first()
+        val router = routers.find { it.id == customer.routerId } ?: routers.firstOrNull() ?: return
+        
+        MikroTikApiService().updatePppoeUser(
+            router = router,
+            pppoeUser = customer.pppoeUsername,
+            profile = customer.packageName,
+            macAddress = customer.onuMac ?: "",
+            staticIp = "" // Can be added to CustomerEntity if needed
+        )
+
+        // Also sync status
+        MikroTikApiService().setPppoeUserStatus(
+            router = router,
+            pppoeUser = customer.pppoeUsername,
+            enable = customer.status == "Active"
+        )
     }
 
     suspend fun setCustomerInternetStatus(customerId: String, active: Boolean): Boolean {
-        // Implementation
-        return true
+        val customer = customerDao.getCustomerById(customerId) ?: return false
+        val routers = mikrotikDao.getAllRouters().first()
+        val router = routers.find { it.id == customer.routerId } ?: routers.firstOrNull() ?: return false
+        
+        val success = MikroTikApiService().setPppoeUserStatus(
+            router = router,
+            pppoeUser = customer.pppoeUsername,
+            enable = active
+        )
+        
+        if (success) {
+            updateCustomer(customer.copy(status = if (active) "Active" else "Suspended"))
+        }
+        return success
     }
 
     suspend fun payInvoice(
@@ -521,7 +555,8 @@ class ISPRepository(private val db: AppDatabase) {
         val updatedCustomer = customer.copy(
             currentDue = newDue,
             advanceBalance = newAdvance,
-            paymentStatus = if (newDue <= 0) "Paid" else "Unpaid"
+            paymentStatus = if (newDue <= 0) "Paid" else "Unpaid",
+            status = if (newDue <= 0 && customer.status == "Suspended") "Active" else customer.status
         )
 
         val ledgerEntry = LedgerEntity(
@@ -543,36 +578,50 @@ class ISPRepository(private val db: AppDatabase) {
             paymentDao.insertPayment(payment)
             customerDao.updateCustomer(updatedCustomer)
             ledgerDao.insertLedger(ledgerEntry)
-
-            // Supabase Sync
-            supabase.postgrest.from("payments").insert(payment)
-            supabase.postgrest.from("customers").update(mapOf(
-                "current_due" to newDue,
-                "advance_balance" to newAdvance,
-                "payment_status" to updatedCustomer.paymentStatus
-            )) { filter { eq("id", customer.id) } }
-            supabase.postgrest.from("ledger_entries").insert(ledgerEntry)
-
-            // Send Collection SMS via Template System
-            triggerSystemSms(
-                type = "Collection",
-                mobile = customer.mobile,
-                params = mapOf(
-                    "NAME" to customer.name,
-                    "AMOUNT" to amount.toInt().toString(),
-                    "RECEIPT_NO" to receiptNo,
-                    "DUE_DATE" to todayISO,
-                    "BILL_MONTH" to finalBillingMonth
-                ),
-                customerId = customer.id,
-                customerCode = customer.customerCode,
-                customerName = customer.name
-            )
-
-            return payment
+            
+            // Auto-Enable Internet if Suspended and Paid
+            if (updatedCustomer.status == "Active" && customer.status == "Suspended") {
+                scope.launch { setCustomerInternetStatus(customer.id, true) }
+            }
+            
+            Log.d("ISPRepository", "Local payment records saved.")
         } catch (e: Exception) {
-            Log.e("ISPRepository", "Failed to record payment", e)
+            Log.e("ISPRepository", "Local payment record failed", e)
             return null
         }
+
+        // Supabase Sync (Non-blocking for SMS)
+        scope.launch {
+            try {
+                supabase.postgrest.from("payments").insert(payment)
+                supabase.postgrest.from("customers").update(mapOf(
+                    "current_due" to newDue,
+                    "advance_balance" to newAdvance,
+                    "payment_status" to updatedCustomer.paymentStatus
+                )) { filter { eq("id", customer.id) } }
+                supabase.postgrest.from("ledger_entries").insert(ledgerEntry)
+                Log.d("ISPRepository", "Supabase payment sync successful.")
+            } catch (e: Exception) {
+                Log.e("ISPRepository", "Supabase payment sync failed", e)
+            }
+        }
+
+        // Send Collection SMS via Template System
+        triggerSystemSms(
+            type = "Collection",
+            mobile = customer.mobile,
+            params = mapOf(
+                "NAME" to customer.name,
+                "AMOUNT" to amount.toInt().toString(),
+                "RECEIPT_NO" to receiptNo,
+                "DUE_DATE" to todayISO,
+                "BILL_MONTH" to finalBillingMonth
+            ),
+            customerId = customer.id,
+            customerCode = customer.customerCode,
+            customerName = customer.name
+        )
+
+        return payment
     }
 }

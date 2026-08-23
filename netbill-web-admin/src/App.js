@@ -21,6 +21,7 @@ import Settings from './components/Settings';
 import Login from './components/Login';
 import CustomerPortal from './components/CustomerPortal';
 import CustomerFullProfile from './components/CustomerFullProfile';
+import MikroTik from './components/MikroTik';
 import { translations } from './translations';
 import './index.css';
 
@@ -56,7 +57,7 @@ function App() {
     customers: [], tickets: [], payments: [], invoices: [], expenses: [], staff: [],
     inventory: [], packages: [], settings: {}, paymentRequests: [], staffPayouts: [],
     zones: [], subZones: [], boxes: [], expenseCategories: [], smsTemplates: [], smsLogs: [],
-    ledgerEntries: []
+    ledgerEntries: [], mikrotikRouters: [], onlineUsernames: [], smsBalance: 'Checking...'
   });
 
   const [autoOpenAddModal, setAutoOpenAddModal] = useState(false);
@@ -154,7 +155,8 @@ function App() {
       'inventory_items': 'inventory',
       'sms_templates': 'smsTemplates',
       'sms_logs': 'smsLogs',
-      'ledger_entries': 'ledgerEntries'
+      'ledger_entries': 'ledgerEntries',
+      'mikrotik_routers': 'mikrotikRouters'
     };
 
     const fetchData = async () => {
@@ -178,6 +180,7 @@ function App() {
       }
     };
 
+    window.refreshData = fetchData;
     fetchData();
 
     // Subscribe to Real-time Changes
@@ -188,11 +191,19 @@ function App() {
           const storeKey = tableMapping[table];
 
           setStore(prev => {
+            const storeKey = tableMapping[table];
             const currentList = prev[storeKey] || [];
             let newList;
-            if (eventType === 'INSERT') newList = [...currentList, mapToCamelCase(newRecord)];
-            else if (eventType === 'UPDATE') newList = currentList.map(item => item.id === (newRecord.id || item.id) ? mapToCamelCase(newRecord) : item);
-            else if (eventType === 'DELETE') newList = currentList.filter(item => item.id !== oldRecord.id);
+            if (eventType === 'INSERT') {
+              newList = [...currentList, mapToCamelCase(newRecord)];
+              console.log(`Realtime INSERT on ${table}:`, newRecord);
+            }
+            else if (eventType === 'UPDATE') {
+              newList = currentList.map(item => item.id === (newRecord.id || item.id) ? mapToCamelCase(newRecord) : item);
+            }
+            else if (eventType === 'DELETE') {
+              newList = currentList.filter(item => item.id !== oldRecord.id);
+            }
             else newList = currentList;
             return { ...prev, [storeKey]: newList };
           });
@@ -202,6 +213,56 @@ function App() {
 
     return () => { channels.forEach(channel => supabase.removeChannel(channel)); };
   }, [session]);
+
+  // MIKROTIK GLOBAL ONLINE POLLING ENGINE
+  useEffect(() => {
+    if (!session || store.mikrotikRouters.length === 0) return;
+
+    const pollOnlineStatus = async () => {
+      let allOnline = [];
+      try {
+        for (const router of store.mikrotikRouters) {
+          const { data } = await supabase.functions.invoke('mikrotik-manager', {
+            body: { routerId: router.id, action: 'get_status' }
+          });
+          if (data && data.success && data.sessions) {
+            const usernames = data.sessions.map(s => (s.username || '').toLowerCase());
+            allOnline = [...allOnline, ...usernames];
+          }
+        }
+        setStore(prev => ({ ...prev, onlineUsernames: [...new Set(allOnline)] }));
+      } catch (e) {
+        console.error("Online Polling Error:", e);
+      }
+    };
+
+    pollOnlineStatus();
+    const interval = setInterval(pollOnlineStatus, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, [session, store.mikrotikRouters.length]);
+
+  // SMS BALANCE FETCH ENGINE
+  useEffect(() => {
+    const fetchSmsBalance = async () => {
+      const apiKey = store.settings?.smsApiKey || store.settings?.sms_api_key;
+      if (!apiKey) return;
+      try {
+        const response = await fetch(`http://bulksmsbd.net/api/getBalanceApi?api_key=${apiKey}`);
+        const data = await response.json();
+        if (data && data.balance) {
+          setStore(prev => ({ ...prev, smsBalance: `৳ ${data.balance}` }));
+        }
+      } catch (e) {
+        console.error("SMS Balance Fetch Error:", e);
+      }
+    };
+
+    if (store.settings?.smsApiKey || store.settings?.sms_api_key) {
+      fetchSmsBalance();
+      const interval = setInterval(fetchSmsBalance, 60000); // Refresh every minute
+      return () => clearInterval(interval);
+    }
+  }, [store.settings?.smsApiKey, store.settings?.sms_api_key]);
 
   const mapToCamelCase = (obj) => {
     if (!obj) return obj;
@@ -277,28 +338,30 @@ function App() {
           )}
           {activePage === 'customers' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} setPreSelectedCustomer={setPreSelectedCustomer} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
-          {activePage === 'new_enrollment' && session.role === 'admin' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} />}
-          {activePage === 'billing' && <Billing store={store} t={t} lang={lang} />}
-          {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} preSelectedCustomer={preSelectedCustomer} setPreSelectedCustomer={setPreSelectedCustomer} />}
-          {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} initialTab={reportInitialTab} />}
-          {activePage === 'expenses' && <Expenses store={store} session={session} t={t} />}
-          {activePage === 'staff' && session.role === 'admin' && <Staff store={store} session={session} t={t} lang={lang} />}
-          {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} />}
-          {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} />}
-          {activePage === 'infrastructure' && session.role === 'admin' && <Infrastructure store={store} t={t} />}
-          {activePage === 'packages' && <Packages store={store} t={t} lang={lang} />}
-          {activePage === 'sms_setup' && <SmsSetup store={store} t={t} />}
-          {activePage === 'sms_logs' && <SmsLogs store={store} />}
-          {activePage === 'crm_tickets' && <SupportTickets store={store} session={session} t={t} />}
+          {activePage === 'new_enrollment' && session.role === 'admin' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} setPreSelectedCustomer={setPreSelectedCustomer} />}
+          {activePage === 'billing' && <Billing store={store} t={t} lang={lang} setActivePage={setActivePage} />}
+          {activePage === 'payments' && <Payments store={store} session={session} t={t} lang={lang} preSelectedCustomer={preSelectedCustomer} setPreSelectedCustomer={setPreSelectedCustomer} setActivePage={setActivePage} />}
+          {activePage === 'reports' && <CollectionReport store={store} session={session} t={t} initialTab={reportInitialTab} setActivePage={setActivePage} />}
+          {activePage === 'expenses' && <Expenses store={store} session={session} t={t} setActivePage={setActivePage} />}
+          {activePage === 'staff' && session.role === 'admin' && <Staff store={store} session={session} t={t} lang={lang} setActivePage={setActivePage} />}
+          {activePage === 'salary_history' && <SalaryHistory store={store} session={session} t={t} lang={lang} setActivePage={setActivePage} />}
+          {activePage === 'inventory' && <Inventory store={store} t={t} lang={lang} setActivePage={setActivePage} />}
+          {activePage === 'infrastructure' && session.role === 'admin' && <Infrastructure store={store} t={t} setActivePage={setActivePage} />}
+          {activePage === 'packages' && <Packages store={store} t={t} lang={lang} setActivePage={setActivePage} />}
+          {activePage === 'sms_setup' && <SmsSetup store={store} t={t} setActivePage={setActivePage} />}
+          {activePage === 'sms_logs' && <SmsLogs store={store} setActivePage={setActivePage} />}
+          {activePage === 'mikrotik' && session.role === 'admin' && <MikroTik store={store} t={t} setActivePage={setActivePage} />}
+          {activePage === 'crm_tickets' && <SupportTickets store={store} session={session} t={t} setActivePage={setActivePage} />}
           {activePage === 'billing_summary' && (
             <BillingSummary
               store={store}
               t={t}
               initialCustomerId={session.role === 'customer' ? session.data.id : selectedSummaryId}
               isCustomerView={session.role === 'customer'}
+              setActivePage={setActivePage}
             />
           )}
-          {activePage === 'settings' && session.role === 'admin' && <Settings store={store} t={t} lang={lang} />}
+          {activePage === 'settings' && session.role === 'admin' && <Settings store={store} t={t} lang={lang} setActivePage={setActivePage} />}
         </main>
 
         {/* FLOATING NOTIFICATION ICON (HIDDEN FOR CUSTOMERS) */}
@@ -325,6 +388,59 @@ function App() {
                     <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-[3px]">Total {expiringTomorrow.length} Customers Expiring Tomorrow</p>
                   </div>
                   <button onClick={() => setShowExpiryModal(false)} className="text-rose-500 text-3xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+               </div>
+
+               {/* QUICK SMS BROADCAST ACTION */}
+               <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[32px] border-2 border-dashed border-indigo-200 mb-6 flex items-center justify-between group">
+                  <div className="flex items-center space-x-4">
+                     <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-lg"><i className="fas fa-paper-plane"></i></div>
+                     <div>
+                        <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase leading-none">Bulk SMS Reminder</h4>
+                        <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Notify all {expiringTomorrow.length} customers instantly</p>
+                     </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                        const template = store.smsTemplates?.find(t => t.title === 'Expiry Reminder (Tomorrow)' && (t.is_active || t.isActive));
+                        if (!template) return alert("Please Enable 'Expiry Reminder (Tomorrow)' template in SMS Setup first!");
+
+                        if (!window.confirm(`Send reminder to ${expiringTomorrow.length} customers?`)) return;
+
+                        const settings = store.settings || {};
+                        const apiKey = (settings.smsApiKey || "").trim();
+                        const senderId = (settings.smsSenderId || "").trim();
+
+                        for (const c of expiringTomorrow) {
+                            let msg = (template.messageContent || template.message_content)
+                                .replace(/{NAME}/g, c.name || '')
+                                .replace(/{AMOUNT}/g, Math.floor(c.currentDue || c.current_due || 0))
+                                .replace(/{DUE}/g, Math.floor(c.currentDue || c.current_due || 0))
+                                .replace(/{DATE}/g, c.expireDate || c.expire_date || '')
+                                .replace(/{CUSTOMER_CODE}/g, c.customerCode || c.customer_code || '');
+
+                            let cleanMobile = (c.mobile || "").replace(/[^0-9]/g, "");
+                            if (cleanMobile.startsWith('0')) { cleanMobile = '88' + cleanMobile; }
+                            else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
+                            else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
+
+                            const isUnicode = /[\u0980-\u09FF]/.test(msg);
+                            const msgType = isUnicode ? "unicode" : "text";
+                            const finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(msg)}`;
+
+                            const img = new Image();
+                            img.src = finalUrl;
+
+                            await supabase.from('sms_logs').insert({
+                                customer_id: c.id, customer_name: c.name, mobile: cleanMobile,
+                                notification_type: 'Expiry Reminder (Tomorrow)', message: msg, status: 'Sent', sent_timestamp: new Date().toISOString()
+                            });
+                        }
+                        alert("Reminders Sent Successfully!");
+                    }}
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black text-[10px] tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all"
+                  >
+                     SEND SMS NOW
+                  </button>
                </div>
 
                <div className="max-h-[400px] overflow-y-auto space-y-4 pr-4 custom-scrollbar">

@@ -146,16 +146,23 @@ const Dashboard = ({ store, session, permissions, setActivePage, setReportInitia
                     .replace(/{CUSTOMER_CODE}/g, customer.customerCode || customer.customer_code || '');
             }
 
-            const cleanMobile = customer.mobile.replace(/[^0-9]/g, "");
+            let cleanMobile = customer.mobile.replace(/[^0-9]/g, "");
+            if (cleanMobile.startsWith('880')) cleanMobile = cleanMobile.substring(3);
+            if (!cleanMobile.startsWith('0')) cleanMobile = '0' + cleanMobile;
+
+            const isUnicode = /[\u0980-\u09FF]/.test(msg);
+            const typeParam = isUnicode ? "&type=unicode" : "";
+
             const finalUrl = settings.smsApiUrl
                 .replace(/{API_KEY}/g, settings.smsApiKey || '')
+                .replace(/{SENDER_ID}/g, settings.smsSenderId || '1234')
                 .replace(/{MOBILE}/g, cleanMobile)
                 .replace(/{NUMBER}/g, cleanMobile)
-                .replace(/{MESSAGE}/g, encodeURIComponent(msg));
+                .replace(/{MESSAGE}/g, encodeURIComponent(msg)) + typeParam;
 
             // Dispatch using Image ping (CORS-safe)
-            const ping = new Image();
-            ping.src = finalUrl;
+            const img = new Image();
+            img.src = finalUrl;
 
             // Record in SMS Logs
             await supabase.from('sms_logs').insert({
@@ -249,6 +256,11 @@ const Dashboard = ({ store, session, permissions, setActivePage, setReportInitia
         <FeatureCard title={t.grid_search} icon="fa-magnifying-glass-chart" grad="grad-search" onClick={openSearch} />
         <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => { setReportInitialTab('due'); setActivePage('reports'); }} />
         <FeatureCard title={t.grid_summary} icon="fa-chart-pie" grad="grad-summary" onClick={openSummary} />
+        <div className="feature-card bg-slate-800 h-32 md:h-40 rounded-[24px] md:rounded-[44px] p-4 md:p-8 flex flex-col justify-center text-white shadow-lg font-black uppercase tracking-widest relative overflow-hidden">
+           <i className="fas fa-comment-sms text-2xl md:text-4xl mb-2 md:mb-3 opacity-30 absolute right-6 top-6"></i>
+           <span className="text-[8px] md:text-[10px] opacity-60 mb-1">SMS Balance</span>
+           <span className="text-xl md:text-3xl font-black tracking-tighter text-teal-400 leading-none">{store.smsBalance || '---'}</span>
+        </div>
       </div>
       )}
 

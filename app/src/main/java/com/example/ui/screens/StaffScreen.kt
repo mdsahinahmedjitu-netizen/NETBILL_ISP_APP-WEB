@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.*
@@ -55,6 +56,19 @@ fun StaffScreen(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // Back Button Row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = IspIndigo)
+            }
+        }
+
         // Header & Stats
         Column(
             modifier = Modifier

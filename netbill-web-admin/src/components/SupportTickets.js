@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
-const SupportTickets = ({ store, session, t }) => {
+const SupportTickets = ({ store, session, t, setActivePage }) => {
   const [activeTab, setActiveTab] = useState('Open');
   const [isUpdating, setIsUpdating] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -52,8 +52,10 @@ const SupportTickets = ({ store, session, t }) => {
     setIsUpdating(true);
     try {
       const customer = store.customers.find(c => c.id === newTicket.customerId);
+      const ticketId = `TKT-${Date.now()}`;
+
       const { error } = await supabase.from('support_tickets').insert({
-        id: `TKT-${Date.now()}`,
+        id: ticketId,
         customer_id: newTicket.customerId,
         customer_code: customer?.customerCode || '',
         subject: newTicket.subject,
@@ -65,6 +67,48 @@ const SupportTickets = ({ store, session, t }) => {
       });
 
       if (error) throw error;
+
+      // --- SMS NOTIFICATION TRIGGER ---
+      const settings = store.settings || {};
+      if (settings.smsApiUrl && customer?.mobile) {
+          const template = store.smsTemplates?.find(t => t.title === 'Complain to Customer' && (t.isActive || t.is_active));
+
+          if (template) {
+              let msg = (template.messageContent || template.message_content)
+                  .replace(/{NAME}/g, customer.name || '')
+                  .replace(/{SUBJECT}/g, newTicket.subject)
+                  .replace(/{TICKET_ID}/g, ticketId)
+                  .replace(/{CUSTOMER_CODE}/g, customer.customerCode || '');
+
+              let cleanMobile = customer.mobile.replace(/[^0-9]/g, "");
+              if (cleanMobile.startsWith('0')) { cleanMobile = '88' + cleanMobile; }
+              else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
+              else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
+
+              const isUnicode = /[\u0980-\u09FF]/.test(msg);
+              const msgType = isUnicode ? "unicode" : "text";
+              const apiKey = (settings.smsApiKey || "").trim();
+              const senderId = (settings.smsSenderId || "").trim();
+
+              const finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(msg)}`;
+
+              // Dispatch using Image ping (CORS-safe)
+              const img = new Image();
+              img.src = finalUrl;
+
+              // Log SMS to Database
+              await supabase.from('sms_logs').insert({
+                  customer_id: customer.id,
+                  customer_name: customer.name,
+                  mobile: cleanMobile,
+                  notification_type: 'Complain to Customer (Auto)',
+                  message: msg,
+                  status: 'Sent',
+                  sent_timestamp: new Date().toISOString()
+              });
+          }
+      }
+
       alert("Ticket Created Successfully!");
       setShowAddModal(false);
       setNewTicket({ customerId: '', subject: '', description: '', priority: 'Normal' });
@@ -106,9 +150,14 @@ const SupportTickets = ({ store, session, t }) => {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 pb-20 uppercase font-black tracking-tighter transition-all">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4">
-        <div className="space-y-1">
-          <h3 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">Complaints</h3>
-          <p className="text-[10px] text-amber-600 tracking-widest font-black uppercase italic">Support System</p>
+        <div className="flex items-center space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-amber-500 shadow-sm border border-slate-100">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-1">
+              <h3 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">Complaints</h3>
+              <p className="text-[10px] text-amber-600 tracking-widest font-black uppercase italic">Support System</p>
+           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

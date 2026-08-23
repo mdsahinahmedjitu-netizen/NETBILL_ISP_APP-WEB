@@ -139,7 +139,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val json = Json { ignoreUnknownKeys = true }
             val allPermissionsMap: Map<String, UserRolePermissions> = if (!settings?.rolePermissionsJson.isNullOrBlank()) {
-                json.decodeFromString(settings!!.rolePermissionsJson!!)
+                json.decodeFromString(settings.rolePermissionsJson ?: "")
             } else {
                 emptyMap()
             }
@@ -187,8 +187,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val dashboardStats: StateFlow<DashboardStats> = combine(customersList, paymentsList, expensesList, currentUser) { allCusts, pymts, exps, user ->
-        val todayStr = SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(Date())
-        val yearMonthStr = SimpleDateFormat("yyyy-MM", java.util.Locale.US).format(Date())
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val yearMonthStr = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
         val isStaff = user?.role?.lowercase() != "admin"
         val staffId = user?.id ?: ""
@@ -340,7 +340,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             
             if (isNew) {
                 // 1. Initial due logic based on your rules (Only for NEW enrollment)
-                var finalCustomer = customer
+                var finalCustomer: CustomerEntity
                 val baseDue = customer.currentDue
                 val netBill = (customer.monthlyBill - discountAmount).coerceAtLeast(0.0)
                 
@@ -355,7 +355,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // 2. Generate initial invoice if bill is applied
                 if (finalCustomer.currentDue > baseDue) {
                     val joinDateStr = finalCustomer.joinDate?.ifBlank { null } ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                    val joinDateObj = try { SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(joinDateStr) } catch(e: Exception) { Date() }
+                    val joinDateObj = try { SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(joinDateStr) } catch(_: Exception) { Date() }
                     val billingMonth = SimpleDateFormat("MMMM yyyy", Locale.US).format(joinDateObj ?: Date())
 
                     repository.invoiceDao.insertInvoice(
@@ -604,6 +604,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.insertRouter(router) }
     }
 
+    fun disconnectMikroTikSession(router: MikroTikRouterEntity, username: String) {
+        viewModelScope.launch {
+            val success = com.example.data.remote.MikroTikApiService().disconnectSession(router, username)
+            if (success) showToast("User $username kicked from Router.")
+            else showToast("Failed to disconnect $username.")
+        }
+    }
+
+    fun updateMikroTikUserSpeed(router: MikroTikRouterEntity, username: String, profile: String) {
+        viewModelScope.launch {
+            val success = com.example.data.remote.MikroTikApiService().updatePppoeUser(router, username, profile)
+            if (success) showToast("Speed limit updated for $username.")
+            else showToast("Failed to update speed for $username.")
+        }
+    }
+
     fun setSelectedReceipt(payment: PaymentCollectionEntity?) { _selectedReceipt.value = payment }
 
     fun getPairedPrinters() = printerService.getPairedPrinters()
@@ -673,8 +689,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearSmsLogs() { viewModelScope.launch { repository.clearAllSmsLogs() } }
-    fun resendAllFailedSms() { /* Implement if needed */ }
-    fun resendFailedSms(log: SmsLogEntity) { viewModelScope.launch { repository.updateSmsLog(log) } }
+    fun resendAllFailedSms() {
+        viewModelScope.launch {
+            val failed = smsLogsList.value.filter { it.status == "Failed" }
+            if (failed.isEmpty()) {
+                showToast("No failed SMS to resend.")
+                return@launch
+            }
+            showToast("Resending ${failed.size} failed messages...")
+            failed.forEach { log ->
+                repository.sendAndLogSms(log.copy(status = "Pending"))
+            }
+        }
+    }
+    fun resendFailedSms(log: SmsLogEntity) { 
+        viewModelScope.launch { 
+            val finalUrl = repository.sendAndLogSms(log.copy(status = "Pending")) 
+            if (finalUrl.isNotBlank()) {
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(finalUrl))
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    getApplication<Application>().startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "Failed to open debug URL", e)
+                }
+            }
+        } 
+    }
 
 
     fun sendSupportUpdateSms(id: String?, zone: String, msg: String) {
@@ -711,7 +752,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendSingleSmsNotification(id: String, code: String, name: String, mobile: String, type: String, msg: String) {
         viewModelScope.launch { 
-            repository.sendAndLogSms(SmsLogEntity(
+            val finalUrl = repository.sendAndLogSms(SmsLogEntity(
                 id = UUID.randomUUID().toString(), 
                 customerId = id, 
                 customerCode = code, 
@@ -720,6 +761,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 notificationType = type, 
                 message = msg
             )) 
+
+            // Debug Feature: Open the URL in browser
+            if (finalUrl.isNotBlank()) {
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(finalUrl))
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    getApplication<Application>().startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "Failed to open debug URL", e)
+                }
+            }
         }
     }
 
@@ -801,16 +853,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun sendTestSmsTemplate(template: SmsTemplateEntity, recipientName: String, recipientMobile: String) {
         viewModelScope.launch {
             val finalMsg = template.messageContent
+                .replace("{NAME}", recipientName, ignoreCase = true)
                 .replace("{name}", recipientName, ignoreCase = true)
+                .replace("{MOBILE}", recipientMobile, ignoreCase = true)
                 .replace("{mobile}", recipientMobile, ignoreCase = true)
+                .replace("{CUSTOMER_CODE}", "NET-TEST-001", ignoreCase = true)
+                .replace("{AMOUNT}", "500", ignoreCase = true)
+                .replace("{TOTAL_DUE}", "500", ignoreCase = true)
+                .replace("{DUE_DATE}", "2026-08-30", ignoreCase = true)
+                .replace("{BILL_MONTH}", "August 2026", ignoreCase = true)
+                .replace("{PACKAGE_NAME}", "Test Package", ignoreCase = true)
+                .replace("{EXPIRY_DATE}", "2026-09-01", ignoreCase = true)
+                .replace("{COMPANY_NAME}", settingsState.value?.ispName ?: "NetBill ISP", ignoreCase = true)
+                .replace("{SUPPORT_PHONE}", settingsState.value?.supportNumber ?: "017XXXXXXXX", ignoreCase = true)
+                .replace("{RECEIPT_NO}", "REC-TEST-123", ignoreCase = true)
             
-            repository.sendAndLogSms(SmsLogEntity(
+            val finalUrl = repository.sendAndLogSms(SmsLogEntity(
                 id = UUID.randomUUID().toString(),
                 customerName = recipientName,
                 mobile = recipientMobile,
                 notificationType = "Test",
                 message = finalMsg
             ))
+
+            // Debug Feature: Open the URL in browser to see gateway response
+            if (finalUrl.isNotBlank()) {
+                try {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(finalUrl))
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    getApplication<Application>().startActivity(intent)
+                    showToast("Opening Browser for Debugging...")
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "Failed to open debug URL", e)
+                }
+            }
+            
             showToast("Test SMS Triggered to $recipientMobile")
         }
     }

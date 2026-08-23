@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustomer }) => {
+const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustomer, setActivePage }) => {
+  const settings = store.settings || {};
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [amount, setAmount] = useState('');
+  const [sendSms, setSendSms] = useState(true);
 
   const months = useMemo(() => {
     const result = [];
@@ -257,12 +259,68 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
       const { error: custUpdateErr } = await supabase.from('customers').update(updatePayload).eq('id', custId);
       if (custUpdateErr) throw custUpdateErr;
 
+      // --- MikroTik Auto-Activation ---
+      if (newDue <= 0 && customer.pppoeUsername && customer.routerId) {
+          supabase.functions.invoke('mikrotik-manager', {
+              body: { action: 'set_status', payload: { username: customer.pppoeUsername, active: true, routerId: customer.routerId } }
+          });
+      }
+
       await supabase.from('ledger_entries').insert({
         customer_id: custId, date: todayISO, time: timeStr, type: "Payment",
         description: `Payment for ${billingMonth}`, amount: payAmt, is_debit: false,
         reference_no: pmtErr ? `ERR-${Date.now()}` : newPmt.receipt_no, running_balance: newDue, collector_name: selectedCollector.name,
         paid_amount: payAmt, total_due_balance: newDue
       });
+
+      // --- SMS NOTIFICATION TRIGGER ---
+      if (sendSms && settings.smsApiUrl && customer.mobile) {
+          let msg = `Dear ${customer.name}, BDT ${payAmt} has been received for ${billingMonth}. New Due: BDT ${Math.floor(newDue)}. Thank you.`;
+
+          // Try to use "Collection" template
+          const template = store.smsTemplates?.find(t => (t.title === 'Collection' || t.title === 'কালেকশন') && (t.isActive || t.is_active));
+          if (template) {
+              msg = (template.messageContent || template.message_content)
+                  .replace(/{NAME}/g, customer.name || '')
+                  .replace(/{AMOUNT}/g, payAmt)
+                  .replace(/{DUE}/g, Math.floor(newDue))
+                  .replace(/{CUSTOMER_CODE}/g, customer.customerCode || customer.customer_code || '')
+                  .replace(/{BILL_MONTH}/g, billingMonth);
+          }
+
+          const apiKey = (settings.smsApiKey || "").trim();
+          const senderId = (settings.smsSenderId || "").trim();
+          const isUnicode = /[\u0980-\u09FF]/.test(msg);
+          const msgType = isUnicode ? "unicode" : "text";
+
+          let cleanMobile = customer.mobile.replace(/[^0-9]/g, "");
+          if (cleanMobile.startsWith('0')) { cleanMobile = '88' + cleanMobile; }
+          else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
+          else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
+
+          let finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(msg)}`;
+
+          const img = new Image();
+          img.src = finalUrl;
+          console.log("Collection SMS URL:", finalUrl);
+
+          // Restore Log SMS
+          await supabase.from('sms_logs').insert({
+              customer_id: customer.id,
+              customer_name: customer.name,
+              mobile: cleanMobile,
+              notification_type: 'Collection (Auto)',
+              message: msg,
+              status: 'Sent',
+              sent_timestamp: new Date().toISOString()
+          });
+
+          // Log SMS
+          await supabase.from('sms_logs').insert({
+              customer_id: customer.id, customer_name: customer.name, mobile: cleanMobile,
+              notification_type: 'Collection (Direct)', message: msg, status: 'Sent', sent_timestamp: new Date().toISOString()
+          });
+      }
 
       alert(t.success_payment);
       setAmount(''); setSelectedCustomerId(''); setSearchTerm(''); setShowExtensionModal(false);
@@ -296,7 +354,15 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 pb-10 uppercase font-black tracking-tighter transition-all px-2 sm:px-4">
-      <div className="space-y-0.5"><h3 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white uppercase leading-none">{t.payment_center}</h3><p className="text-[8px] sm:text-[9px] text-teal-600 tracking-[2px] sm:tracking-[3px] font-black uppercase italic opacity-70">Collection Hub</p></div>
+      <div className="flex items-center space-x-3">
+         <button onClick={() => setActivePage('dashboard')} className="w-8 h-8 sm:w-10 sm:h-10 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
+            <i className="fas fa-arrow-left"></i>
+         </button>
+         <div className="space-y-0.5">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white uppercase leading-none">{t.payment_center}</h3>
+            <p className="text-[8px] sm:text-[9px] text-teal-600 tracking-[2px] sm:tracking-[3px] font-black uppercase italic opacity-70">Collection Hub</p>
+         </div>
+      </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 items-start">
         <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-[32px] sm:rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-700 font-black h-fit">
            <div className="mb-4 sm:mb-6 bg-indigo-50 dark:bg-indigo-900/20 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 border-indigo-100 flex items-center justify-between">
@@ -322,6 +388,23 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
                  <div className="space-y-2 sm:space-y-3"><label className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[2px] sm:tracking-[3px] ml-3 sm:ml-4">{t.method}</label><select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border-none p-3 sm:p-4 rounded-xl sm:rounded-2xl font-black uppercase text-[10px] sm:text-xs cursor-pointer shadow-inner"><option value="Cash">Cash</option><option value="bKash">bKash</option><option value="Nagad">Nagad</option><option value="Rocket">Rocket</option><option value="Bank">Bank</option></select></div>
               </div>
               <div className="space-y-2 sm:space-y-3"><label className="text-[10px] sm:text-[11px] text-slate-400 uppercase tracking-[3px] sm:tracking-[4px] ml-3 sm:ml-4">ENTER AMOUNT (৳)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-100 dark:bg-slate-900 border-none p-6 sm:p-8 rounded-[32px] sm:rounded-[40px] font-black text-4xl sm:text-6xl text-teal-600 tracking-tighter shadow-inner text-center" required /></div>
+
+              {/* SMS Toggle Option */}
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-between group cursor-pointer transition-all hover:border-teal-500" onClick={() => setSendSms(!sendSms)}>
+                <div className="flex items-center space-x-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${sendSms ? 'bg-teal-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                    <i className={`fas ${sendSms ? 'fa-comment-sms' : 'fa-comment-slash'}`}></i>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-white">Send Confirmation SMS</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase leading-none">Automated receipt to customer</p>
+                  </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${sendSms ? 'bg-teal-500' : 'bg-slate-300'}`}>
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${sendSms ? 'left-7' : 'left-1'}`}></div>
+                </div>
+              </div>
+
               <button type="submit" disabled={isProcessing} className={`w-full py-6 sm:py-8 rounded-[32px] sm:rounded-[40px] font-black uppercase tracking-[5px] sm:tracking-[10px] shadow-2xl transition-all ${isProcessing ? 'bg-slate-400' : 'bg-[#0D9488] text-white border-b-4 sm:border-b-8 border-teal-900 shadow-teal-500/30'}`}>{isProcessing ? 'COMMITING...' : 'COMMIT PAYMENT'}</button>
            </form>
         </div>

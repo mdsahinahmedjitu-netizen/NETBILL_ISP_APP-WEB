@@ -3,7 +3,7 @@ import { db } from '../firebaseConfig';
 import { supabase } from '../supabaseClient';
 import { doc, onSnapshot, getDocs, collection } from 'firebase/firestore';
 
-const Settings = ({ store, t, lang }) => {
+const Settings = ({ store, t, lang, setActivePage }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [migStatus, setMigStatus] = useState('');
@@ -11,7 +11,7 @@ const Settings = ({ store, t, lang }) => {
   const [settings, setSettings] = useState({
     id: 1,
     companyName: 'NetBill ISP', companyAddress: '', companyPhone: '', monthlyTarget: 0,
-    smsApiUrl: '', smsApiKey: '', smsSenderId: '', apiMode: 'Production',
+    smsApiUrl: '', smsApiKey: '', smsSenderId: '', isAutoSmsEnabled: false, apiMode: 'Production',
     bkashAppKey: '', bkashAppSecret: '', bkashUsername: '', bkashPassword: '',
     nagadMerchantId: '', nagadMobile: '', rocketMerchant: '',
     rolePermissions: {
@@ -84,6 +84,7 @@ const Settings = ({ store, t, lang }) => {
             personalNagadNo: data.personal_nagad_no || '',
             billingDay: data.billing_day || 1,
             autoDisableDays: data.auto_disable_days || 10,
+            isAutoSmsEnabled: data.is_auto_sms_enabled === true,
             rolePermissions: data.role_permissions || settings.rolePermissions
           });
         }
@@ -105,6 +106,7 @@ const Settings = ({ store, t, lang }) => {
         sms_api_url: settings.smsApiUrl,
         sms_api_key: settings.smsApiKey,
         sms_sender_id: settings.smsSenderId,
+        is_auto_sms_enabled: settings.isAutoSmsEnabled,
         personal_bkash_no: settings.personalBkashNo,
         personal_nagad_no: settings.personalNagadNo,
         billing_day: settings.billingDay,
@@ -113,8 +115,20 @@ const Settings = ({ store, t, lang }) => {
       };
 
       const { error } = await supabase.from('settings').upsert(payload);
-      if (error) throw error;
-      alert("Settings Saved Successfully in Supabase!");
+
+      if (error && error.message.includes('is_auto_sms_enabled')) {
+         // Fallback: Save without the missing column
+         delete payload.is_auto_sms_enabled;
+         const { error: secondError } = await supabase.from('settings').upsert(payload);
+         if (secondError) throw secondError;
+         alert("Settings saved partially! Note: 'is_auto_sms_enabled' column is missing in your Supabase 'settings' table. Please add it (Boolean) to enable this feature.");
+      } else if (error) {
+         throw error;
+      } else {
+         alert("Settings Saved Successfully in Supabase!");
+      }
+
+      window.location.reload();
     } catch (error) {
       console.error(error);
       alert("Save failed: " + error.message);
@@ -192,9 +206,14 @@ const Settings = ({ store, t, lang }) => {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter transition-all">
       <div className="flex justify-between items-end">
-        <div className="space-y-2">
-          <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">{t.settings_title}</h3>
-          <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">{t.master_control_panel}</p>
+        <div className="flex items-center space-x-6">
+           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
+              <i className="fas fa-arrow-left"></i>
+           </button>
+           <div className="space-y-2">
+              <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">{t.settings_title}</h3>
+              <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">{t.master_control_panel}</p>
+           </div>
         </div>
         <div className="bg-rose-50 dark:bg-rose-900/20 p-6 rounded-[32px] border-2 border-rose-100 dark:border-rose-800 space-y-4 text-center">
            <p className="text-[10px] text-rose-600 font-bold tracking-widest uppercase">{t.data_migration}</p>
@@ -221,8 +240,31 @@ const Settings = ({ store, t, lang }) => {
                </div>
             </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-8 xl:col-span-2">
-           <div className="bg-indigo-600 text-white p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-[3px]">{t.sms_targets}</div>
+        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border-2 border-slate-100 dark:border-slate-700 space-y-8 xl:col-span-2">
+           <div className="flex flex-col md:flex-row justify-between items-center bg-indigo-600 text-white p-8 rounded-3xl gap-6">
+              <div className="flex items-center space-x-4">
+                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl"><i className="fas fa-robot"></i></div>
+                 <div className="space-y-1">
+                    <h3 className="text-2xl font-black uppercase tracking-tight">{t.sms_targets}</h3>
+                    <p className="text-[10px] opacity-70 font-bold tracking-[2px]">AUTOMATED NOTIFICATION ENGINE</p>
+                 </div>
+              </div>
+
+              <div className="flex items-center space-x-6 bg-black/20 p-4 rounded-2xl border border-white/10">
+                 <div className="text-right">
+                    <p className="text-[10px] font-black opacity-60">SYSTEM STATUS</p>
+                    <p className={`text-sm font-black ${settings.isAutoSmsEnabled ? 'text-emerald-400' : 'text-rose-400'}`}>
+                       {settings.isAutoSmsEnabled ? 'AUTO SMS IS ACTIVE' : 'AUTO SMS IS DISABLED'}
+                    </p>
+                 </div>
+                 <div
+                    onClick={() => setSettings({...settings, isAutoSmsEnabled: !settings.isAutoSmsEnabled})}
+                    className={`w-16 h-8 rounded-full relative cursor-pointer transition-all duration-300 ${settings.isAutoSmsEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                 >
+                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.isAutoSmsEnabled ? 'left-9' : 'left-1'}`}></div>
+                 </div>
+              </div>
+           </div>
            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               <div className="space-y-2"><label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">{t.target_label}</label><input type="number" value={settings.monthlyTarget} onChange={e => setSettings({...settings, monthlyTarget: parseFloat(e.target.value) || 0})} className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-4xl text-teal-600 w-full" /></div>
               <div className="md:col-span-1">

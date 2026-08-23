@@ -38,6 +38,19 @@ fun SupportTicketsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // Back Button Row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = IspAmber)
+            }
+        }
+
         // Header
         Column(
             modifier = Modifier
