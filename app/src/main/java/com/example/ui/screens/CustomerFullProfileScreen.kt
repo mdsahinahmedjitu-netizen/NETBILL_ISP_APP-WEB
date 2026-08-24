@@ -1,10 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,13 +15,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.entity.CustomerEntity
 import com.example.viewmodel.MainViewModel
 import com.example.ui.theme.*
 
@@ -32,7 +27,7 @@ import com.example.ui.theme.*
 fun CustomerFullProfileScreen(
     viewModel: MainViewModel,
     customerId: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val customers by viewModel.customersList.collectAsState()
     val customer = customers.find { it.id == customerId }
@@ -116,7 +111,7 @@ fun CustomerFullProfileScreen(
                 InfoBlock(label = "Primary Mobile", value = customer.mobile, icon = Icons.Default.Phone, color = EmeraldSuccess, modifier = Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                InfoBlock(label = "PPPoE Username", value = customer.pppoeUsername, icon = Icons.Default.SettingsInputComponent, color = Color(0xFF2563EB), modifier = Modifier.weight(1f))
+                InfoBlock(label = "PPPoE Username", value = customer.pppoeUsername.lowercase(), icon = Icons.Default.SettingsInputComponent, color = Color(0xFF2563EB), modifier = Modifier.weight(1f))
                 InfoBlock(label = "PPPoE Password", value = customer.pppoePassword, icon = Icons.Default.Key, color = Color.Red, modifier = Modifier.weight(1f))
             }
             InfoBlock(label = "Permanent Address", value = customer.address, icon = Icons.Default.LocationOn, color = Color.Red)

@@ -73,15 +73,37 @@ function App() {
   const handleQuickDateUpdate = async () => {
     if (!quickDateCust) return;
     try {
-      const { error } = await supabase
-        .from('customers')
-        .update({
-          expire_date: quickDates.expireDate,
-          request_date: quickDates.requestDate
-        })
-        .eq('id', quickDateCust.id);
+      const updates = {
+        expire_date: quickDates.expireDate,
+        request_date: quickDates.requestDate
+      };
 
+      // --- AUTO RE-ACTIVATE LOGIC ---
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const reqDate = quickDates.requestDate ? new Date(quickDates.requestDate) : null;
+      const isFutureRequest = reqDate && reqDate >= now;
+
+      let shouldActivate = false;
+      if ((quickDateCust.status === 'Suspended' || quickDateCust.status === 'Expired') && isFutureRequest) {
+          updates.status = 'Active';
+          shouldActivate = true;
+      }
+
+      const { error } = await supabase.from('customers').update(updates).eq('id', quickDateCust.id);
       if (error) throw error;
+
+      // Sync to MikroTik if activated
+      if (shouldActivate) {
+          const rId = quickDateCust.routerId || quickDateCust.router_id;
+          const pUser = quickDateCust.pppoeUsername || quickDateCust.pppoe_username;
+          if (rId && pUser) {
+              supabase.functions.invoke('mikrotik-manager', {
+                body: { action: 'set_status', routerId: rId, payload: { username: pUser, active: true } }
+              });
+          }
+      }
+
       alert("Dates Updated Successfully!");
       setShowQuickDateModal(false);
     } catch (e) {
@@ -214,6 +236,71 @@ function App() {
     return () => { channels.forEach(channel => supabase.removeChannel(channel)); };
   }, [session]);
 
+  // AUTO-SUSPEND EXPIRED CUSTOMERS ENGINE
+  useEffect(() => {
+    if (!session || session.role !== 'admin' || store.customers.length === 0) return;
+
+    const checkExpiries = async () => {
+      console.log("Running Intelligent Auto-Expiry Engine...");
+
+      const parseDate = (dStr) => {
+        if (!dStr) return null;
+        if (dStr.includes('-') && dStr.split('-')[0].length === 4) return new Date(dStr);
+        const parts = dStr.split('-');
+        if (parts.length === 3) {
+            const months = { "Jan":0,"Feb":1,"Mar":2,"Apr":3,"May":4,"Jun":5,"Jul":6,"Aug":7,"Sep":8,"Oct":9,"Nov":10,"Dec":11 };
+            return new Date(parts[2], months[parts[1]], parts[0]);
+        }
+        return null;
+      };
+
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Today start
+
+      for (const cust of store.customers) {
+        const eDateStr = cust.expireDate || cust.expire_date;
+        const rDateStr = cust.requestDate || cust.request_date;
+        const currentStatus = cust.status || 'Active';
+
+        const expireObj = parseDate(eDateStr);
+        const requestObj = parseDate(rDateStr);
+
+        // --- LOGIC A: SUSPEND IF BOTH DATES EXPIRED ---
+        const isPastExpire = expireObj && expireObj < now;
+        const isPastRequest = !requestObj || requestObj < now;
+
+        if (currentStatus === 'Active' && isPastExpire && isPastRequest) {
+            console.log(`Suspending (Expired): ${cust.name}`);
+            await updateStatus(cust, 'Suspended', false);
+        }
+
+        // --- LOGIC B: AUTO-ENABLE IF REQUEST DATE IS IN FUTURE ---
+        const isFutureRequest = requestObj && requestObj >= now;
+        if ((currentStatus === 'Suspended' || currentStatus === 'Expired') && isFutureRequest) {
+            console.log(`Re-activating (On Request): ${cust.name}`);
+            await updateStatus(cust, 'Active', true);
+        }
+      }
+    };
+
+    const updateStatus = async (cust, nextStatus, active) => {
+        const rId = cust.routerId || cust.router_id;
+        const pUser = cust.pppoeUsername || cust.pppoe_username;
+
+        await supabase.from('customers').update({ status: nextStatus }).eq('id', cust.id);
+        if (pUser && rId) {
+          supabase.functions.invoke('mikrotik-manager', {
+            body: { action: 'set_status', routerId: rId, payload: { username: pUser, active: active } }
+          });
+        }
+    };
+
+    // Run once after initial load (5s), then every 1 hour
+    const timeout = setTimeout(checkExpiries, 5000);
+    const interval = setInterval(checkExpiries, 60 * 60 * 1000);
+    return () => { clearTimeout(timeout); clearInterval(interval); };
+  }, [session, store.customers.length]);
+
   // MIKROTIK GLOBAL ONLINE POLLING ENGINE
   useEffect(() => {
     if (!session || store.mikrotikRouters.length === 0) return;
@@ -247,7 +334,7 @@ function App() {
       const apiKey = store.settings?.smsApiKey || store.settings?.sms_api_key;
       if (!apiKey) return;
       try {
-        const response = await fetch(`http://bulksmsbd.net/api/getBalanceApi?api_key=${apiKey}`);
+        const response = await fetch(`https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?action=balance&apikey=${apiKey}`);
         const data = await response.json();
         if (data && data.balance) {
           setStore(prev => ({ ...prev, smsBalance: `৳ ${data.balance}` }));
@@ -425,7 +512,7 @@ function App() {
 
                             const isUnicode = /[\u0980-\u09FF]/.test(msg);
                             const msgType = isUnicode ? "unicode" : "text";
-                            const finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(msg)}`;
+                            const finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(msg)}&type=${msgType}`;
 
                             const img = new Image();
                             img.src = finalUrl;

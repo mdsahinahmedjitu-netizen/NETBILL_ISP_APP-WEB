@@ -9,12 +9,12 @@ plugins {
 
 android {
   namespace = "com.example"
-  compileSdk = libs.versions.compileSdk.get().toInt()
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "com.aistudio.netbillisp.app"
     minSdk = 24
-    targetSdk = libs.versions.targetSdk.get().toInt()
+    targetSdk = 37
     versionCode = 1
     versionName = "1.0"
 
@@ -96,6 +96,7 @@ dependencies {
 
   // Supabase Dependencies
   implementation(libs.supabase.postgrest)
+  implementation(libs.supabase.functions)
   implementation(libs.supabase.realtime)
   implementation(libs.supabase.auth)
   implementation(libs.supabase.storage)

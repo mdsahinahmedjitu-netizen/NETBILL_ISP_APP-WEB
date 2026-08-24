@@ -56,8 +56,8 @@ const SmsSetup = ({ store, t, setActivePage }) => {
         const senderId = (settings.smsSenderId || "").trim();
         const msgType = isUnicode ? "unicode" : "text";
 
-        // BulkSMSBD Standard URL
-        let finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(message)}`;
+        // Use Supabase Proxy (HTTPS) to bypass Mixed Content and CORS
+        let finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(message)}&type=${msgType}`;
 
         console.log("SMS Final URL:", finalUrl);
 

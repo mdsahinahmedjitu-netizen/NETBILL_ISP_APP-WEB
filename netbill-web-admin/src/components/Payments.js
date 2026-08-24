@@ -62,11 +62,14 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
   const [editAmount, setEditEditAmount] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Expiry Extension States
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [extensionData, setExtensionData] = useState({
     customerId: '', currentExpire: '', nextExpire: '', amount: 0, customerName: '', newDue: 0, newAdvance: 0
   });
+
+  // WhatsApp States
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [lastReceiptInfo, setLastReceiptInfo] = useState(null);
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return '';
@@ -166,41 +169,18 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
       };
 
       let currentExpireDateStr = customer.expireDate || customer.expire_date;
-      let currentExpireObj = parseAnyDate(currentExpireDateStr);
-      let currentRequestObj = parseAnyDate(customer.requestDate || customer.request_date);
-      let now = new Date();
-
-      const isDisconnected = (currentExpireObj && currentExpireObj < now) &&
-                            (!currentRequestObj || currentRequestObj < now);
-
-      if (newDue <= 0 && isDisconnected) {
-          const nextMonth = new Date();
-          nextMonth.setMonth(nextMonth.getMonth() + 1);
-          const monthsArr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          const defaultNextExpire = `${nextMonth.getDate().toString().padStart(2, '0')}-${monthsArr[nextMonth.getMonth()]}-${nextMonth.getFullYear()}`;
-
-          setExtensionData({
-            customerId: selectedCustomerId,
-            customerName: customer.name,
-            currentExpire: currentExpireDateStr || 'N/A',
-            nextExpire: defaultNextExpire,
-            amount: payAmt,
-            newDue, newAdvance
-          });
-          setShowExtensionModal(true);
-          setIsProcessing(false);
-          return;
-      }
-
       let nextExpireDate = currentExpireDateStr;
+
       if (newDue <= 0 && currentExpireDateStr) {
-          let baseDate = now;
-          if (currentExpireObj && (currentExpireObj > now || (currentRequestObj && currentRequestObj > now))) {
-              baseDate = currentExpireObj;
+          const prevExpire = parseAnyDate(currentExpireDateStr);
+          if (prevExpire) {
+              // Always extend by exactly 1 month from the OLD expiry date
+              const nextMonth = new Date(prevExpire);
+              nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+              const monthsArr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+              nextExpireDate = `${nextMonth.getDate().toString().padStart(2, '0')}-${monthsArr[nextMonth.getMonth()]}-${nextMonth.getFullYear()}`;
           }
-          baseDate.setMonth(baseDate.getMonth() + 1);
-          const monthsArr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          nextExpireDate = `${baseDate.getDate().toString().padStart(2, '0')}-${monthsArr[baseDate.getMonth()]}-${baseDate.getFullYear()}`;
       }
 
       // ROLE BASED REDIRECTION: Staff MUST submit for approval
@@ -298,7 +278,7 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
           else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
           else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
 
-          let finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(msg)}`;
+          let finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(msg)}&type=${msgType}`;
 
           const img = new Image();
           img.src = finalUrl;
@@ -322,10 +302,35 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
           });
       }
 
-      alert(t.success_payment);
+      setLastReceiptInfo({
+          name: customer.name,
+          mobile: customer.mobile,
+          amount: payAmt,
+          billingMonth: billingMonth,
+          due: Math.floor(newDue),
+          receiptNo: pmtErr ? '---' : newPmt.receiptNo
+      });
+      setShowWhatsAppModal(true);
+
+       // alert(t.success_payment);
       setAmount(''); setSelectedCustomerId(''); setSearchTerm(''); setShowExtensionModal(false);
     } catch (e) { alert("Finalizing payment failed!"); }
     finally { setIsProcessing(false); }
+  };
+
+  const sendWhatsApp = () => {
+    if (!lastReceiptInfo) return;
+    const { name, mobile, amount, billingMonth, due } = lastReceiptInfo;
+
+    let cleanMobile = mobile.replace(/[^0-9]/g, "");
+    if (cleanMobile.startsWith('0')) { cleanMobile = '88' + cleanMobile; }
+    else if (cleanMobile.length === 10) { cleanMobile = '880' + cleanMobile; }
+    else if (!cleanMobile.startsWith('88')) { cleanMobile = '88' + cleanMobile; }
+
+    const message = `পেমেন্ট রিসিট - NetBill ISP\n--------------------------\nগ্রাহকের নাম: ${name}\nবিল মাস: ${billingMonth}\nপরিশোধিত টাকা: ৳ ${amount}\nবর্তমান বকেয়া: ৳ ${due}\n--------------------------\nআপনার পেমেন্টটি সফলভাবে গ্রহণ করা হয়েছে। ধন্যবাদ আমাদের সাথে থাকার জন্য।`;
+    const waUrl = `https://wa.me/${cleanMobile}?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+    setShowWhatsAppModal(false);
   };
 
   const openEditModal = (p) => { setEditingPayment(p); setEditEditAmount(p.amount.toString()); setShowEditModal(true); };
@@ -469,6 +474,54 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
                   className="text-slate-400 text-xs font-black tracking-widest hover:text-rose-500"
                 >
                   CANCEL TRANSACTION
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* WHATSAPP RECEIPT MODAL */}
+      {showWhatsAppModal && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[6000] flex items-center justify-center p-6 font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-lg p-12 shadow-2xl border-4 border-emerald-500/20 space-y-10 relative overflow-hidden text-center">
+             <div className="absolute top-0 left-0 w-full h-4 bg-emerald-500"></div>
+
+             <div className="space-y-4">
+                <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-5xl shadow-inner animate-bounce">
+                    <i className="fas fa-check-circle"></i>
+                </div>
+                <h3 className="text-4xl font-black tracking-tighter text-slate-800 dark:text-white">Payment Successful!</h3>
+                <p className="text-xs text-slate-400 font-bold tracking-[3px]">Collection has been recorded in Cloud</p>
+             </div>
+
+             <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-[40px] space-y-4 border-2 border-slate-100 dark:border-slate-800">
+                <div className="flex justify-between items-center text-sm border-b pb-4">
+                    <span className="text-slate-400 uppercase tracking-widest">Client:</span>
+                    <span className="text-slate-800 dark:text-white">{lastReceiptInfo?.name}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm border-b pb-4">
+                    <span className="text-slate-400 uppercase tracking-widest">Amount:</span>
+                    <span className="text-emerald-600 text-xl">৳ {lastReceiptInfo?.amount}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400 uppercase tracking-widest">New Due:</span>
+                    <span className="text-rose-600 text-xl">৳ {lastReceiptInfo?.due}</span>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 gap-4">
+                <button
+                   onClick={sendWhatsApp}
+                   className="w-full bg-[#25D366] text-white py-8 rounded-[40px] font-black uppercase tracking-[5px] shadow-[0_20px_40px_rgba(37,211,102,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center space-x-4 border-b-8 border-[#1DA851]"
+                >
+                   <i className="fab fa-whatsapp text-3xl"></i>
+                   <span>Send WhatsApp Receipt</span>
+                </button>
+                <button
+                   onClick={() => setShowWhatsAppModal(false)}
+                   className="py-4 text-slate-400 text-[10px] font-black tracking-[4px] hover:text-slate-600 transition-colors"
+                >
+                   SKIP & CLOSE
                 </button>
              </div>
           </div>

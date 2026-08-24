@@ -9,12 +9,15 @@ import com.example.data.ISPRepository
 import com.example.data.entity.*
 import com.example.localization.AppLanguage
 import android.util.Log
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.content.edit
+import androidx.core.net.toUri
+import kotlin.time.Duration.Companion.seconds
 
 data class DashboardStats(
     val totalCustomers: Int = 0,
@@ -27,7 +30,7 @@ data class DashboardStats(
     val expiredCustomers: Int = 0,
     val inactiveCustomers: Int = 0,
     val newCustomers: Int = 0,
-    val bandwidthUsageMbps: Double = 1161.2
+    val bandwidthUsageMbps: Double = 1161.2,
 )
 
 data class CustomerFilterState(
@@ -89,7 +92,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val customersList = repository.allCustomers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val packagesList = combine(repository.allPackages, customersList) { pkgs, custs ->
         pkgs.map { pkg ->
-            pkg.apply { activeUserCount = custs.count { it.packageName == pkg.name && it.status == "Active" } }
+            pkg.apply { activeUserCount = custs.count { (it.packageName == pkg.name) && (it.status == "Active") } }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val invoicesList = repository.allInvoices.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -115,7 +118,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val staffList = repository.allStaff.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val staffPayouts = repository.allPayouts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val paymentRequestsList = repository.allPaymentRequests.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val paymentAllocations = repository.allAllocations.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val inventoryList = repository.inventoryDao.getAllInventory().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val supportTickets = repository.supportTicketDao.getAllTickets().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -138,11 +140,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         try {
             val json = Json { ignoreUnknownKeys = true }
-            val allPermissionsMap: Map<String, UserRolePermissions> = if (!settings?.rolePermissionsJson.isNullOrBlank()) {
-                json.decodeFromString(settings.rolePermissionsJson ?: "")
-            } else {
-                emptyMap()
-            }
+            val allPermissionsMap: Map<String, UserRolePermissions> = settings?.rolePermissionsJson?.let {
+                if (it.isNotBlank()) json.decodeFromString(it) else null
+            } ?: emptyMap()
             
             // Normalize role name (Web uses Capitalized roles like 'Collector')
             val staffRole = user.role.replaceFirstChar { it.uppercase() }
@@ -154,8 +154,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserRolePermissions())
 
     val currentCustomer: StateFlow<CustomerEntity?> = combine(_loggedInCustomer, customersList) { loggedIn, list ->
-        if (loggedIn == null) null
-        else list.find { it.id == loggedIn.id } ?: loggedIn
+        loggedIn?.let { current -> list.find { it.id == current.id } ?: current }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val filteredCustomers: StateFlow<List<CustomerEntity>> = combine(customersList, _filterState, currentUser) { list, filter, user ->
@@ -218,6 +217,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             // repository.seedDatabaseIfEmpty() // Use if needed
+        }
+
+        // Auto-Check for Expired Customers on App Start
+        viewModelScope.launch {
+            delay(5.seconds) // Wait for sync to stabilize
+            val suspendedCount = repository.checkAndSuspendExpiredCustomers()
+            if (suspendedCount > 0) {
+                showToast("Auto-Suspended $suspendedCount expired subscribers.")
+            }
         }
         
         // Start sync when a user or customer is logged in
@@ -336,18 +344,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addOrUpdateCustomer(customer: CustomerEntity, discountAmount: Double = 0.0, billChoice: String = "Standard") {
         viewModelScope.launch {
-            val isNew = !customersList.value.any { it.id == customer.id }
+            // Ensure PPPoE Username is always lowercase for MikroTik compatibility
+            val normalizedCustomer = customer.copy(pppoeUsername = customer.pppoeUsername.trim().lowercase())
+            val isNew = !customersList.value.any { it.id == normalizedCustomer.id }
             
             if (isNew) {
                 // 1. Initial due logic based on your rules (Only for NEW enrollment)
                 var finalCustomer: CustomerEntity
-                val baseDue = customer.currentDue
-                val netBill = (customer.monthlyBill - discountAmount).coerceAtLeast(0.0)
+                val baseDue = normalizedCustomer.currentDue
+                val netBill = (normalizedCustomer.monthlyBill - discountAmount).coerceAtLeast(0.0)
                 
-                if (customer.joinDayOfMonth <= 20 || billChoice == "CurrentMonth") {
-                    finalCustomer = customer.copy(currentDue = baseDue + netBill)
+                if (normalizedCustomer.joinDayOfMonth <= 20 || billChoice == "CurrentMonth") {
+                    finalCustomer = normalizedCustomer.copy(currentDue = baseDue + netBill)
                 } else {
-                    finalCustomer = customer.copy(currentDue = baseDue)
+                    finalCustomer = normalizedCustomer.copy(currentDue = baseDue)
                 }
 
                 repository.insertCustomer(finalCustomer)
@@ -379,12 +389,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } else {
                 // Just update for EXISTING customer
-                repository.updateCustomer(customer)
+                repository.updateCustomer(normalizedCustomer)
             }
 
-            // 3. MikroTik Sync
-            if (customer.status == "Active" && customer.pppoeUsername.isNotBlank()) {
-                repository.syncCustomerToMikroTik(customer.id)
+            // 3. MikroTik Sync (Sync regardless of status to ensure Disable works)
+            if (normalizedCustomer.pppoeUsername.isNotBlank()) {
+                repository.syncCustomerToMikroTik(normalizedCustomer.id)
             }
             
             showToast("Customer saved.")
@@ -480,13 +490,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val dateStr = date ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             repository.insertExpense(ExpenseEntity(id = UUID.randomUUID().toString(), title = title, category = category, amount = amount, expenseDate = dateStr, expenseBy = spentBy ?: currentUser.value?.name ?: "Admin", notes = notes))
             showToast("Expense recorded.")
-        }
-    }
-
-    fun updateExpense(expense: ExpenseEntity) {
-        viewModelScope.launch {
-            repository.updateExpense(expense)
-            showToast("Expense updated.")
         }
     }
 
@@ -707,7 +710,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val finalUrl = repository.sendAndLogSms(log.copy(status = "Pending")) 
             if (finalUrl.isNotBlank()) {
                 try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(finalUrl))
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, finalUrl.toUri())
                     intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     getApplication<Application>().startActivity(intent)
                 } catch (e: Exception) {
@@ -765,7 +768,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Debug Feature: Open the URL in browser
             if (finalUrl.isNotBlank()) {
                 try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(finalUrl))
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, finalUrl.toUri())
                     intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     getApplication<Application>().startActivity(intent)
                 } catch (e: Exception) {
@@ -879,7 +882,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Debug Feature: Open the URL in browser to see gateway response
             if (finalUrl.isNotBlank()) {
                 try {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(finalUrl))
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, finalUrl.toUri())
                     intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     getApplication<Application>().startActivity(intent)
                     showToast("Opening Browser for Debugging...")

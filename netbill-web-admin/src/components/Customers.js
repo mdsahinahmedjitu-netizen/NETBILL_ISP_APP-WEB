@@ -42,6 +42,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     zone: 'All',
     status: 'All',
     plan: 'All',
+    expiryUpTo: '',
     hideZeroDue: false,
     hideInactive: false
   });
@@ -124,11 +125,35 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
 
     const collectorMatch = filters.collector === 'All' || c.assignedStaffId === filters.collector;
     const zoneMatch = filters.zone === 'All' || c.zone === filters.zone;
-    const statusMatch = filters.status === 'All' || c.status === filters.status;
+    const statusMatch = filters.status === 'All' ||
+                       (filters.status === 'Expired' ? (c.status === 'Expired' || c.status === 'Suspended') : c.status === filters.status);
     const planMatch = filters.plan === 'All' || c.packageName === filters.plan;
     const currentDue = parseFloat(c.currentDue) || 0;
     const dueMatch = !filters.hideZeroDue || (currentDue >= 1);
     const inactiveMatch = !filters.hideInactive || (c.status === 'Active');
+
+    // Expiry Date Filter Logic
+    let expiryMatch = true;
+    if (filters.expiryUpTo) {
+        const cDateStr = c.expireDate || c.expire_date;
+        if (cDateStr) {
+            const parseDate = (d) => {
+                if (d.includes('-') && d.split('-')[0].length === 4) return new Date(d);
+                const p = d.split('-');
+                if (p.length === 3) {
+                    const m = { "Jan":0,"Feb":1,"Mar":2,"Apr":3,"May":4,"Jun":5,"Jul":6,"Aug":7,"Sep":8,"Oct":9,"Nov":10,"Dec":11 };
+                    return new Date(p[2], m[p[1]], p[0]);
+                }
+                return null;
+            };
+            const customerExpire = parseDate(cDateStr);
+            const filterUpTo = new Date(filters.expiryUpTo);
+            filterUpTo.setHours(23, 59, 59, 999);
+            expiryMatch = customerExpire && customerExpire <= filterUpTo;
+        } else {
+            expiryMatch = false; // If no expiry date, don't show when filtering by date
+        }
+    }
 
     // Role-Based Isolation: Collector Staff only see their assigned customers
     if (session?.role === 'staff') {
@@ -136,7 +161,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         if (!isAssigned) return false;
     }
 
-    return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch && inactiveMatch;
+    return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch && inactiveMatch && expiryMatch;
   });
 
   const requestSort = (key) => {
@@ -198,7 +223,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     const rows = targets.map((c, idx) => {
       const currentMonth = new Date().toLocaleDateString('en-CA').substring(0, 7);
       const paidThisMonth = store.payments.filter(p => p.customerId === c.id && p.paymentDate?.startsWith(currentMonth)).reduce((s, p) => s + (p.amount || 0), 0);
-      return [c.customerCode, idx + 1, c.name, c.pppoeUsername, c.zone, c.packageName, c.monthlyBill, Math.floor(paidThisMonth), Math.floor(c.currentDue), c.joinDate, c.expireDate, c.assignedStaffId, c.status];
+      return [c.customerCode, idx + 1, c.name, (c.pppoeUsername || '').toLowerCase(), c.zone, c.packageName, c.monthlyBill, Math.floor(paidThisMonth), Math.floor(c.currentDue), c.joinDate, c.expireDate, c.assignedStaffId, c.status];
     });
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const link = document.createElement("a");
@@ -219,7 +244,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         ${visibleColumns.id ? `<td>${c.customerCode || ''}</td>` : ''}
         ${visibleColumns.sl ? `<td>${idx + 1}</td>` : ''}
         ${visibleColumns.customer ? `<td><span style="font-size: 14px; font-weight: normal; display: block; margin-bottom: 3px;">${c.name}</span><span style="font-size: 16px; font-weight: normal; display: block;">${c.mobile?.startsWith('88') ? c.mobile.substring(2) : (c.mobile || '')}</span></td>` : ''}
-        ${visibleColumns.mikrotik ? `<td>${c.pppoeUsername || ''}</td>` : ''}
+        ${visibleColumns.mikrotik ? `<td>${(c.pppoeUsername || '').toLowerCase()}</td>` : ''}
         ${visibleColumns.zone ? `<td>${c.zone || ''}</td>` : ''}
         ${visibleColumns.plan ? `<td>${c.packageName || ''}</td>` : ''}
         ${visibleColumns.bill ? `<td>৳ ${c.monthlyBill}</td><td>৳ ${Math.floor(paidThisMonth)}</td><td style="color:red; font-weight:bold;">৳ ${Math.floor(c.currentDue)}</td>` : ''}
@@ -419,7 +444,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
             const currentApiKey = (apiKey || "").trim();
             const currentSenderId = (senderId || "").trim();
 
-            let finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${currentApiKey}&type=${msgType}&number=${cleanMobile}&senderid=${currentSenderId}&message=${encodeURIComponent(cleanMessage)}`;
+            let finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${currentApiKey}&callerID=${currentSenderId}&number=${cleanMobile}&message=${encodeURIComponent(cleanMessage)}&type=${msgType}`;
 
             const img = new Image();
             img.src = finalUrl;
@@ -536,15 +561,37 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
   const handleQuickDateUpdate = async () => {
     if (!custToChangeDate) return;
     try {
-      const { error } = await supabase
-        .from('customers')
-        .update({
-          expire_date: newDates.expireDate || null,
-          request_date: newDates.requestDate || null
-        })
-        .eq('id', custToChangeDate.id);
+      const updates = {
+        expire_date: newDates.expireDate || null,
+        request_date: newDates.requestDate || null
+      };
 
+      // --- AUTO RE-ACTIVATE LOGIC ---
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const reqDate = newDates.requestDate ? new Date(newDates.requestDate) : null;
+      const isFutureRequest = reqDate && reqDate >= now;
+
+      let shouldActivate = false;
+      if ((custToChangeDate.status === 'Suspended' || custToChangeDate.status === 'Expired') && isFutureRequest) {
+          updates.status = 'Active';
+          shouldActivate = true;
+      }
+
+      const { error } = await supabase.from('customers').update(updates).eq('id', custToChangeDate.id);
       if (error) throw error;
+
+      // Sync to MikroTik if activated
+      if (shouldActivate && (custToChangeDate.pppoeUsername || custToChangeDate.pppoe_username) && (custToChangeDate.routerId || custToChangeDate.router_id)) {
+          supabase.functions.invoke('mikrotik-manager', {
+            body: {
+                action: 'set_status',
+                routerId: custToChangeDate.routerId || custToChangeDate.router_id,
+                payload: { username: custToChangeDate.pppoeUsername || custToChangeDate.pppoe_username, active: true }
+            }
+          });
+      }
+
       alert("Dates Updated Successfully!");
       setShowDateChangeModal(false);
       setCustToChangeDate(null);
@@ -560,6 +607,37 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         alert("Please select an Assigned Collector Staff!");
         return;
     }
+
+    const pppoeUser = formData.pppoeUsername.trim().toLowerCase();
+    const routerId = formData.routerId;
+
+    // --- DUPLICATE CHECK FOR NEW ENROLLMENT ---
+    if (!isEditing && pppoeUser && routerId) {
+        // 1. Check if exists in Software Database
+        const existsInSoftware = store.customers.some(c => (c.pppoeUsername || c.pppoe_username || '').toLowerCase() === pppoeUser);
+        if (existsInSoftware) {
+            alert("এই PPPoE ইউজারনেমটি ইতি মধ্যেই বিলিং সফটওয়্যারে আছে! অনুগ্রহ করে অন্য নাম ব্যবহার করুন।");
+            return;
+        }
+
+        // 2. Check if exists in MikroTik Router
+        try {
+            console.log("Checking duplicate in MikroTik for:", pppoeUser);
+            const { data: invokeResult } = await supabase.functions.invoke('mikrotik-manager', {
+                body: { action: 'check_user', routerId: routerId, payload: { username: pppoeUser } }
+            });
+
+            console.log("MikroTik Check Result:", invokeResult);
+
+            if (invokeResult?.exists) {
+                const choice = window.confirm(`"${invokeResult.matchedName || pppoeUser}" নামটা ইতি মধ্যেই মাইক্র্যোটিকে আছে! আপনি কি এই নামের উপরেই বিলিং সফটওয়্যারে গ্রাহক তৈরি করতে চান?`);
+                if (!choice) return; // User cancelled
+            }
+        } catch (err) {
+            console.error("MikroTik duplicate check error:", err);
+        }
+    }
+
     try {
       const dbData = {
         customer_code: formData.customerCode,
@@ -572,9 +650,9 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         box_id: formData.boxId,
         package_name: formData.packageName,
         monthly_bill: parseFloat(formData.monthlyBill) || 0,
-        pppoe_username: formData.pppoeUsername,
+        pppoe_username: pppoeUser,
         pppoe_password: formData.pppoePassword,
-        router_id: formData.routerId,
+        router_id: routerId,
         billing_type: formData.billingType,
         payment_status: formData.paymentStatus,
         expire_date: formData.expireDate || null,
@@ -598,8 +676,9 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
 
         // MikroTik Sync for existing customer
         if (dbData.pppoe_username && dbData.router_id) {
+           console.log("Manual Edit Sync to MikroTik:", dbData.pppoe_username);
            supabase.functions.invoke('mikrotik-manager', {
-             body: { action: 'sync_customer', payload: { ...dbData, id: formData.id } }
+             body: { action: 'sync_customer', routerId: dbData.router_id, payload: dbData }
            });
         }
         alert("Updated!");
@@ -715,11 +794,24 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     const nextStatus = cust.status === 'Active' ? 'Inactive' : 'Active';
     const { error } = await supabase.from('customers').update({ status: nextStatus }).eq('id', cust.id);
 
-    if (!error && cust.pppoeUsername && cust.routerId) {
-       // Sync to MikroTik on status toggle
-       supabase.functions.invoke('mikrotik-manager', {
-         body: { action: 'set_status', payload: { username: cust.pppoeUsername, active: nextStatus === 'Active', routerId: cust.routerId } }
-       });
+    const pppoeUser = cust.pppoeUsername || cust.pppoe_username;
+    const rId = cust.routerId || cust.router_id;
+
+    if (!error) {
+       if (pppoeUser && rId && rId !== 'Select Router') {
+           console.log(`Sending command to MikroTik for: ${pppoeUser} on Router: ${rId}`);
+           const { data, error: funcErr } = await supabase.functions.invoke('mikrotik-manager', {
+             body: { action: 'set_status', routerId: rId, payload: { username: pppoeUser, active: nextStatus === 'Active' } }
+           });
+
+           if (data?.success) {
+               alert(`MikroTik: Customer ${nextStatus === 'Active' ? 'Enabled' : 'Disabled'} Successfully!`);
+           } else {
+               alert(`MikroTik Sync Failed: ${data?.error || 'Check router connection'}`);
+           }
+       } else {
+           alert(`Cannot sync to MikroTik: ${!pppoeUser ? 'PPPoE Username' : 'Router Selection'} is missing for ${cust.name}. Please EDIT the customer and select a router.`);
+       }
     }
     setActiveMenuId(null);
   };
@@ -810,7 +902,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                     {visibleColumns.id && <td className="p-3 text-slate-600 text-[10px] font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
                     {visibleColumns.sl && <td className="p-3 text-slate-400 text-[10px]">{idx + 1}</td>}
                     {visibleColumns.customer && <td className="p-3 text-left font-black leading-tight"><p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-base text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-1">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
-                    {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold">{c.pppoeUsername || '---'}</td>}
+                    {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold normal-case">{(c.pppoeUsername || '---').toLowerCase()}</td>}
                     {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
                     {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
                     {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => {
@@ -984,7 +1076,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
             <form onSubmit={handleSave} className="space-y-8 md:space-y-14">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
                 <Section title={t.router_zone_info} color="blue" bgColor="bg-blue-50 dark:bg-blue-900/10" borderColor="border-blue-100" shadowColor="shadow-blue-500/20">
-                  <Field label={t.mikrotik_router} value={formData.routerId} onChange={v => setFormData({...formData, routerId: v})} type="select" options={['MikroTik Core 01']} color="blue" />
+                  <Field label={t.mikrotik_router} value={formData.routerId} onChange={v => setFormData({...formData, routerId: v})} type="select" options={['Select Router', ...store.mikrotikRouters?.map(r => ({ label: r.name, value: r.id } || r.name))]} color="blue" />
                   <Field label={t.package} value={formData.packageName} onChange={v => setFormData({...formData, packageName: v})} type="select" options={['No Package', ...store.packages?.map(p => p.name)]} color="blue" />
 
                   <div className="space-y-3 uppercase font-black relative">
@@ -1025,7 +1117,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                   <Field label="Name *" value={formData.name} onChange={v => setFormData({...formData, name: v})} placeholder="Full name" color="indigo" />
                   <Field label="Mobile *" value={formData.mobile} onChange={v => setFormData({...formData, mobile: v})} placeholder="017xxxx" color="indigo" />
                   <Field label={t.alt_mobile} value={formData.altMobile} onChange={v => setFormData({...formData, altMobile: v})} placeholder="Mobile 2" color="indigo" />
-                  <Field label="PPPoE *" value={formData.pppoeUsername} onChange={v => setFormData({...formData, pppoeUsername: v})} placeholder="user@isp" color="indigo" />
+                  <Field label="PPPoE *" value={formData.pppoeUsername} onChange={v => setFormData({...formData, pppoeUsername: v.toLowerCase()})} placeholder="user@isp" color="indigo" />
                   <Field label="Pass *" value={formData.pppoePassword} onChange={v => setFormData({...formData, pppoePassword: v})} type="text" color="indigo" />
                   <Field label="ONU" value={formData.onuMac} onChange={v => setFormData({...formData, onuMac: v})} placeholder="MAC..." color="indigo" />
                 </Section>
@@ -1196,6 +1288,18 @@ const ActionModals = ({
                    options={['All', 'Active', 'Inactive', 'Expired']}
                    onChange={v => setFilters({...filters, status: v})}
                 />
+
+                <div className="space-y-3">
+                  <label className="text-[10px] text-slate-400 ml-2 tracking-[3px] font-black uppercase">Show Expiries Up To Date</label>
+                  <input
+                    type="date"
+                    value={filters.expiryUpTo}
+                    onChange={e => setFilters({...filters, expiryUpTo: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-black text-xs outline-none focus:ring-2 focus:ring-teal-500/20 uppercase shadow-inner cursor-pointer"
+                  />
+                  <p className="text-[8px] text-slate-400 ml-2 mt-1 uppercase italic">* তারিখ পর্যন্ত সব এক্সপায়ার্ড কাস্টমার দেখাবে</p>
+                </div>
+
                 <FilterSelect
                    label="Package Plan"
                    value={filters.plan}
@@ -1234,7 +1338,7 @@ const ActionModals = ({
 
              <div className="pt-10 space-y-4">
                 <button
-                   onClick={() => setFilters({collector: 'All', zone: 'All', status: 'All', plan: 'All', hideZeroDue: false, hideInactive: false})}
+                   onClick={() => setFilters({collector: 'All', zone: 'All', status: 'All', plan: 'All', expiryUpTo: '', hideZeroDue: false, hideInactive: false})}
                    className="w-full py-5 rounded-2xl border-2 border-slate-100 text-slate-400 font-black text-xs tracking-[4px] hover:bg-slate-50 transition-all"
                 >RESET FILTERS</button>
                 <button
@@ -1469,7 +1573,11 @@ const Field = ({ label, value, onChange, placeholder, type = 'text', options = [
     <label className="text-[10px] md:text-[12px] text-slate-600 dark:text-slate-300 ml-2 tracking-widest uppercase leading-none">{label}</label>
     {type === 'select' ? (
       <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className={`w-full bg-white dark:bg-slate-800 p-4 md:p-6 rounded-xl md:rounded-[24px] border-2 border-transparent focus:border-teal-500 text-xs md:text-sm font-black shadow-lg outline-none transition-all cursor-pointer`}>
-        {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        {options.map(opt => {
+            const label = typeof opt === 'object' ? opt.label : opt;
+            const val = typeof opt === 'object' ? opt.value : opt;
+            return <option key={val} value={val}>{label}</option>
+        })}
       </select>
     ) : type === 'radio' ? (
       <div className="flex flex-col space-y-3 md:space-y-4 bg-white dark:bg-slate-800 p-4 md:p-6 rounded-xl md:rounded-[24px] shadow-lg border-2 border-transparent">

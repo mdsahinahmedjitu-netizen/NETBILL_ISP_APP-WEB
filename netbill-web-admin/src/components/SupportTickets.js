@@ -90,7 +90,7 @@ const SupportTickets = ({ store, session, t, setActivePage }) => {
               const apiKey = (settings.smsApiKey || "").trim();
               const senderId = (settings.smsSenderId || "").trim();
 
-              const finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(msg)}`;
+              const finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(msg)}&type=${msgType}`;
 
               // Dispatch using Image ping (CORS-safe)
               const img = new Image();

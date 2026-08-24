@@ -9,7 +9,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.example.shared"
-        compileSdk = libs.versions.compileSdk.get().toInt()
+        compileSdk = 37
         minSdk = 24
 
         compilerOptions {

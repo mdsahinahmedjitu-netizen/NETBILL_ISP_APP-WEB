@@ -192,7 +192,7 @@ const Staff = ({ store, session, t, lang, setActivePage }) => {
           const isUnicode = /[\u0980-\u09FF]/.test(smsText);
           const msgType = isUnicode ? "unicode" : "text";
 
-          const finalUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=${msgType}&number=${cleanMobile}&senderid=${senderId}&message=${encodeURIComponent(smsText)}`;
+          const finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(smsText)}&type=${msgType}`;
 
           const img = new Image();
           img.src = finalUrl;
