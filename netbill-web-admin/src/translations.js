@@ -70,6 +70,9 @@ export const translations = {
     grid_search: "Search",
     grid_due: "Due List",
     grid_summary: "Summary",
+    grid_edit: "Edit Customer",
+    grid_expired: "Expired Customer",
+    grid_new_subs: "New Customers",
 
     // Payments
     find_subscriber: "Find Subscriber",
@@ -373,6 +376,9 @@ export const translations = {
     grid_search: "অনুসন্ধান",
     grid_due: "বকেয়া তালিকা",
     grid_summary: "সারসংক্ষেপ",
+    grid_edit: "এডিট কাস্টমার",
+    grid_expired: "এক্সপায়ার কাস্টমার",
+    grid_new_subs: "নতুন গ্রাহক",
 
     // Payments
     find_subscriber: "গ্রাহক খুঁজুন",

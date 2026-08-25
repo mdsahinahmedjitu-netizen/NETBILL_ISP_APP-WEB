@@ -171,7 +171,7 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
       let currentExpireDateStr = customer.expireDate || customer.expire_date;
       let nextExpireDate = currentExpireDateStr;
 
-      if (newDue <= 0 && currentExpireDateStr) {
+      if (currentExpireDateStr) {
           const prevExpire = parseAnyDate(currentExpireDateStr);
           if (prevExpire) {
               // Always extend by exactly 1 month from the OLD expiry date
@@ -211,12 +211,29 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
         return;
       }
 
-      commitFinalPayment(selectedCustomerId, payAmt, newDue, newAdvance, nextExpireDate);
+      // --- LOGIC PATH A: FULL PAYMENT (AUTO ACTIVATE) ---
+      if (newDue <= 0) {
+          commitFinalPayment(selectedCustomerId, payAmt, newDue, newAdvance, nextExpireDate, 'Active');
+          return;
+      }
+
+      // --- LOGIC PATH B: PARTIAL PAYMENT (SHOW POPUP) ---
+      setExtensionData({
+        customerId: selectedCustomerId,
+        customerName: customer.name,
+        currentExpire: currentExpireDateStr || 'Not Set',
+        nextExpire: nextExpireDate,
+        amount: payAmt,
+        newDue, newAdvance,
+        status: customer.status
+      });
+      setShowExtensionModal(true);
+      setIsProcessing(false);
 
     } catch (e) { alert("Error: " + e.message); setIsProcessing(false); }
   };
 
-  const commitFinalPayment = async (custId, payAmt, newDue, newAdvance, finalExpireDate) => {
+  const commitFinalPayment = async (custId, payAmt, newDue, newAdvance, finalExpireDate, forcedStatus = null) => {
     const customer = store.customers.find(c => c.id === custId);
     const todayISO = new Date().toLocaleDateString('en-CA');
     const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -231,18 +248,26 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
 
       if (pmtErr) throw pmtErr;
 
-      const updatePayload = { current_due: newDue, advance_balance: newAdvance, payment_status: newDue <= 0 ? 'Paid' : 'Unpaid' };
-      // Only set expire_date if customer ALREADY has one set
-      const currentExpire = customer.expireDate || customer.expire_date;
-      if (newDue <= 0 && finalExpireDate && currentExpire) updatePayload.expire_date = finalExpireDate;
+      const updatePayload = {
+        current_due: newDue,
+        advance_balance: newAdvance,
+        payment_status: newDue <= 0 ? 'Paid' : 'Unpaid'
+      };
+
+      if (forcedStatus) {
+          updatePayload.status = forcedStatus;
+          // Only set expire_date if customer ALREADY has one set
+          const currentExpire = customer.expireDate || customer.expire_date;
+          if (finalExpireDate && currentExpire) updatePayload.expire_date = finalExpireDate;
+      }
 
       const { error: custUpdateErr } = await supabase.from('customers').update(updatePayload).eq('id', custId);
       if (custUpdateErr) throw custUpdateErr;
 
       // --- MikroTik Auto-Activation ---
-      if (newDue <= 0 && customer.pppoeUsername && customer.routerId) {
+      if ((forcedStatus === 'Active' || newDue <= 0) && customer.pppoeUsername && (customer.routerId || customer.router_id)) {
           supabase.functions.invoke('mikrotik-manager', {
-              body: { action: 'set_status', payload: { username: customer.pppoeUsername, active: true, routerId: customer.routerId } }
+              body: { action: 'set_status', payload: { username: customer.pppoeUsername, active: true, routerId: customer.routerId || customer.router_id } }
           });
       }
 
@@ -372,9 +397,14 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
         <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-[32px] sm:rounded-[48px] shadow-2xl border border-slate-100 dark:border-slate-700 font-black h-fit">
            <div className="mb-4 sm:mb-6 bg-indigo-50 dark:bg-indigo-900/20 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 border-indigo-100 flex items-center justify-between">
               <label className="text-[9px] sm:text-[10px] font-black text-indigo-600 uppercase tracking-[2px] ml-1 sm:ml-2">Collector:</label>
-              <select value={selectedCollector.id} onChange={(e) => { const id = e.target.value; const name = e.target.options[e.target.selectedIndex].text; setSelectedCollector({ id, name }); }} className="bg-white dark:bg-slate-800 border-none px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-[11px] uppercase shadow-sm outline-none cursor-pointer min-w-[150px] sm:min-w-[200px]">
+              <select
+                value={selectedCollector.id}
+                disabled={session?.role === 'staff'}
+                onChange={(e) => { const id = e.target.value; const name = e.target.options[e.target.selectedIndex].text; setSelectedCollector({ id, name }); }}
+                className={`bg-white dark:bg-slate-800 border-none px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-[11px] uppercase shadow-sm outline-none cursor-pointer min-w-[150px] sm:min-w-[200px] ${session?.role === 'staff' ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
                 <option value={session?.data?.id || 'admin'}>{session?.data?.name || 'Super Admin'} (YOU)</option>
-                {store.staff?.filter(s => s.id !== session?.data?.id).map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                {session?.role !== 'staff' && store.staff?.filter(s => s.id !== session?.data?.id).map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
               </select>
            </div>
            <form onSubmit={handlePayment} className="space-y-4 sm:space-y-6">
@@ -445,36 +475,64 @@ const Payments = ({ store, session, t, preSelectedCustomer, setPreSelectedCustom
         </div>
       )}
 
-      {/* DISCONNECTED CUSTOMER: DATE SELECTION MODAL */}
+      {/* DISCONNECTED OR PARTIAL PAYMENT: DATE SELECTION MODAL */}
       {showExtensionModal && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[5000] flex items-center justify-center p-6 font-black uppercase">
-          <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-xl p-12 shadow-2xl border-4 border-rose-500/20 space-y-10 relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-full h-4 bg-rose-600 shadow-lg"></div>
+          <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-xl p-12 shadow-2xl border-4 border-teal-500/20 space-y-10 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-4 bg-teal-600 shadow-lg"></div>
 
              <div className="text-center space-y-2">
-                <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto text-4xl text-rose-500 shadow-inner mb-4 animate-pulse"><i className="fas fa-plug-circle-xmark"></i></div>
-                <h3 className="text-3xl font-black tracking-tighter">Connection Inactive</h3>
-                <p className="text-[10px] text-slate-400 tracking-[3px] font-bold">This subscriber is fully expired</p>
+                <div className="w-20 h-20 bg-teal-50 rounded-3xl flex items-center justify-center mx-auto text-4xl text-teal-500 shadow-inner mb-4 animate-pulse"><i className="fas fa-user-check"></i></div>
+                <h3 className="text-3xl font-black tracking-tighter">Account Activation</h3>
+                <p className="text-[10px] text-slate-400 tracking-[3px] font-bold">Manage status for partial payment</p>
              </div>
-             <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-[40px] space-y-6">
+
+             <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-[40px] space-y-6 border-2 border-slate-100 dark:border-slate-800 shadow-inner">
                 <div className="flex justify-between items-center border-b border-slate-200/50 pb-4">
                    <div className="space-y-1 text-left"><p className="text-[10px] text-slate-400 tracking-[2px]">CLIENT</p><p className="text-xl font-black text-slate-800 dark:text-white leading-none">{extensionData.customerName}</p></div>
-                   <div className="text-right"><p className="text-[10px] text-rose-500 tracking-[2px]">PREVIOUS EXPIRE</p><p className="text-xl font-black text-rose-500 leading-none">{extensionData.currentExpire}</p></div>
+                   <div className="text-right"><p className="text-[10px] text-indigo-500 tracking-[2px]">NEW DUE</p><p className="text-xl font-black text-rose-500 leading-none">৳ {Math.floor(extensionData.newDue)}</p></div>
                 </div>
-                <div className="space-y-3">
+
+                <div className="flex justify-between items-center py-2">
+                    <div className="space-y-1 text-left"><p className="text-[9px] text-slate-400 tracking-[2px]">PREVIOUS EXPIRE</p><p className="text-sm font-black text-slate-600 dark:text-slate-300">{extensionData.currentExpire}</p></div>
+                    <i className="fas fa-arrow-right text-teal-500"></i>
+                    <div className="space-y-1 text-right"><p className="text-[9px] text-teal-500 tracking-[2px]">NEW EXPIRE</p><p className="text-sm font-black text-teal-600">{extensionData.nextExpire}</p></div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-slate-200/50">
                    <label className="text-[11px] text-slate-400 ml-4 tracking-[4px] font-black">SET NEXT EXPIRE DATE</label>
-                   <input type="text" value={extensionData.nextExpire} onChange={e => setExtensionData({...extensionData, nextExpire: e.target.value})} className="w-full bg-white dark:bg-slate-800 p-6 rounded-3xl font-black text-2xl text-indigo-600 text-center shadow-lg border-2 border-indigo-500/20" />
-                   <p className="text-[9px] text-slate-400 text-center italic">* Format: DD-MMM-YYYY (e.g. 20-Sep-2026)</p>
+                   <input
+                      type="text"
+                      value={extensionData.nextExpire}
+                      onChange={e => setExtensionData({...extensionData, nextExpire: e.target.value})}
+                      className="w-full bg-white dark:bg-slate-800 p-6 rounded-3xl font-black text-2xl text-indigo-600 text-center shadow-lg border-2 border-indigo-500/20 outline-none"
+                      placeholder="DD-MMM-YYYY"
+                   />
+                   <p className="text-[8px] text-slate-400 text-center italic uppercase">* আপনি চাইলে তারিখটি পরিবর্তন করতে পারেন</p>
                 </div>
              </div>
+
              <div className="grid grid-cols-1 gap-4">
-                <button onClick={() => commitFinalPayment(extensionData.customerId, extensionData.amount, extensionData.newDue, extensionData.newAdvance, extensionData.nextExpire)} className="w-full bg-emerald-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">CONFIRM & ACTIVATE</button>
                 <button
-                  onClick={() => { setShowExtensionModal(false); setIsProcessing(false); }}
-                  className="text-slate-400 text-xs font-black tracking-widest hover:text-rose-500"
+                   onClick={() => commitFinalPayment(extensionData.customerId, extensionData.amount, extensionData.newDue, extensionData.newAdvance, extensionData.nextExpire, 'Active')}
+                   className="w-full bg-emerald-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all border-b-8 border-emerald-900"
                 >
-                  CANCEL TRANSACTION
+                   ACTIVATE & RECORD
                 </button>
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        onClick={() => commitFinalPayment(extensionData.customerId, extensionData.amount, extensionData.newDue, extensionData.newAdvance, extensionData.currentExpire, extensionData.status)}
+                        className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 py-5 rounded-[28px] font-black text-[10px] tracking-widest hover:bg-slate-200 transition-all uppercase"
+                    >
+                        PAYMENT ONLY
+                    </button>
+                    <button
+                        onClick={() => { setShowExtensionModal(false); setIsProcessing(false); }}
+                        className="bg-rose-50 text-rose-500 py-5 rounded-[28px] font-black text-[10px] tracking-widest hover:bg-rose-100 transition-all uppercase"
+                    >
+                        CANCEL
+                    </button>
+                </div>
              </div>
           </div>
         </div>

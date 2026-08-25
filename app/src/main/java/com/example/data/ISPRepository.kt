@@ -353,6 +353,23 @@ class ISPRepository(db: AppDatabase) {
                     }
                 }
             }
+
+            // 3. Trigger Expired Customer SMS
+            scope.launch {
+                triggerSystemSms(
+                    type = "Expired Customer",
+                    mobile = customer.mobile,
+                    params = mapOf(
+                        "NAME" to customer.name,
+                        "CUSTOMER_CODE" to customer.customerCode,
+                        "AMOUNT" to customer.currentDue.toInt().toString(),
+                        "DATE" to (customer.expireDate ?: "")
+                    ),
+                    customerId = customer.id,
+                    customerCode = customer.customerCode,
+                    customerName = customer.name
+                )
+            }
         }
         return expiredCustomers.size
     }
@@ -576,7 +593,7 @@ class ISPRepository(db: AppDatabase) {
             currentDue = newDue,
             advanceBalance = newAdvance,
             paymentStatus = if (newDue <= 0) "Paid" else "Unpaid",
-            status = if (newDue <= 0 && customer.status == "Suspended") "Active" else customer.status
+            status = if (newDue <= 0 && (customer.status == "Suspended" || customer.status == "Expired")) "Active" else customer.status
         )
 
         val ledgerEntry = LedgerEntity(

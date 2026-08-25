@@ -43,6 +43,8 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isDirectAddMode, setIsDirectAddMode] = useState(false);
   const [preSelectedCustomer, setPreSelectedCustomer] = useState(null);
+  const [searchMode, setSearchMode] = useState('view'); // 'view' or 'edit'
+  const [initialFilters, setInitialFilters] = useState(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -272,6 +274,44 @@ function App() {
         if (currentStatus === 'Active' && isPastExpire && isPastRequest) {
             console.log(`Suspending (Expired): ${cust.name}`);
             await updateStatus(cust, 'Suspended', false);
+
+            // --- TRIGGER EXPIRED CUSTOMER SMS ---
+            if (store.settings?.smsApiKey && cust.mobile) {
+                const template = store.smsTemplates?.find(t => t.title === 'Expired Customer' && (t.isActive || t.is_active));
+                if (template) {
+                    let msg = (template.messageContent || template.message_content)
+                        .replace(/{NAME}/g, cust.name || '')
+                        .replace(/{CUSTOMER_CODE}/g, cust.customerCode || cust.customer_code || '')
+                        .replace(/{AMOUNT}/g, Math.floor(cust.currentDue || cust.current_due || 0))
+                        .replace(/{DUE}/g, Math.floor(cust.currentDue || cust.current_due || 0))
+                        .replace(/{DATE}/g, eDateStr || '');
+
+                    const apiKey = (store.settings.smsApiKey || "").trim();
+                    const senderId = (store.settings.smsSenderId || "").trim();
+                    const isUnicode = /[\u0980-\u09FF]/.test(msg);
+                    const msgType = isUnicode ? "unicode" : "text";
+
+                    let cleanMobile = cust.mobile.replace(/[^0-9]/g, "");
+                    if (cleanMobile.startsWith('0')) cleanMobile = '88' + cleanMobile;
+                    else if (cleanMobile.length === 10) cleanMobile = '880' + cleanMobile;
+                    else if (!cleanMobile.startsWith('88')) cleanMobile = '88' + cleanMobile;
+
+                    const finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(msg)}&type=${msgType}`;
+
+                    const img = new Image();
+                    img.src = finalUrl;
+
+                    await supabase.from('sms_logs').insert({
+                        customer_id: cust.id,
+                        customer_name: cust.name,
+                        mobile: cleanMobile,
+                        notification_type: 'Expired (Auto)',
+                        message: msg,
+                        status: 'Sent',
+                        sent_timestamp: new Date().toISOString()
+                    });
+                }
+            }
         }
 
         // --- LOGIC B: AUTO-ENABLE IF REQUEST DATE IS IN FUTURE ---
@@ -393,7 +433,17 @@ function App() {
 
   return (
     <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${isDarkMode ? 'dark-mode bg-slate-900 text-white' : 'bg-slate-50 text-slate-800'}`}>
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} activePage={activePage} setActivePage={setActivePage} onLogout={handleLogout} t={t} role={session.role} permissions={currentPermissions} />
+      <Sidebar
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        activePage={activePage}
+        setActivePage={setActivePage}
+        onLogout={handleLogout}
+        t={t}
+        role={session.role}
+        subRole={session.role === 'staff' ? session.data.role : null}
+        permissions={currentPermissions}
+      />
 
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300`}>
         <header className={`h-16 md:h-20 border-b flex justify-between items-center px-4 md:px-10 shrink-0 z-10 transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-100 text-slate-800'}`}>
@@ -421,9 +471,15 @@ function App() {
           {activePage === 'dashboard' && (
             session.role === 'customer'
               ? <CustomerPortal store={store} customer={session.data} t={t} />
-              : <Dashboard store={store} session={session} permissions={currentPermissions} setActivePage={setActivePage} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />
+              : <Dashboard store={store} session={session} permissions={currentPermissions} setActivePage={setActivePage} setSearchMode={setSearchMode} setInitialFilters={setInitialFilters} setReportInitialTab={setReportInitialTab} navigateToAddCustomer={navigateToAddCustomer} openSearch={() => setShowGlobalSearch(true)} openSummary={() => setShowSummarySearch(true)} t={t} lang={lang} />
           )}
-          {activePage === 'customers' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} setPreSelectedCustomer={setPreSelectedCustomer} />}
+
+          {/* RENDER CUSTOMERS COMPONENT FOR EDIT MODAL */}
+          {preSelectedCustomer && (
+              <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} preSelectedCustomer={preSelectedCustomer} setPreSelectedCustomer={setPreSelectedCustomer} hideTable={true} />
+          )}
+
+          {activePage === 'customers' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={autoOpenAddModal} setAutoOpenModal={setAutoOpenAddModal} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} preSelectedCustomer={preSelectedCustomer} setPreSelectedCustomer={setPreSelectedCustomer} initialFilters={initialFilters} setInitialFilters={setInitialFilters} />}
           {activePage === 'customer_profile' && <CustomerFullProfile store={store} customerId={selectedProfileId} onBack={() => setActivePage('customers')} t={t} />}
           {activePage === 'new_enrollment' && session.role === 'admin' && <Customers store={store} session={session} setActivePage={setActivePage} t={t} lang={lang} autoOpenModal={true} isDirectMode={true} setProfileId={(id) => { setSelectedProfileId(id); setActivePage('customer_profile'); }} setPreSelectedCustomer={setPreSelectedCustomer} />}
           {activePage === 'billing' && <Billing store={store} t={t} lang={lang} setActivePage={setActivePage} />}
@@ -607,54 +663,94 @@ function App() {
 
         {/* GLOBAL SEARCH MODAL */}
         {showGlobalSearch && (
-          <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
-            <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-2xl p-12 shadow-2xl border-4 border-indigo-500/20 space-y-10 relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-full h-3 bg-indigo-600"></div>
-               <div className="flex justify-between items-center border-b pb-6">
-                  <h3 className="text-4xl font-black tracking-tighter">Subscriber Search</h3>
-                  <button onClick={() => { setShowGlobalSearch(false); setGlobalSearchQuery(''); }} className="text-rose-500 text-3xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-3xl z-[10000] flex items-center justify-center p-4 md:p-10 uppercase font-black overflow-y-auto animate-fadeIn">
+            <div className="bg-white dark:bg-slate-900 rounded-[48px] md:rounded-[80px] w-full max-w-3xl p-8 md:p-16 shadow-[0_40px_100px_rgba(0,0,0,0.5)] border-4 border-white/10 relative overflow-hidden animate-scaleIn">
+
+               {/* Decorative Gradient Glow */}
+               <div className={`absolute top-0 left-0 w-full h-3 md:h-4 ${searchMode === 'edit' ? 'bg-amber-500' : 'bg-indigo-600'} shadow-lg`}></div>
+
+               <div className="flex justify-between items-center border-b-2 border-slate-50 dark:border-slate-800 pb-6 md:pb-10">
+                  <div className="flex items-center space-x-4 md:space-x-6">
+                     <div className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl flex items-center justify-center text-xl md:text-3xl text-white shadow-2xl ${searchMode === 'edit' ? 'bg-amber-500' : 'bg-indigo-600'}`}>
+                        <i className={`fas ${searchMode === 'edit' ? 'fa-user-pen' : 'fa-search'}`}></i>
+                     </div>
+                     <div>
+                        <h3 className="text-3xl md:text-5xl font-black tracking-tighter leading-none">{searchMode === 'edit' ? 'EDIT SELECTOR' : 'QUICK SEARCH'}</h3>
+                        <p className="text-[10px] md:text-xs font-bold text-slate-400 mt-2 tracking-[4px] opacity-70 uppercase">Master Subscriber Database</p>
+                     </div>
+                  </div>
+                  <button
+                    onClick={() => { setShowGlobalSearch(false); setGlobalSearchQuery(''); }}
+                    className="w-12 h-12 md:w-16 md:h-16 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl group"
+                  >
+                    <i className="fas fa-times text-xl md:text-2xl group-hover:rotate-90 transition-transform"></i>
+                  </button>
                </div>
 
-               <div className="space-y-6">
+               <div className="mt-8 md:mt-14 space-y-8 md:space-y-12">
                   <div className="relative group">
                     <input
                       autoFocus
                       type="text"
-                      placeholder="Type Name, ID, Phone or PPPoE..."
+                      placeholder="NAME, ID, PHONE OR PPPOE..."
                       value={globalSearchQuery}
                       onChange={e => setGlobalSearchQuery(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 p-8 rounded-[36px] font-black text-2xl outline-none border-2 border-transparent focus:border-indigo-500 shadow-inner"
+                      className="w-full bg-slate-50 dark:bg-slate-950 p-8 md:p-12 rounded-[32px] md:rounded-[56px] font-black text-2xl md:text-4xl outline-none border-4 border-transparent focus:border-indigo-500/20 shadow-inner transition-all placeholder:opacity-20 text-indigo-600 dark:text-indigo-400"
                     />
-                    <i className="fas fa-search absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 text-3xl"></i>
+                    <div className="absolute right-8 md:right-12 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 group-focus-within:opacity-100 transition-opacity">
+                        <i className="fas fa-keyboard text-3xl md:text-5xl text-indigo-500"></i>
+                    </div>
                   </div>
 
-                  <div className="max-h-[350px] overflow-y-auto pr-4 custom-scrollbar space-y-4">
-                    {globalSearchQuery.length > 0 && store.customers.filter(c =>
-                      c.name?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-                      c.customerCode?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-                      c.mobile?.includes(globalSearchQuery) ||
-                      c.pppoeUsername?.toLowerCase().includes(globalSearchQuery.toLowerCase())
-                    ).slice(0, 8).map(c => (
-                      <div
-                        key={c.id}
-                        onClick={() => {
-                          setSelectedProfileId(c.id);
-                          setActivePage('customer_profile');
-                          setShowGlobalSearch(false);
-                          setGlobalSearchQuery('');
-                        }}
-                        className="bg-white dark:bg-slate-900/50 p-6 rounded-[32px] border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer flex justify-between items-center group"
-                      >
-                         <div className="space-y-1">
-                            <h4 className="text-xl font-black text-slate-800 dark:text-white leading-none">{c.name}</h4>
-                            <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">ID: {c.customerCode} • PPPOE: {c.pppoeUsername}</p>
-                         </div>
-                         <div className="text-right">
-                            <p className="text-xs font-black text-emerald-600">{c.mobile}</p>
-                            <span className="text-[9px] font-black text-slate-300 uppercase group-hover:text-indigo-600">Open Profile <i className="fas fa-arrow-right ml-1"></i></span>
-                         </div>
-                      </div>
-                    ))}
+                  <div className="max-h-[300px] md:max-h-[450px] overflow-y-auto pr-2 md:pr-6 custom-scrollbar space-y-4 md:space-y-6">
+                    {globalSearchQuery.length > 0 ? (
+                        store.customers.filter(c =>
+                          c.name?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                          c.customerCode?.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+                          c.mobile?.includes(globalSearchQuery) ||
+                          c.pppoeUsername?.toLowerCase().includes(globalSearchQuery.toLowerCase())
+                        ).slice(0, 10).map(c => (
+                          <div
+                            key={c.id}
+                            onClick={() => {
+                              if (searchMode === 'edit' && session?.role === 'admin') {
+                                  setPreSelectedCustomer(c);
+                              } else {
+                                  setSelectedProfileId(c.id);
+                                  setActivePage('customer_profile');
+                              }
+                              setShowGlobalSearch(false);
+                              setGlobalSearchQuery('');
+                            }}
+                            className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-[32px] md:rounded-[48px] border-2 border-slate-100 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-indigo-50/30 transition-all cursor-pointer flex justify-between items-center group shadow-sm hover:shadow-2xl hover:-translate-y-1"
+                          >
+                             <div className="flex items-center space-x-4 md:space-x-8">
+                                <div className="w-14 h-14 md:w-20 md:h-20 bg-slate-50 dark:bg-slate-950 rounded-[20px] md:rounded-[28px] flex items-center justify-center text-2xl md:text-3xl text-slate-300 group-hover:text-indigo-600 transition-colors">
+                                    <i className="fas fa-user"></i>
+                                </div>
+                                <div className="space-y-1">
+                                    <h4 className="text-xl md:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter">{c.name}</h4>
+                                    <div className="flex items-center space-x-3 md:space-x-6 text-[9px] md:text-[11px] font-bold tracking-widest text-slate-400 mt-2">
+                                        <span className="bg-slate-100 dark:bg-slate-950 px-2 py-1 rounded-lg">ID: {c.customerCode}</span>
+                                        <span className="uppercase">{c.pppoeUsername}</span>
+                                    </div>
+                                </div>
+                             </div>
+                             <div className="flex flex-col items-end space-y-2 md:space-y-3">
+                                <p className="text-base md:text-xl font-black text-emerald-600 tracking-tighter leading-none">{c.mobile}</p>
+                                <div className={`flex items-center space-x-2 md:space-x-3 text-[8px] md:text-[10px] font-black tracking-widest ${searchMode === 'edit' ? 'text-amber-600' : 'text-indigo-600'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                                    <span>{searchMode === 'edit' ? 'OPEN EDITOR' : 'VIEW PROFILE'}</span>
+                                    <i className="fas fa-arrow-right-long text-base"></i>
+                                </div>
+                             </div>
+                          </div>
+                        ))
+                    ) : (
+                        <div className="py-20 text-center space-y-6 opacity-20">
+                            <i className="fas fa-database text-6xl md:text-8xl"></i>
+                            <p className="text-xl md:text-3xl font-black tracking-[10px]">AWAITING INPUT</p>
+                        </div>
+                    )}
                   </div>
                </div>
             </div>
@@ -662,36 +758,71 @@ function App() {
         )}
 
         {/* SUMMARY SEARCH MODAL */}
+        {/* SUMMARY SEARCH MODAL */}
         {showSummarySearch && (
-          <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-3xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
-            <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-2xl p-12 shadow-2xl border-4 border-emerald-500/20 space-y-10 relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-full h-3 bg-emerald-600"></div>
-               <div className="flex justify-between items-center border-b pb-6">
-                  <h3 className="text-4xl font-black tracking-tighter">Billing Summary Search</h3>
-                  <button onClick={() => { setShowSummarySearch(false); setGlobalSearchQuery(''); }} className="text-rose-500 text-3xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
-               </div>
-               <div className="space-y-6">
-                  <div className="relative group">
-                    <input autoFocus type="text" placeholder="Search Customer for Summary..." value={globalSearchQuery} onChange={e => setGlobalSearchQuery(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 p-8 rounded-[36px] font-black text-2xl outline-none border-2 border-transparent focus:border-emerald-500 shadow-inner" />
-                    <i className="fas fa-chart-pie absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 text-3xl"></i>
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-3xl z-[10000] flex items-center justify-center p-4 md:p-10 uppercase font-black overflow-y-auto animate-fadeIn">
+            <div className="bg-white dark:bg-slate-900 rounded-[48px] md:rounded-[80px] w-full max-w-3xl p-8 md:p-16 shadow-[0_40px_100px_rgba(0,0,0,0.5)] border-4 border-white/10 relative overflow-hidden animate-scaleIn">
+
+               <div className="absolute top-0 left-0 w-full h-3 md:h-4 bg-emerald-500 shadow-lg"></div>
+
+               <div className="flex justify-between items-center border-b-2 border-slate-50 dark:border-slate-800 pb-6 md:pb-10">
+                  <div className="flex items-center space-x-4 md:space-x-6">
+                     <div className="w-12 h-12 md:w-16 md:h-16 bg-emerald-500 text-white rounded-2xl md:rounded-3xl flex items-center justify-center text-xl md:text-3xl shadow-2xl">
+                        <i className="fas fa-chart-pie"></i>
+                     </div>
+                     <div>
+                        <h3 className="text-3xl md:text-5xl font-black tracking-tighter leading-none">SUMMARY ANALYZER</h3>
+                        <p className="text-[10px] md:text-xs font-bold text-slate-400 mt-2 tracking-[4px] opacity-70 uppercase">Financial Report Selector</p>
+                     </div>
                   </div>
-                  <div className="max-h-[350px] overflow-y-auto pr-4 custom-scrollbar space-y-4">
-                    {globalSearchQuery.length > 0 && store.customers.filter(c => {
-                      const q = globalSearchQuery.toLowerCase();
-                      return (c.name || '').toLowerCase().includes(q) ||
-                             (c.customerCode || '').toLowerCase().includes(q) ||
-                             (c.customer_code || '').toLowerCase().includes(q) ||
-                             (c.mobile || '').includes(q) ||
-                             (c.pppoeUsername || '').toLowerCase().includes(q);
-                    }).slice(0, 8).map(c => (
-                      <div key={c.id} onClick={() => { setSelectedSummaryId(c.id); setActivePage('billing_summary'); setShowSummarySearch(false); setGlobalSearchQuery(''); }} className="bg-white dark:bg-slate-900/50 p-6 rounded-[32px] border-2 border-slate-100 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer flex justify-between items-center group">
-                         <div className="space-y-1 text-left">
-                            <h4 className="text-xl font-black text-slate-800 dark:text-white leading-none">{c.name}</h4>
-                            <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">ID: {c.customerCode || c.customer_code} • Zone: {c.zone || 'Global'}</p>
-                         </div>
-                         <i className="fas fa-arrow-right text-emerald-600 text-xl"></i>
-                      </div>
-                    ))}
+                  <button onClick={() => { setShowSummarySearch(false); setGlobalSearchQuery(''); }} className="w-12 h-12 md:w-16 md:h-16 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-xl group">
+                    <i className="fas fa-times text-xl md:text-2xl group-hover:rotate-90 transition-transform"></i>
+                  </button>
+               </div>
+
+               <div className="mt-8 md:mt-14 space-y-8 md:space-y-12">
+                  <div className="relative group">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="SEARCH CUSTOMER FOR SUMMARY..."
+                      value={globalSearchQuery}
+                      onChange={e => setGlobalSearchQuery(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 p-8 md:p-12 rounded-[32px] md:rounded-[56px] font-black text-2xl md:text-4xl outline-none border-4 border-transparent focus:border-emerald-500/20 shadow-inner transition-all placeholder:opacity-20 text-emerald-600 dark:text-emerald-400"
+                    />
+                    <div className="absolute right-8 md:right-12 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 group-focus-within:opacity-100 transition-opacity">
+                        <i className="fas fa-keyboard text-3xl md:text-5xl text-emerald-500"></i>
+                    </div>
+                  </div>
+
+                  <div className="max-h-[300px] md:max-h-[450px] overflow-y-auto pr-2 md:pr-6 custom-scrollbar space-y-4 md:space-y-6">
+                    {globalSearchQuery.length > 0 ? (
+                        store.customers.filter(c => {
+                          const q = globalSearchQuery.toLowerCase();
+                          return (c.name || '').toLowerCase().includes(q) ||
+                                 (c.customerCode || '').toLowerCase().includes(q) ||
+                                 (c.mobile || '').includes(q) ||
+                                 (c.pppoeUsername || '').toLowerCase().includes(q);
+                        }).slice(0, 10).map(c => (
+                          <div key={c.id} onClick={() => { setSelectedSummaryId(c.id); setActivePage('billing_summary'); setShowSummarySearch(false); setGlobalSearchQuery(''); }} className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-[32px] md:rounded-[48px] border-2 border-slate-100 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer flex justify-between items-center group shadow-sm hover:shadow-2xl hover:-translate-y-1">
+                             <div className="flex items-center space-x-4 md:space-x-8">
+                                <div className="w-14 h-14 md:w-20 md:h-20 bg-slate-50 dark:bg-slate-950 rounded-[20px] md:rounded-[28px] flex items-center justify-center text-2xl md:text-3xl text-slate-300 group-hover:text-emerald-600 transition-colors">
+                                    <i className="fas fa-file-invoice-dollar"></i>
+                                </div>
+                                <div className="space-y-1 text-left">
+                                    <h4 className="text-xl md:text-3xl font-black text-slate-800 dark:text-white leading-none tracking-tighter">{c.name}</h4>
+                                    <p className="text-[9px] md:text-[11px] text-slate-400 font-bold tracking-widest uppercase mt-2">ID: {c.customerCode || c.customer_code} • Zone: {c.zone || 'Global'}</p>
+                                </div>
+                             </div>
+                             <i className="fas fa-arrow-right-long text-emerald-600 text-xl md:text-3xl opacity-0 group-hover:opacity-100 transition-all"></i>
+                          </div>
+                        ))
+                    ) : (
+                        <div className="py-20 text-center space-y-6 opacity-20">
+                            <i className="fas fa-search-dollar text-6xl md:text-8xl"></i>
+                            <p className="text-xl md:text-3xl font-black tracking-[10px]">FIND REVENUE DATA</p>
+                        </div>
+                    )}
                   </div>
                </div>
             </div>

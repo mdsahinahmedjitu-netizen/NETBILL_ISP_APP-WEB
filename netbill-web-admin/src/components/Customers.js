@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId, isDirectMode, setPreSelectedCustomer }) => {
+const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setAutoOpenModal, setProfileId, isDirectMode, preSelectedCustomer, setPreSelectedCustomer, hideTable, initialFilters, setInitialFilters }) => {
   const [search, setSearch] = useState('');
   const [selectedCust, setSelectedCust] = useState(null);
   const [ledger, setLedger] = useState([]);
@@ -16,6 +16,11 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [smsProgress, setSmsProgress] = useState({ current: 0, total: 0 });
 
+  // WhatsApp States
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [waTargetCust, setWaTargetCust] = useState(null);
+  const [waMessage, setWaMessage] = useState('');
+
   // Quick Zone Change States
   const [showZoneChangeModal, setShowZoneChangeModal] = useState(false);
   const [custToChangeZone, setCustToChangeZone] = useState(null);
@@ -25,6 +30,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
   const [showDateChangeModal, setShowDateChangeModal] = useState(false);
   const [custToChangeDate, setCustToChangeDate] = useState(null);
   const [newDates, setNewDates] = useState({ expireDate: '', requestDate: '' });
+
 
   const [visibleColumns, setVisibleColumns] = useState({
     cb: true, id: true, sl: true, customer: true, mikrotik: true, zone: true,
@@ -43,6 +49,10 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     status: 'All',
     plan: 'All',
     expiryUpTo: '',
+    expiryStart: '',
+    expiryEnd: '',
+    joinStart: '',
+    joinEnd: '',
     hideZeroDue: false,
     hideInactive: false
   });
@@ -82,6 +92,21 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     currentDue: 0, advanceBalance: 0, discountAmount: 0
   };
   const [formData, setFormData] = useState(initialState);
+
+  useEffect(() => {
+    if (initialFilters) {
+        setFilters(prev => ({ ...prev, ...initialFilters }));
+        if (setInitialFilters) setInitialFilters(null); // Clear after applying
+    }
+  }, [initialFilters]);
+
+  useEffect(() => {
+    if (preSelectedCustomer) {
+        setFormData(preSelectedCustomer);
+        setIsEditing(true);
+        setShowModal(true);
+    }
+  }, [preSelectedCustomer]);
 
   useEffect(() => {
     if (autoOpenModal) {
@@ -132,27 +157,49 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     const dueMatch = !filters.hideZeroDue || (currentDue >= 1);
     const inactiveMatch = !filters.hideInactive || (c.status === 'Active');
 
-    // Expiry Date Filter Logic
+    // Expiry Date Filter Logic (Range or Single)
     let expiryMatch = true;
-    if (filters.expiryUpTo) {
-        const cDateStr = c.expireDate || c.expire_date;
+    const cDateStr = c.expireDate || c.expire_date;
+
+    const parseDate = (d) => {
+        if (!d) return null;
+        if (d.includes('-') && d.split('-')[0].length === 4) return new Date(d);
+        const p = d.split('-');
+        if (p.length === 3) {
+            const m = { "Jan":0,"Feb":1,"Mar":2,"Apr":3,"May":4,"Jun":5,"Jul":6,"Aug":7,"Sep":8,"Oct":9,"Nov":10,"Dec":11 };
+            return new Date(p[2], m[p[1]], p[0]);
+        }
+        return null;
+    };
+
+    if (filters.expiryStart && filters.expiryEnd) {
+        const customerExpire = parseDate(cDateStr);
+        const start = new Date(filters.expiryStart);
+        const end = new Date(filters.expiryEnd);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        expiryMatch = customerExpire && customerExpire >= start && customerExpire <= end;
+    } else if (filters.expiryUpTo) {
         if (cDateStr) {
-            const parseDate = (d) => {
-                if (d.includes('-') && d.split('-')[0].length === 4) return new Date(d);
-                const p = d.split('-');
-                if (p.length === 3) {
-                    const m = { "Jan":0,"Feb":1,"Mar":2,"Apr":3,"May":4,"Jun":5,"Jul":6,"Aug":7,"Sep":8,"Oct":9,"Nov":10,"Dec":11 };
-                    return new Date(p[2], m[p[1]], p[0]);
-                }
-                return null;
-            };
             const customerExpire = parseDate(cDateStr);
             const filterUpTo = new Date(filters.expiryUpTo);
             filterUpTo.setHours(23, 59, 59, 999);
             expiryMatch = customerExpire && customerExpire <= filterUpTo;
         } else {
-            expiryMatch = false; // If no expiry date, don't show when filtering by date
+            expiryMatch = false;
         }
+    }
+
+    // Join Date Filter Logic (Range)
+    let joinMatch = true;
+    if (filters.joinStart && filters.joinEnd) {
+        const cJoinStr = c.joinDate || c.join_date;
+        const customerJoin = parseDate(cJoinStr);
+        const start = new Date(filters.joinStart);
+        const end = new Date(filters.joinEnd);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        joinMatch = customerJoin && customerJoin >= start && customerJoin <= end;
     }
 
     // Role-Based Isolation: Collector Staff only see their assigned customers
@@ -161,7 +208,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         if (!isAssigned) return false;
     }
 
-    return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch && inactiveMatch && expiryMatch;
+    return searchMatch && collectorMatch && zoneMatch && statusMatch && planMatch && dueMatch && inactiveMatch && expiryMatch && joinMatch;
   });
 
   const requestSort = (key) => {
@@ -773,6 +820,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         alert("Customer Enrolled Successfully!");
       }
       setShowModal(false);
+      if (setPreSelectedCustomer) setPreSelectedCustomer(null);
     } catch (err) {
       console.error(err);
       alert("Error saving!");
@@ -825,198 +873,233 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
   };
 
   return (
-    <div className="w-full px-4 space-y-6 pb-10 uppercase font-black tracking-tighter transition-all">
-      {isDirectMode ? (
-        <div className="flex items-center justify-center py-20 animate-pulse">
-           <p className="text-2xl text-slate-400 font-black tracking-[10px]">OPENING CLOUD ENROLLMENT...</p>
-        </div>
-      ) : (<>
-      {/* Header & Stats Row */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
-        <div className="flex items-center space-x-4">
-           <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-center text-teal-600 hover:bg-teal-600 hover:text-white transition-all shadow-sm">
-              <i className="fas fa-arrow-left"></i>
-           </button>
-           <div className="space-y-1">
-              <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.subscribers_crm}</h3>
-              <p className="text-[10px] text-teal-600 font-bold tracking-[4px] uppercase mt-1">Enterprise Subscriber Management System</p>
-           </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
-           <StatCard label="TOTAL" value={store.customers.length} color="slate" />
-           <StatCard label="MARKED" value={selectedIds.length} color="indigo" />
-           <StatCard label="ACTIVE" value={store.customers.filter(c=>c.status==='Active').length} color="emerald" />
-           {session?.role === 'admin' && (
-             <button onClick={openAddModal} className="bg-[#0D9488] text-white px-8 py-4 rounded-2xl shadow-2xl font-black uppercase text-sm tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-teal-900">+ {t.new_enrollment}</button>
-           )}
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-col xl:flex-row gap-4 items-center">
-          <div className="relative w-full xl:max-w-xl group">
-            <input type="text" placeholder={t.search_placeholder} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-12 pr-6 py-4 bg-white dark:bg-slate-800 rounded-3xl border-none shadow-2xl focus:ring-4 focus:ring-teal-500/5 font-black text-xl transition-all uppercase placeholder:opacity-30" />
-            <i className="fas fa-search absolute left-5 top-5 text-slate-300 text-xl group-focus-within:text-teal-500 transition-colors"></i>
+    <div className={hideTable ? "" : "w-full px-4 space-y-6 pb-10 uppercase font-black tracking-tighter transition-all"}>
+      {!hideTable && (
+        isDirectMode ? (
+            <div className="flex items-center justify-center py-20 animate-pulse">
+               <p className="text-2xl text-slate-400 font-black tracking-[10px]">OPENING CLOUD ENROLLMENT...</p>
+            </div>
+          ) : (<>
+          {/* Header & Stats Row */}
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
+            <div className="flex items-center space-x-4">
+               <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-center text-teal-600 hover:bg-teal-600 hover:text-white transition-all shadow-sm">
+                  <i className="fas fa-arrow-left"></i>
+               </button>
+               <div className="space-y-1">
+                  <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{t.subscribers_crm}</h3>
+                  <p className="text-[10px] text-teal-600 font-bold tracking-[4px] uppercase mt-1">Enterprise Subscriber Management System</p>
+               </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+               {(() => {
+                  let list = store.customers;
+                  if (session?.role === 'staff') {
+                      list = list.filter(c => (c.assignedStaffId || c.assigned_staff_id) === session.data.id || (c.assignedStaffId || c.assigned_staff_id) === session.data.name);
+                  }
+                  const total = list.length;
+                  const active = list.filter(c => c.status === 'Active').length;
+                  return (
+                    <>
+                      <StatCard label="TOTAL" value={total} color="slate" />
+                      <StatCard label="MARKED" value={selectedIds.length} color="indigo" />
+                      <StatCard label="ACTIVE" value={active} color="emerald" />
+                    </>
+                  );
+               })()}
+               {session?.role === 'admin' && (
+                 <button onClick={openAddModal} className="bg-[#0D9488] text-white px-8 py-4 rounded-2xl shadow-2xl font-black uppercase text-sm tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-teal-900">+ {t.new_enrollment}</button>
+               )}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3 font-black">
-             <button onClick={() => setShowFilterDrawer(true)} className="bg-white dark:bg-slate-800 text-teal-600 px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest border-2 border-teal-500/20 leading-none">
-                <i className="fas fa-filter text-lg"></i>
-                <span>Advanced Filter {Object.values(filters).filter(v => v !== 'All').length > 0 && `(${Object.values(filters).filter(v => v !== 'All').length})`}</span>
-             </button>
-             <ActionButtonLarge label={`${t.download_excel} (${selectedIds.length || 'All'})`} icon="fa-file-excel" onClick={downloadExcel} />
-             <ActionButtonLarge label={`${t.print} (${selectedIds.length || 'All'})`} icon="fa-print" onClick={handlePrint} />
-             <ActionButtonLarge label={t.select_columns} icon="fa-columns" onClick={() => setShowColumnSelector(true)} />
-             <ActionButtonLarge label={`${t.sms_send} (${selectedIds.length || 'All'})`} icon="fa-paper-plane" onClick={() => setShowSmsModal(true)} />
-             <button onClick={() => setShowImportModal(true)} className="bg-rose-600 text-white px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest leading-none"><i className="fas fa-file-import text-lg"></i><span>{t.import_excel}</span></button>
-             {selectedIds.length > 0 && (
+
+          {/* Toolbar */}
+          <div className="flex flex-col xl:flex-row gap-4 items-center">
+              <div className="relative w-full xl:max-w-xl group">
+                <input type="text" placeholder={t.search_placeholder} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-12 pr-6 py-4 bg-white dark:bg-slate-800 rounded-3xl border-none shadow-2xl focus:ring-4 focus:ring-teal-500/5 font-black text-xl transition-all uppercase placeholder:opacity-30" />
+                <i className="fas fa-search absolute left-5 top-5 text-slate-300 text-xl group-focus-within:text-teal-500 transition-colors"></i>
+              </div>
+              <div className="flex flex-wrap gap-3 font-black">
+                 <button onClick={() => setShowFilterDrawer(true)} className="bg-white dark:bg-slate-800 text-teal-600 px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest border-2 border-teal-500/20 leading-none">
+                    <i className="fas fa-filter text-lg"></i>
+                    <span>Advanced Filter {Object.values(filters).filter(v => v !== 'All').length > 0 && `(${Object.values(filters).filter(v => v !== 'All').length})`}</span>
+                 </button>
+                 <ActionButtonLarge label={`${t.download_excel} (${selectedIds.length || 'All'})`} icon="fa-file-excel" onClick={downloadExcel} />
+                 <ActionButtonLarge label={`${t.print} (${selectedIds.length || 'All'})`} icon="fa-print" onClick={handlePrint} />
+                 <ActionButtonLarge label={t.select_columns} icon="fa-columns" onClick={() => setShowColumnSelector(true)} />
+                 <ActionButtonLarge label={`${t.sms_send} (${selectedIds.length || 'All'})`} icon="fa-paper-plane" onClick={() => setShowSmsModal(true)} />
+                 <button onClick={() => setShowImportModal(true)} className="bg-rose-600 text-white px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest leading-none"><i className="fas fa-file-import text-lg"></i><span>{t.import_excel}</span></button>
+             {selectedIds.length > 0 && session?.role === 'admin' && (
                <button onClick={handleBulkDelete} className="bg-red-600 text-white px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest leading-none animate-bounce"><i className="fas fa-trash-alt text-lg"></i><span>DELETE ({selectedIds.length})</span></button>
              )}
+              </div>
           </div>
-      </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden font-black transition-all duration-500">
-          <div className="overflow-x-auto custom-scrollbar min-h-[500px]">
-            <table className="w-full text-center uppercase tracking-tighter whitespace-nowrap">
-              <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-700 text-[10px] text-slate-500 tracking-[1px] font-black uppercase">
-                <tr>
-                  {visibleColumns.cb && <th className="p-4 text-center"><input type="checkbox" checked={selectedIds.length === filteredCustomers.length && filteredCustomers.length > 0} onChange={toggleSelectAll} className="w-6 h-6 rounded-lg border-slate-300 text-teal-600 focus:ring-0 cursor-pointer" /></th>}
-                  {visibleColumns.id && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('customerCode')}>{t.id} <i className={`fas ${getSortIcon('customerCode')} ml-1`}></i></th>}
-                  {visibleColumns.sl && <th className="p-3">{t.sl}</th>}
-                  {visibleColumns.customer && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('name')}>{t.customer} <i className={`fas ${getSortIcon('name')} ml-1`}></i></th>}
-                  {visibleColumns.mikrotik && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('pppoeUsername')}>{t.mikrotik_user} <i className={`fas ${getSortIcon('pppoeUsername')} ml-1`}></i></th>}
-                  {visibleColumns.zone && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('zone')}>{t.zone} <i className={`fas ${getSortIcon('zone')} ml-1`}></i></th>}
-                  {visibleColumns.plan && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('packageName')}>{t.plan} <i className={`fas ${getSortIcon('packageName')} ml-1`}></i></th>}
-                  {visibleColumns.bill && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('monthlyBill')}>{t.bill} <i className={`fas ${getSortIcon('monthlyBill')} ml-1`}></i></th>}
-                  {visibleColumns.join && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('joinDate')}>JOIN DATE <i className={`fas ${getSortIcon('joinDate')} ml-1`}></i></th>}
-                  {visibleColumns.expire && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('expireDate')}>{t.expire_date} <i className={`fas ${getSortIcon('expireDate')} ml-1`}></i></th>}
-                  {visibleColumns.collector && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('assignedStaffId')}>ASSIGNED COLLECTOR <i className={`fas ${getSortIcon('assignedStaffId')} ml-1`}></i></th>}
-                  {visibleColumns.status && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('status')}>{t.status} <i className={`fas ${getSortIcon('status')} ml-1`}></i></th>}
-                  {visibleColumns.online && <th className="p-3">{t.online}</th>}
-                  {visibleColumns.actions && <th className="p-4">{t.actions}</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                {sortedCustomers.map((c, idx) => (
-                  <tr key={c.id} className={`transition-all hover:bg-teal-50/50`}>
-                    {visibleColumns.cb && <td className="p-4 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-6 h-6 rounded-lg border-slate-200 text-teal-600 cursor-pointer" /></td>}
-                    {visibleColumns.id && <td className="p-3 text-slate-600 text-[10px] font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
-                    {visibleColumns.sl && <td className="p-3 text-slate-400 text-[10px]">{idx + 1}</td>}
-                    {visibleColumns.customer && <td className="p-3 text-left font-black leading-tight"><p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p><p className="text-base text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter mt-1">{c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}</p></td>}
-                    {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold normal-case">{(c.pppoeUsername || '---').toLowerCase()}</td>}
-                    {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
-                    {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
-                    {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => {
-                      const today = new Date();
-                      const currentMonth = today.getMonth() + 1;
-                      const currentYear = today.getFullYear();
-                      const currentMonthStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden font-black transition-all duration-500">
+              <div className="overflow-x-auto custom-scrollbar min-h-[500px]">
+                <table className="w-full text-center uppercase tracking-tighter whitespace-nowrap">
+                  <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-700 text-[10px] text-slate-500 tracking-[1px] font-black uppercase">
+                    <tr>
+                      {visibleColumns.cb && <th className="p-4 text-center"><input type="checkbox" checked={selectedIds.length === filteredCustomers.length && filteredCustomers.length > 0} onChange={toggleSelectAll} className="w-6 h-6 rounded-lg border-slate-300 text-teal-600 focus:ring-0 cursor-pointer" /></th>}
+                      {visibleColumns.id && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('customerCode')}>{t.id} <i className={`fas ${getSortIcon('customerCode')} ml-1`}></i></th>}
+                      {visibleColumns.sl && <th className="p-3">{t.sl}</th>}
+                      {visibleColumns.customer && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('name')}>{t.customer} <i className={`fas ${getSortIcon('name')} ml-1`}></i></th>}
+                      {visibleColumns.mikrotik && <th className="p-3 text-left cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('pppoeUsername')}>{t.mikrotik_user} <i className={`fas ${getSortIcon('pppoeUsername')} ml-1`}></i></th>}
+                      {visibleColumns.zone && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('zone')}>{t.zone} <i className={`fas ${getSortIcon('zone')} ml-1`}></i></th>}
+                      {visibleColumns.plan && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('packageName')}>{t.plan} <i className={`fas ${getSortIcon('packageName')} ml-1`}></i></th>}
+                      {visibleColumns.bill && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('monthlyBill')}>{t.bill} <i className={`fas ${getSortIcon('monthlyBill')} ml-1`}></i></th>}
+                      {visibleColumns.join && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('joinDate')}>JOIN DATE <i className={`fas ${getSortIcon('joinDate')} ml-1`}></i></th>}
+                      {visibleColumns.expire && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('expireDate')}>{t.expire_date} <i className={`fas ${getSortIcon('expireDate')} ml-1`}></i></th>}
+                      {visibleColumns.collector && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('assignedStaffId')}>ASSIGNED COLLECTOR <i className={`fas ${getSortIcon('assignedStaffId')} ml-1`}></i></th>}
+                      {visibleColumns.status && <th className="p-3 cursor-pointer hover:text-teal-600 transition-colors" onClick={() => requestSort('status')}>{t.status} <i className={`fas ${getSortIcon('status')} ml-1`}></i></th>}
+                      {visibleColumns.online && <th className="p-3">{t.online}</th>}
+                      {visibleColumns.actions && <th className="p-4">{t.actions}</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                    {sortedCustomers.map((c, idx) => (
+                      <tr key={c.id} className={`transition-all hover:bg-teal-50/50`}>
+                        {visibleColumns.cb && <td className="p-4 text-center" onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="w-6 h-6 rounded-lg border-slate-200 text-teal-600 cursor-pointer" /></td>}
+                        {visibleColumns.id && <td className="p-3 text-slate-600 text-[10px] font-black">#{c.customerCode?.split('-')[1] || c.customerCode}</td>}
+                        {visibleColumns.sl && <td className="p-3 text-slate-400 text-[10px]">{idx + 1}</td>}
+                        {visibleColumns.customer && (
+                          <td className="p-3 text-left font-black leading-tight">
+                            <p className="text-lg text-slate-800 dark:text-white uppercase tracking-tighter">{c.name}</p>
+                            <div className="flex items-center space-x-2 mt-1">
+                               <button
+                                 onClick={(e) => {
+                                    e.stopPropagation();
+                                    setWaTargetCust(c);
+                                    setWaMessage('');
+                                    setShowWhatsAppModal(true);
+                                 }}
+                                 className="text-emerald-500 hover:text-emerald-600 transition-transform hover:scale-125"
+                               >
+                                  <i className="fab fa-whatsapp text-lg"></i>
+                               </button>
+                               <p className="text-base text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter">
+                                  {c.mobile?.startsWith('88') ? c.mobile.substring(2) : c.mobile}
+                               </p>
+                            </div>
+                          </td>
+                        )}
+                        {visibleColumns.mikrotik && <td className="p-3 text-left text-xs text-slate-700 dark:text-slate-300 font-bold normal-case">{(c.pppoeUsername || '---').toLowerCase()}</td>}
+                        {visibleColumns.zone && <td className="p-3 text-sm text-blue-700 dark:text-blue-400 font-black tracking-tight">{c.zone || 'Global'}</td>}
+                        {visibleColumns.plan && <td className="p-3 text-lg text-teal-600 font-black tracking-tighter">{c.packageName?.match(/\d+/)?.[0] || c.packageName}MB</td>}
+                        {visibleColumns.bill && <td className="p-3 text-center leading-tight min-w-[120px]">{(() => {
+                          const today = new Date();
+                          const currentMonth = today.getMonth() + 1;
+                          const currentYear = today.getFullYear();
+                          const currentMonthStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
 
-                      const paidThisMonth = store.payments?.filter(p => {
-                        const cid = p.customerId || p.customer_id || p.customerCode || p.customer_code;
-                        const isCustomerMatch = (cid === c.id || cid === c.customerCode || cid === c.customer_code);
-                        if (!isCustomerMatch) return false;
+                          const paidThisMonth = store.payments?.filter(p => {
+                            const cid = p.customerId || p.customer_id || p.customerCode || p.customer_code;
+                            const isCustomerMatch = (cid === c.id || cid === c.customerCode || cid === c.customer_code);
+                            if (!isCustomerMatch) return false;
 
-                        const pDate = p.paymentDate || p.payment_date || p.date;
-                        return pDate && (pDate.includes(currentMonthStr) || pDate.includes(`${currentMonth.toString().padStart(2, '0')}-${currentYear}`));
-                      }).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) || 0;
+                            const pDate = p.paymentDate || p.payment_date || p.date;
+                            return pDate && (pDate.includes(currentMonthStr) || pDate.includes(`${currentMonth.toString().padStart(2, '0')}-${currentYear}`));
+                          }).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0) || 0;
 
-                      const currentDue = parseFloat(c.currentDue || c.current_due || 0);
-                      const monthlyBill = parseFloat(c.monthlyBill || c.monthly_bill || 0);
-                      const advanceBalance = parseFloat(c.advanceBalance || c.advance_balance || 0);
+                          const currentDue = parseFloat(c.currentDue || c.current_due || 0);
+                          const monthlyBill = parseFloat(c.monthlyBill || c.monthly_bill || 0);
+                          const advanceBalance = parseFloat(c.advanceBalance || c.advance_balance || 0);
 
-                      return (<>
-                        <p className="text-[14px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{monthlyBill}</p>
-                        <p className="text-[14px] font-black text-emerald-600 mt-1 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p>
-                        <p className="text-[16px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(currentDue)}</p>
-                        {advanceBalance > 0 && <p className="text-[10px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(advanceBalance)}</p>}
-                      </>);
-                    })()}</td>}
-                    {visibleColumns.join && <td className="p-3 text-[14px] text-slate-800 dark:text-white font-black">{formatDateDisplay(c.joinDate)}</td>}
-                    {visibleColumns.expire && <td className="p-3 text-center leading-tight">
-                      <p className="text-[16px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter shadow-sm">
-                        {formatDateDisplay(c.expireDate || c.expire_date || c.expiryDate || c.expiry_date || 'Not Set')}
-                      </p>
-                      <p className="text-[10px] font-black text-slate-400 mt-1 uppercase">
-                        Req: {formatDateDisplay(c.requestDate || c.request_date || 'Not Set')}
-                      </p>
-                    </td>}
-                    {visibleColumns.collector && (
-                      <td className="p-3 text-center">
-                        <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
-                          {(() => {
-                              const sid = c.assignedStaffId || c.assigned_staff_id || c.collectorId || c.collector_id;
-                              const staff = store.staff?.find(s => s.id === sid || s.name === sid);
-                              return staff?.name || sid || '---';
-                          })()}
-                        </span>
-                      </td>
-                    )}
-                    {visibleColumns.status && (
-                      <td className="p-3">
-                        <div className="flex flex-col space-y-1">
-                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>
-                            {c.status}
-                          </span>
-                          <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase ${c.paymentStatus === 'Paid' ? 'bg-teal-500 text-white' : 'bg-orange-500 text-white'}`}>
-                            {c.paymentStatus}
-                          </span>
-                        </div>
-                      </td>
-                    )}
-                    {visibleColumns.online && (
-                      <td className="p-3 text-center">
-                        {(() => {
-                          const isOnline = store.onlineUsernames?.includes((c.pppoeUsername || '').toLowerCase());
-                          const status = c.status || 'Active';
+                          return (<>
+                            <p className="text-[14px] font-black text-slate-800 dark:text-white uppercase">Bill: ৳{monthlyBill}</p>
+                            <p className="text-[14px] font-black text-emerald-600 mt-1 uppercase">Paid: ৳{Math.floor(paidThisMonth)}</p>
+                            <p className="text-[16px] font-black text-rose-500 mt-1 uppercase border-t-2 border-slate-100 dark:border-slate-800 pt-1 shadow-sm">DUE: ৳{Math.floor(currentDue)}</p>
+                            {advanceBalance > 0 && <p className="text-[10px] font-black text-teal-600 mt-0.5 uppercase tracking-widest">অগ্রীম: ৳{Math.floor(advanceBalance)}</p>}
+                          </>);
+                        })()}</td>}
+                        {visibleColumns.join && <td className="p-3 text-[14px] text-slate-800 dark:text-white font-black">{formatDateDisplay(c.joinDate)}</td>}
+                        {visibleColumns.expire && <td className="p-3 text-center leading-tight">
+                          <p className="text-[16px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-tighter shadow-sm">
+                            {formatDateDisplay(c.expireDate || c.expire_date || c.expiryDate || c.expiry_date || 'Not Set')}
+                          </p>
+                          <p className="text-[10px] font-black text-slate-400 mt-1 uppercase">
+                            Req: {formatDateDisplay(c.requestDate || c.request_date || 'Not Set')}
+                          </p>
+                        </td>}
+                        {visibleColumns.collector && (
+                          <td className="p-3 text-center">
+                            <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
+                              {(() => {
+                                  const sid = c.assignedStaffId || c.assigned_staff_id || c.collectorId || c.collector_id;
+                                  const staff = store.staff?.find(s => s.id === sid || s.name === sid);
+                                  return staff?.name || sid || '---';
+                              })()}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.status && (
+                          <td className="p-3">
+                            <div className="flex flex-col space-y-1">
+                              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} shadow-md`}>
+                                {c.status}
+                              </span>
+                              <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase ${c.paymentStatus === 'Paid' ? 'bg-teal-500 text-white' : 'bg-orange-500 text-white'}`}>
+                                {c.paymentStatus}
+                              </span>
+                            </div>
+                          </td>
+                        )}
+                        {visibleColumns.online && (
+                          <td className="p-3 text-center">
+                            {(() => {
+                              const isOnline = store.onlineUsernames?.includes((c.pppoeUsername || '').toLowerCase());
+                              const status = c.status || 'Active';
 
-                          if (isOnline) {
-                            return (
-                              <div className="flex flex-col items-center justify-center space-y-1">
-                                <div className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
-                                <span className="text-[8px] font-black text-emerald-600">ONLINE</span>
-                              </div>
-                            );
-                          } else if (status === 'Active') {
-                            return (
-                              <div className="flex flex-col items-center justify-center space-y-1">
-                                <div className="w-4 h-4 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]"></div>
-                                <span className="text-[8px] font-black text-rose-500">OFFLINE</span>
-                              </div>
-                            );
-                          } else {
-                            return (
-                              <div className="flex flex-col items-center justify-center space-y-1">
-                                <div className="w-4 h-4 rounded-full bg-slate-300"></div>
-                                <span className="text-[8px] font-black text-slate-400 opacity-50">INACTIVE</span>
-                              </div>
-                            );
-                          }
-                        })()}
-                      </td>
-                    )}
-                    {visibleColumns.actions && (
-                      <td className="p-4 relative">
-                         <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
-                         {activeMenuId === c.id && (
-                           <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
-                              <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
-                              <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
-                              <ActionItem icon="fa-user-circle" label="Full Profile" color="text-blue-600" onClick={() => setProfileId(c.id)} />
-                              <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
-                              <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
-                              <ActionItem icon="fa-edit" label="Edit" color="text-slate-600" onClick={() => openEditModal(c)} />
-                              <ActionItem icon="fa-trash" label="Delete" color="text-rose-600" onClick={() => handleDelete(c.id)} />
-                           </div>
-                         )}
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                              if (isOnline) {
+                                return (
+                                  <div className="flex flex-col items-center justify-center space-y-1">
+                                    <div className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+                                    <span className="text-[8px] font-black text-emerald-600">ONLINE</span>
+                                  </div>
+                                );
+                              } else if (status === 'Active') {
+                                return (
+                                  <div className="flex flex-col items-center justify-center space-y-1">
+                                    <div className="w-4 h-4 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]"></div>
+                                    <span className="text-[8px] font-black text-rose-500">OFFLINE</span>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="flex flex-col items-center justify-center space-y-1">
+                                    <div className="w-4 h-4 rounded-full bg-slate-300"></div>
+                                    <span className="text-[8px] font-black text-slate-400 opacity-50">INACTIVE</span>
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </td>
+                        )}
+                        {visibleColumns.actions && session?.role === 'admin' && (
+                          <td className="p-4 relative">
+                             <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
+                             {activeMenuId === c.id && (
+                               <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
+                                  <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
+                                  <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
+                                  <ActionItem icon="fa-user-circle" label="Full Profile" color="text-blue-600" onClick={() => setProfileId(c.id)} />
+                                  <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
+                                  <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
+                                  <ActionItem icon="fa-edit" label="Edit" color="text-slate-600" onClick={() => openEditModal(c)} />
+                                  <ActionItem icon="fa-trash" label="Delete" color="text-rose-600" onClick={() => handleDelete(c.id)} />
+                               </div>
+                             )}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
           </div>
-      </div>
-      </>)}
+          </>
+        ))
+      }
 
       {/* DYNAMIC IMPORT MODAL */}
       <ActionModals
@@ -1061,6 +1144,11 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         newDates={newDates}
         setNewDates={setNewDates}
         handleQuickDateUpdate={handleQuickDateUpdate}
+        showWhatsAppModal={showWhatsAppModal}
+        setShowWhatsAppModal={setShowWhatsAppModal}
+        waTargetCust={waTargetCust}
+        waMessage={waMessage}
+        setWaMessage={setWaMessage}
       />
 
       {showModal && (
@@ -1071,7 +1159,11 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                 <div className="w-12 h-12 md:w-20 md:h-20 bg-teal-600 text-white rounded-2xl md:rounded-[28px] flex items-center justify-center shadow-2xl shadow-teal-500/40"><i className="fas fa-user-plus text-xl md:text-4xl"></i></div>
                 <h3 className="text-2xl md:text-6xl font-black uppercase tracking-tighter">{isEditing ? t.update_identity : t.new_enrollment}</h3>
               </div>
-              <button onClick={() => { if(isDirectMode) setActivePage('dashboard'); else setShowModal(false); }} className="w-12 h-12 md:w-20 md:h-20 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl group"><i className="fas fa-times text-xl md:text-3xl group-hover:rotate-90 transition-transform"></i></button>
+              <button onClick={() => {
+                  setShowModal(false);
+                  if(setPreSelectedCustomer) setPreSelectedCustomer(null);
+                  if(isDirectMode) setActivePage('dashboard');
+              }} className="w-12 h-12 md:w-20 md:h-20 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl group"><i className="fas fa-times text-xl md:text-3xl group-hover:rotate-90 transition-transform"></i></button>
             </div>
             <form onSubmit={handleSave} className="space-y-8 md:space-y-14">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
@@ -1155,6 +1247,81 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         </div>
       )}
 
+      {showWhatsAppModal && waTargetCust && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[6000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl space-y-10 border-2 border-slate-100 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-[#25D366]"></div>
+
+             <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg"><i className="fab fa-whatsapp"></i></div>
+                    <h3 className="text-3xl font-black uppercase tracking-tighter leading-none">WhatsApp Message</h3>
+                </div>
+                <button onClick={() => setShowWhatsAppModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center"><i className="fas fa-times"></i></button>
+             </div>
+
+             <div className="space-y-1">
+                <p className="text-[10px] text-slate-400 tracking-[4px]">SENDING TO</p>
+                <p className="text-2xl font-black text-emerald-600">{waTargetCust.name}</p>
+                <p className="text-xs text-slate-400">{waTargetCust.mobile}</p>
+             </div>
+
+             <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-[10px] text-slate-400 tracking-[3px] text-left ml-4 uppercase">Message Templates</p>
+                  <select
+                      onChange={(e) => {
+                          const template = store.smsTemplates?.find(t => t.title === e.target.value);
+                          if (template) {
+                              const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+                              const cleanMsg = (template.messageContent || template.message_content || "")
+                                .replace(/{NAME}/g, waTargetCust.name || '')
+                                .replace(/{CUSTOMER_CODE}/g, waTargetCust.customerCode || waTargetCust.customer_code || '')
+                                .replace(/{ZONE}/g, waTargetCust.zone || '')
+                                .replace(/{BILL_MONTH}/g, currentMonth)
+                                .replace(/{AMOUNT}/g, Math.floor(waTargetCust.currentDue || waTargetCust.current_due || 0))
+                                .replace(/{DUE}/g, Math.floor(waTargetCust.currentDue || waTargetCust.current_due || 0))
+                                .replace(/{TOTAL_DUE}/g, Math.floor(waTargetCust.currentDue || waTargetCust.current_due || 0));
+                              setWaMessage(cleanMsg);
+                          }
+                      }}
+                      className="w-full bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border-none font-black text-xs shadow-inner outline-none cursor-pointer text-emerald-600"
+                  >
+                      <option value="">-- Select a Template --</option>
+                      {store.smsTemplates?.filter(t => ["Create Customer", "Expired Customer", "Expiry Reminder (Tomorrow)", "Complain to Customer", "Area Wise Customer List", "All Customer"].includes(t.title)).map(t => (
+                          <option key={t.id} value={t.title}>{t.title}</option>
+                      ))}
+                  </select>
+                </div>
+
+                <textarea
+                  value={waMessage}
+                  onChange={(e) => setWaMessage(e.target.value)}
+                  placeholder="Type your WhatsApp message here..."
+                  className="w-full h-48 bg-slate-50 dark:bg-slate-900 p-8 rounded-[48px] border-none font-black text-lg shadow-inner outline-none"
+                />
+             </div>
+
+             <button
+                onClick={() => {
+                    let cleanMobile = (waTargetCust.mobile || "").replace(/[^0-9]/g, "");
+                    if (cleanMobile.startsWith('0')) cleanMobile = '88' + cleanMobile;
+                    else if (cleanMobile.length === 10) cleanMobile = '880' + cleanMobile;
+                    else if (!cleanMobile.startsWith('88')) cleanMobile = '88' + cleanMobile;
+
+                    const waUrl = `https://wa.me/${cleanMobile}?text=${encodeURIComponent(waMessage)}`;
+                    window.open(waUrl, '_blank');
+                    setShowWhatsAppModal(false);
+                }}
+                className="w-full bg-[#25D366] text-white py-8 rounded-[40px] font-black uppercase tracking-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all border-b-8 border-[#1DA851] flex items-center justify-center space-x-4"
+             >
+                <i className="fab fa-whatsapp text-2xl"></i>
+                <span>OPEN WHATSAPP CHAT</span>
+             </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -1168,7 +1335,8 @@ const ActionModals = ({
   dbFields, csvHeaders, mapping, setMapping, importStatus, startBulkImport, t,
   showFilterDrawer, setShowFilterDrawer, filters, setFilters, store,
   showZoneChangeModal, setShowZoneChangeModal, custToChangeZone, newZoneData, setNewZoneData, handleQuickZoneUpdate,
-  showDateChangeModal, setShowDateChangeModal, custToChangeDate, newDates, setNewDates, handleQuickDateUpdate
+  showDateChangeModal, setShowDateChangeModal, custToChangeDate, newDates, setNewDates, handleQuickDateUpdate,
+  showWhatsAppModal, setShowWhatsAppModal, waTargetCust, waMessage, setWaMessage
 }) => (
     <>
       {showColumnSelector && (
@@ -1209,6 +1377,22 @@ const ActionModals = ({
                    </div>
 
                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-[10px] text-slate-400 tracking-[3px] text-left ml-4 uppercase">Message Templates</p>
+                        <select
+                            onChange={(e) => {
+                                const template = store.smsTemplates?.find(t => t.title === e.target.value);
+                                if (template) setSmsMessage(template.messageContent || template.message_content || "");
+                            }}
+                            className="w-full bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border-none font-black text-xs shadow-inner outline-none cursor-pointer text-indigo-600"
+                        >
+                            <option value="">-- Select a Template --</option>
+                            {store.smsTemplates?.filter(t => ["Create Customer", "Expired Customer", "Expiry Reminder (Tomorrow)", "Complain to Customer", "Area Wise Customer List", "All Customer"].includes(t.title)).map(t => (
+                                <option key={t.id} value={t.title}>{t.title}</option>
+                            ))}
+                        </select>
+                      </div>
+
                       <textarea
                         value={smsMessage}
                         onChange={(e) => setSmsMessage(e.target.value)}

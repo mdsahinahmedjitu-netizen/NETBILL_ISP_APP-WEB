@@ -1,9 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Dashboard = ({ store, session, permissions, setActivePage, setReportInitialTab, navigateToAddCustomer, openSearch, openSummary, t }) => {
+const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, setInitialFilters, setReportInitialTab, navigateToAddCustomer, openSearch, openSummary, t }) => {
   const [activeFilter, setActiveFilter] = useState('today');
   const [customDate, setCustomDate] = useState(new Date().toLocaleDateString('en-CA'));
+
+  // Date Range Selection for Expiry Audit
+  const [showExpiryRangeModal, setShowExpiryRangeModal] = useState(false);
+  const [expiryRange, setExpiryRange] = useState({
+      start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
+      end: new Date().toLocaleDateString('en-CA')
+  });
+
+  const [showNewJoinRangeModal, setShowNewJoinRangeModal] = useState(false);
+  const [newJoinRange, setNewJoinRange] = useState({
+      start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
+      end: new Date().toLocaleDateString('en-CA')
+  });
 
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return '';
@@ -50,10 +63,18 @@ const Dashboard = ({ store, session, permissions, setActivePage, setReportInitia
     return true;
   });
 
+  // Role-Based Customer Filtering for Stats
+  const visibleCustomers = useMemo(() => {
+    if (session?.role === 'staff') {
+        return store.customers.filter(c => (c.assignedStaffId || c.assigned_staff_id) === session.data.id || (c.assignedStaffId || c.assigned_staff_id) === session.data.name);
+    }
+    return store.customers;
+  }, [store.customers, session]);
+
   const selectedTotal = filteredPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-  const dueTotal = store.customers.reduce((s, c) => s + (parseFloat(c.current_due || c.currentDue) || 0), 0);
-  const activeCount = store.customers.filter(c => c.status === 'Active').length;
-  const expiredCount = store.customers.filter(c => c.status !== 'Active').length;
+  const dueTotal = visibleCustomers.reduce((s, c) => s + (parseFloat(c.current_due || c.currentDue) || 0), 0);
+  const expiredTotalCount = visibleCustomers.filter(c => c.status === 'Expired' || c.status === 'Suspended').length;
+  const newJoinsThisMonth = visibleCustomers.filter(c => (c.joinDate || c.join_date)?.startsWith(currentMonthStr)).length;
   const targetPlan = store.settings?.monthlyTarget || store.settings?.monthly_target || 0;
 
   // VERIFICATION LOGIC
@@ -256,6 +277,12 @@ const Dashboard = ({ store, session, permissions, setActivePage, setReportInitia
         <FeatureCard title={t.grid_search} icon="fa-magnifying-glass-chart" grad="grad-search" onClick={openSearch} />
         <FeatureCard title={t.grid_due} icon="fa-money-bill-transfer" grad="grad-due" onClick={() => { setReportInitialTab('due'); setActivePage('reports'); }} />
         <FeatureCard title={t.grid_summary} icon="fa-chart-pie" grad="grad-summary" onClick={openSummary} />
+
+        {/* NEW BOXES */}
+        {session?.role === 'admin' && <FeatureCard title={t.grid_edit} icon="fa-user-pen" grad="grad-edit" onClick={() => { setSearchMode('edit'); openSearch(); }} />}
+        <FeatureCard title={`${t.grid_expired} (${expiredTotalCount})`} icon="fa-user-xmark" grad="grad-expired" onClick={() => setShowExpiryRangeModal(true)} />
+        <FeatureCard title={`${t.grid_new_subs} (${newJoinsThisMonth})`} icon="fa-user-check" grad="grad-new" onClick={() => setShowNewJoinRangeModal(true)} />
+
         <div className="feature-card bg-slate-800 h-32 md:h-40 rounded-[24px] md:rounded-[44px] p-4 md:p-8 flex flex-col justify-center text-white shadow-lg font-black uppercase tracking-widest relative overflow-hidden">
            <i className="fas fa-comment-sms text-2xl md:text-4xl mb-2 md:mb-3 opacity-30 absolute right-6 top-6"></i>
            <span className="text-[8px] md:text-[10px] opacity-60 mb-1">SMS Balance</span>
@@ -314,6 +341,114 @@ const Dashboard = ({ store, session, permissions, setActivePage, setReportInitia
           <div className="w-12 h-12 md:w-24 md:h-24 bg-white/10 rounded-xl md:rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12 self-end md:self-start"><i className="fas fa-chart-line text-xl md:text-4xl text-white"></i></div>
         </div>
       </div>
+      )}
+
+      {/* EXPIRY DATE RANGE SELECTOR MODAL */}
+      {showExpiryRangeModal && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
+            <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-xl p-12 shadow-2xl space-y-10 relative border-4 border-rose-500/20 animate-scaleIn overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-4 bg-rose-600 shadow-lg"></div>
+
+               <div className="text-center space-y-2">
+                  <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto text-4xl text-rose-500 shadow-inner mb-4"><i className="fas fa-calendar-days"></i></div>
+                  <h3 className="text-4xl font-black tracking-tighter">Expiry Date Range</h3>
+                  <p className="text-[10px] text-slate-400 tracking-[3px] font-bold">Select period to filter expired subscribers</p>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[11px] text-slate-400 ml-4 tracking-[4px] font-black uppercase">From Date</label>
+                    <input
+                      type="date"
+                      value={expiryRange.start}
+                      onChange={e => setExpiryRange({...expiryRange, start: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl font-black text-lg outline-none border-4 border-transparent focus:border-rose-500/20 shadow-inner cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[11px] text-slate-400 ml-4 tracking-[4px] font-black uppercase">To Date</label>
+                    <input
+                      type="date"
+                      value={expiryRange.end}
+                      onChange={e => setExpiryRange({...expiryRange, end: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl font-black text-lg outline-none border-4 border-transparent focus:border-rose-500/20 shadow-inner cursor-pointer"
+                    />
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 gap-4">
+                  <button
+                    onClick={() => {
+                        setInitialFilters({
+                            status: 'Expired',
+                            expiryStart: expiryRange.start,
+                            expiryEnd: expiryRange.end
+                        });
+                        setActivePage('customers');
+                        setShowExpiryRangeModal(false);
+                    }}
+                    className="w-full bg-rose-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[5px] shadow-[0_20px_40px_rgba(220,38,38,0.3)] hover:scale-105 active:scale-95 transition-all border-b-8 border-rose-900"
+                  >
+                     VIEW EXPIRED LIST
+                  </button>
+                  <button onClick={() => setShowExpiryRangeModal(false)} className="py-4 text-slate-400 text-xs font-black tracking-[4px] hover:text-rose-500 transition-colors">CANCEL</button>
+               </div>
+            </div>
+        </div>
+      )}
+
+      {/* NEW JOIN DATE RANGE SELECTOR MODAL */}
+      {showNewJoinRangeModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-2xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
+            <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-xl p-12 shadow-2xl space-y-10 relative border-4 border-emerald-500/20 animate-scaleIn overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-4 bg-emerald-500 shadow-lg"></div>
+
+               <div className="text-center space-y-2">
+                  <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto text-4xl text-emerald-600 shadow-inner mb-4"><i className="fas fa-user-plus"></i></div>
+                  <h3 className="text-4xl font-black tracking-tighter">New Joins Range</h3>
+                  <p className="text-[10px] text-slate-400 tracking-[3px] font-bold">Filter subscribers by joining date</p>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[11px] text-slate-400 ml-4 tracking-[4px] font-black uppercase">Start Date</label>
+                    <input
+                      type="date"
+                      value={newJoinRange.start}
+                      onChange={e => setNewJoinRange({...newJoinRange, start: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl font-black text-lg outline-none border-4 border-transparent focus:border-emerald-500/20 shadow-inner cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[11px] text-slate-400 ml-4 tracking-[4px] font-black uppercase">End Date</label>
+                    <input
+                      type="date"
+                      value={newJoinRange.end}
+                      onChange={e => setNewJoinRange({...newJoinRange, end: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl font-black text-lg outline-none border-4 border-transparent focus:border-emerald-500/20 shadow-inner cursor-pointer"
+                    />
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 gap-4">
+                  <button
+                    onClick={() => {
+                        setInitialFilters({
+                            status: 'All',
+                            joinStart: newJoinRange.start,
+                            joinEnd: newJoinRange.end
+                        });
+                        setActivePage('customers');
+                        setShowNewJoinRangeModal(false);
+                    }}
+                    className="w-full bg-emerald-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[5px] shadow-[0_20px_40px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95 transition-all border-b-8 border-emerald-900"
+                  >
+                     VIEW NEW SUBSCRIBERS
+                  </button>
+                  <button onClick={() => setShowNewJoinRangeModal(false)} className="py-4 text-slate-400 text-xs font-black tracking-[4px] hover:text-emerald-600 transition-colors">CANCEL</button>
+               </div>
+            </div>
+        </div>
       )}
 
     </div>

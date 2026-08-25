@@ -217,9 +217,21 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection', setAct
                                <td className="py-6 text-sm text-slate-600 font-black uppercase">{customer?.address || customer?.zone || '---'}</td>
                                <td className="py-6"><span className="px-4 py-1.5 bg-slate-100 rounded-xl text-[9px] font-black uppercase">{p.paymentMethod || 'Cash'}</span></td>
                                <td className="py-6 text-xs font-black">{p.paymentDate || p.payment_date}</td>
-                               <td className="py-6 text-xs font-black uppercase italic"><span onClick={() => { if(customer) { setTargetCustomer(customer); setTargetPayment(p); setNewCollector(p.collectedBy || ''); setShowCollectorModal(true); } }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all">{p.collectedBy || t.coll_admin_direct}</span></td>
+                               <td className="py-6 text-xs font-black uppercase italic">
+                                 {isStaff ? (
+                                   <span className="bg-slate-100 px-3 py-1 rounded-lg opacity-70">{p.collectedBy || t.coll_admin_direct}</span>
+                                 ) : (
+                                   <span onClick={() => { if(customer) { setTargetCustomer(customer); setTargetPayment(p); setNewCollector(p.collectedBy || ''); setShowCollectorModal(true); } }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all">{p.collectedBy || t.coll_admin_direct}</span>
+                                 )}
+                               </td>
                                <td className="py-6 text-right font-black text-emerald-600 text-xl">৳{p.amount}</td>
-                               <td className="py-6 text-center"><button onClick={() => { setPaymentToDelete(p); setShowDeleteModal(true); }} className="text-rose-400 hover:text-rose-600"><i className="fas fa-trash-alt"></i></button></td>
+                               <td className="py-6 text-center">
+                                 {!isStaff && (
+                                   <button onClick={() => { setPaymentToDelete(p); setShowDeleteModal(true); }} className="text-rose-400 hover:text-rose-600">
+                                     <i className="fas fa-trash-alt"></i>
+                                   </button>
+                                 )}
+                               </td>
                             </tr>
                           );
                        })}
@@ -241,7 +253,15 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection', setAct
                           <td className="py-5 font-black uppercase">{c.name} <span className="block text-[10px] text-slate-400">#{c.customerCode}</span></td>
                           <td className="py-5 text-sm font-black text-indigo-600">{c.zone || 'Global'}</td>
                           <td className="py-5 text-sm font-black">
-                             <span onClick={() => { setTargetCustomer(c); setTargetPayment(null); setNewCollector(c.assignedStaffId || ''); setShowCollectorModal(true); }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all border border-slate-200">{store.staff?.find(s => s.id === (c.assignedStaffId || c.assigned_staff_id) || s.name === (c.assignedStaffId || c.assigned_staff_id))?.name || c.assignedStaffId || c.assigned_staff_id || '---'}</span>
+                             {isStaff ? (
+                               <span className="bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 opacity-70">
+                                 {store.staff?.find(s => s.id === (c.assignedStaffId || c.assigned_staff_id) || s.name === (c.assignedStaffId || c.assigned_staff_id))?.name || c.assignedStaffId || c.assigned_staff_id || '---'}
+                               </span>
+                             ) : (
+                               <span onClick={() => { setTargetCustomer(c); setTargetPayment(null); setNewCollector(c.assignedStaffId || ''); setShowCollectorModal(true); }} className="bg-slate-100 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-600 hover:text-white transition-all border border-slate-200">
+                                 {store.staff?.find(s => s.id === (c.assignedStaffId || c.assigned_staff_id) || s.name === (c.assignedStaffId || c.assigned_staff_id))?.name || c.assignedStaffId || c.assigned_staff_id || '---'}
+                               </span>
+                             )}
                           </td>
                           <td className="py-5 text-right font-black text-slate-700 text-lg">৳{Math.floor(c.monthlyBill || 0)}</td>
                           <td className="py-5 text-right font-black text-rose-500 text-xl">৳{Math.floor(c.currentDue || c.current_due)}</td>
