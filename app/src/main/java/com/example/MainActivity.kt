@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -86,20 +85,33 @@ fun MainApp(viewModel: MainViewModel) {
     val scope = rememberCoroutineScope()
 
     // Global Modals State
-    var showGlobalSearch by remember { mutableStateOf(false) }
-    var showSummarySearch by remember { mutableStateOf(false) }
-    var showExpiryModal by remember { mutableStateOf(false) }
+    var showGlobalSearch by remember { mutableStateOf(value = false) }
+    var showSummarySearch by remember { mutableStateOf(value = false) }
+    var showExpiryModal by remember { mutableStateOf(value = false) }
 
     val customersList by viewModel.customersList.collectAsState()
-    val expiringTomorrow = remember(customersList) {
+    val expiringTomorrow = remember(customersList, currentUser) {
         val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
         val cal = java.util.Calendar.getInstance()
         cal.add(java.util.Calendar.DATE, 1)
         val tomorrow = sdf.format(cal.time)
+
+        val isStaff = (currentUser?.role?.lowercase() ?: "") != "admin"
+        val staffId = currentUser?.id ?: ""
+        val staffName = currentUser?.name ?: ""
         
         customersList.filter { c -> 
+            val matchStaff = if (isStaff) {
+                val assignedId = c.assignedStaffId?.trim() ?: ""
+                (assignedId.isNotBlank()) && (
+                    (assignedId == staffId) || 
+                    assignedId.equals(staffName, ignoreCase = true)
+                )
+            } else {
+                true
+            }
             val isDue = (c.currentDue > 0)
-            c.status == "Active" && isDue && c.expireDate == tomorrow
+            matchStaff && c.status == "Active" && isDue && c.expireDate == tomorrow
         }
     }
 
@@ -178,7 +190,7 @@ fun MainApp(viewModel: MainViewModel) {
                 drawerContainerColor = drawerBgColor,
                 drawerContentColor = Color.White,
                 drawerShape = RoundedCornerShape(0.dp),
-                modifier = Modifier.width(300.dp)
+                modifier = Modifier.width(300.dp),
             ) {
                 Spacer(Modifier.height(40.dp))
                 Row(
@@ -415,7 +427,7 @@ fun MainApp(viewModel: MainViewModel) {
                                     .border(2.dp, Color(0xFFE11D48), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("${expiringTomorrow.size}", color = Color(0xFFE11D48), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                Text(expiringTomorrow.size.toString(), color = Color(0xFFE11D48), fontSize = 10.sp, fontWeight = FontWeight.Black)
                             }
                         }
                     }
@@ -428,11 +440,7 @@ fun MainApp(viewModel: MainViewModel) {
                         viewModel = viewModel,
                         onNavigateToCustomers = { activePage = "customers" },
                         onNavigateToPayments = { activePage = "payments" },
-                        onNavigateToBilling = { activePage = "billing" },
-                        onNavigateToMikroTik = { activePage = "mikrotik" },
                         onNavigateToReports = { activePage = "reports" },
-                        onNavigateToNotifications = { activePage = "notifications" },
-                        onNavigateToAlerts = { activePage = "alerts" },
                         onSelectCustomer = { _ -> 
                             activePage = "customer_profile"
                         },
@@ -451,7 +459,7 @@ fun MainApp(viewModel: MainViewModel) {
                     )
                     "payments" -> PaymentCollectionScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "billing" -> BillingScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
-                    "reports" -> ReportsScreen(mainViewModel = viewModel, onBack = { activePage = "dashboard" })
+                    "reports" -> ReportsScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "salary_ledger" -> StaffSalaryHistoryScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
                     "staff" -> StaffScreen(viewModel = viewModel, onNavigateToLedger = { activePage = "salary_ledger" }, onBack = { activePage = "dashboard" })
                     "inventory" -> InventoryScreen(viewModel = viewModel, onBack = { activePage = "dashboard" })
@@ -471,8 +479,6 @@ fun MainApp(viewModel: MainViewModel) {
                         viewModel = viewModel,
                         onNavigateToCustomers = { activePage = "customers" },
                         onNavigateToPayments = { activePage = "payments" },
-                        onNavigateToBilling = { activePage = "billing" },
-                        onNavigateToMikroTik = { activePage = "mikrotik" },
                         onNavigateToReports = { activePage = "reports" },
                         openSearch = { showGlobalSearch = true },
                         openSummary = { showSummarySearch = true }
@@ -499,7 +505,7 @@ fun MainApp(viewModel: MainViewModel) {
     if (showSummarySearch) {
         SummarySearchDialog(
             customers = customersList,
-            onSelect = { customer ->
+            onSelect = {
                 showSummarySearch = false
                 activePage = "billing_summary"
             },

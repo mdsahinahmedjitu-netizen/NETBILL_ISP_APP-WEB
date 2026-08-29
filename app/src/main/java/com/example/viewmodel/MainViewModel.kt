@@ -159,11 +159,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val filteredCustomers: StateFlow<List<CustomerEntity>> = combine(customersList, _filterState, currentUser) { list, filter, user ->
-        val isStaff = user?.role?.lowercase() != "admin"
+        val isStaff = (user?.role?.lowercase() ?: "") != "admin"
         val staffId = user?.id ?: ""
+        val staffName = user?.name ?: ""
 
         list.filter { cust ->
-            val matchStaff = if (isStaff) cust.assignedStaffId == staffId else true
+            val matchStaff = if (isStaff) {
+                cust.assignedStaffId?.isNotBlank() == true && 
+                (cust.assignedStaffId == staffId || cust.assignedStaffId == staffName)
+            } else {
+                true
+            }
             
             val matchQuery = filter.searchQuery.isEmpty() ||
                     cust.customerCode.contains(filter.searchQuery, ignoreCase = true) ||
@@ -182,18 +188,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _dismissedExpiryAlerts = MutableStateFlow<Set<String>>(emptySet())
-    val expiringTomorrowCustomers: StateFlow<List<CustomerEntity>> = combine(customersList, _dismissedExpiryAlerts) { custs, dismissed ->
-        custs.filter { cust -> com.example.util.ExpiryUtils.isExpiringTomorrow(cust) && !dismissed.contains(cust.id) }
+    val expiringTomorrowCustomers: StateFlow<List<CustomerEntity>> = combine(customersList, _dismissedExpiryAlerts, currentUser) { custs, dismissed, user ->
+        val isStaff = (user?.role?.lowercase() ?: "") != "admin"
+        val staffId = user?.id ?: ""
+        val staffName = user?.name ?: ""
+
+        custs.filter { cust -> 
+            val matchStaff = if (isStaff) {
+                val assignedId = cust.assignedStaffId?.trim() ?: ""
+                assignedId.isNotBlank() && (
+                    assignedId == staffId || 
+                    assignedId.equals(staffName, ignoreCase = true)
+                )
+            } else {
+                true
+            }
+            matchStaff && com.example.util.ExpiryUtils.isExpiringTomorrow(cust) && !dismissed.contains(cust.id) 
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val dashboardStats: StateFlow<DashboardStats> = combine(customersList, paymentsList, expensesList, currentUser) { allCusts, pymts, exps, user ->
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val yearMonthStr = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
-        val isStaff = user?.role?.lowercase() != "admin"
+        val isStaff = (user?.role?.lowercase() ?: "") != "admin"
         val staffId = user?.id ?: ""
+        val staffName = user?.name ?: ""
         
-        val visibleCusts = if (isStaff) allCusts.filter { it.assignedStaffId == staffId } else allCusts
+        val visibleCusts = if (isStaff) {
+            allCusts.filter { 
+                it.assignedStaffId?.isNotBlank() == true && 
+                (it.assignedStaffId == staffId || it.assignedStaffId == staffName) 
+            }
+        } else {
+            allCusts
+        }
 
         DashboardStats(
             totalCustomers = visibleCusts.size,

@@ -80,7 +80,14 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection', setAct
   const totalAmount = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const accessibleCustomers = useMemo(() => {
-    if (isStaff) return store.customers.filter(c => (c.assignedStaffId || c.assigned_staff_id) === session.data.id || (c.assignedStaffId || c.assigned_staff_id) === session.data.name);
+    if (isStaff) {
+      const staffId = session.data?.id;
+      const staffName = session.data?.name;
+      return store.customers.filter(c => {
+        const assignedId = (c.assignedStaffId || c.assigned_staff_id || "").trim();
+        return assignedId && (assignedId === staffId || assignedId.toLowerCase() === (staffName || "").toLowerCase());
+      });
+    }
     return store.customers;
   }, [store.customers, isStaff, session?.data]);
 
@@ -225,7 +232,7 @@ const CollectionReport = ({ store, session, t, initialTab = 'collection', setAct
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <StatCardSmall label="Customers" value={store.customers.length} icon="fa-users" color="text-indigo-600" />
+        <StatCardSmall label="Customers" value={accessibleCustomers.length} icon="fa-users" color="text-indigo-600" />
         <StatCardSmall label="Collected" value={`৳${totalAmount.toLocaleString('en-US')}`} icon="fa-money-bill-trend-up" color="text-emerald-600" />
         <StatCardSmall label="Due" value={`৳${Math.floor(totalDue).toLocaleString('en-US')}`} icon="fa-triangle-exclamation" color="text-rose-500" />
         <StatCardSmall label="Total Bill" value={`৳${Math.floor(totalBill).toLocaleString('en-US')}`} icon="fa-receipt" color="text-blue-600" />

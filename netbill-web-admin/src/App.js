@@ -134,10 +134,21 @@ function App() {
     const tomorrowCustom = `${tomorrow.getDate().toString().padStart(2, '0')}-${months[tomorrow.getMonth()]}-${tomorrow.getFullYear()}`;
     return store.customers.filter(c => {
       const eDate = c.expireDate || c.expire_date;
-      if (!eDate || c.status !== 'Active') return false;
+      const isDue = (parseFloat(c.currentDue || c.current_due || 0) > 0);
+      if (!eDate || c.status !== 'Active' || !isDue) return false;
+
+      // Staff Isolation
+      if (session?.role === 'staff') {
+        const staffId = session.data?.id;
+        const staffName = session.data?.name;
+        const assignedId = (c.assignedStaffId || c.assigned_staff_id || "").trim();
+
+        if (!assignedId || (assignedId !== staffId && assignedId.toLowerCase() !== (staffName || "").toLowerCase())) return false;
+      }
+
       return eDate === tomorrowISO || eDate === tomorrowCustom;
     });
-  }, [store.customers]);
+  }, [store.customers, session]);
 
   const currentPermissions = React.useMemo(() => {
     if (!session) return {};

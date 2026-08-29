@@ -46,6 +46,15 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
       const eDate = c.expireDate || c.expire_date;
       const isDue = (parseFloat(c.currentDue || c.current_due || 0) > 0);
       if (!eDate || c.status !== 'Active' || !isDue) return false;
+
+      // Staff Isolation
+      if (session?.role === 'staff') {
+        const staffId = session.data?.id;
+        const staffName = session.data?.name;
+        const assignedId = c.assignedStaffId || c.assigned_staff_id;
+        if (!assignedId || (assignedId !== staffId && assignedId !== staffName)) return false;
+      }
+
       return eDate === tomorrowISO || eDate === tomorrowCustom;
     });
   }, [store.customers, tomorrowISO, tomorrowCustom]);
@@ -226,8 +235,22 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
 
   // BILL PROMISE REMINDERS
   const billPromises = useMemo(() => {
-    return store.customers.filter(c => c.promiseDate && parseFloat(c.currentDue || c.current_due || 0) > 0);
-  }, [store.customers]);
+    return store.customers.filter(c => {
+      const isDue = parseFloat(c.currentDue || c.current_due || 0) > 0;
+      if (!c.promiseDate || !isDue) return false;
+
+      // Staff Isolation: Only show their own bill promises if role is 'staff'
+      if (session?.role === 'staff') {
+        const staffId = session.data?.id;
+        const staffName = session.data?.name;
+        const assignedId = c.assignedStaffId || c.assigned_staff_id;
+
+        if (!assignedId || (assignedId !== staffId && assignedId !== staffName)) return false;
+      }
+
+      return true;
+    });
+  }, [store.customers, session]);
 
   const todaysPromises = billPromises.filter(c => c.promiseDate === todayStr);
   const overduePromises = billPromises.filter(c => c.promiseDate < todayStr);

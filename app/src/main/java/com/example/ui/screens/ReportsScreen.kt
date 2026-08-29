@@ -17,16 +17,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 import com.example.localization.appTranslation
 import com.example.ui.theme.*
+import com.example.viewmodel.MainViewModel
 import com.example.viewmodel.ReportsViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun ReportsScreen(
+    viewModel: MainViewModel,
     reportsViewModel: ReportsViewModel = viewModel(),
     onBack: () -> Unit = {},
 ) {
+    val currentUser by viewModel.currentUser.collectAsState()
+    
+    LaunchedEffect(currentUser) {
+        reportsViewModel.setCurrentUser(currentUser)
+    }
+
     val stats by reportsViewModel.reportStats.collectAsState()
     val currency = appTranslation("currency_symbol")
 
@@ -83,7 +92,7 @@ fun ReportsScreen(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ReportStatCard(label = "TOTAL CUSTOMERS", value = "1,248", icon = Icons.Default.People, color = IspIndigo, modifier = Modifier.width(160.dp))
+            ReportStatCard(label = "TOTAL CUSTOMERS", value = String.format(Locale.US, "%,d", stats.totalCustomers), icon = Icons.Default.People, color = IspIndigo, modifier = Modifier.width(160.dp))
             ReportStatCard(label = "COLLECTED", value = "$currency${stats.totalRevenue.toInt()}", icon = Icons.AutoMirrored.Filled.TrendingUp, color = EmeraldSuccess, modifier = Modifier.width(160.dp))
             ReportStatCard(label = "DUE BALANCE", value = "$currency${stats.totalOutstanding.toInt()}", icon = Icons.Default.Warning, color = IspRose, modifier = Modifier.width(160.dp))
             ReportStatCard(label = "TOTAL BILL", value = "$currency${stats.totalRevenue.toInt() + stats.totalOutstanding.toInt()}", icon = Icons.Default.Receipt, color = Color(0xFF3B82F6), modifier = Modifier.width(160.dp))
@@ -179,11 +188,17 @@ fun ReportsScreen(
                             }
                         }
                         "REVENUE" -> {
+                        if (stats.zoneReports.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("No zone revenue data found.", color = Slate600, fontSize = 13.sp)
+                            }
+                        } else {
                             stats.zoneReports.forEach { zone ->
                                 ZoneRevenueProgress(label = zone.zoneName.uppercase(), amount = zone.monthlyRevenue.toInt().toString(), count = zone.customerCount.toString(), currency = currency)
                                 Spacer(modifier = Modifier.height(20.dp))
                             }
                         }
+                    }
                     }
                 }
             }

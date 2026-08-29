@@ -121,7 +121,15 @@ fun DashboardScreen(
 
             // 0. BILL PROMISE REMINDERS
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            val billPromises = customersList.filter { !it.promiseDate.isNullOrBlank() && it.currentDue > 0 }
+            val isStaff = (currentUser?.role?.lowercase() ?: "") != "admin"
+            val staffId = currentUser?.id ?: ""
+            val staffName = currentUser?.name ?: ""
+
+            val billPromises = customersList.filter { 
+                !it.promiseDate.isNullOrBlank() && 
+                it.currentDue > 0 &&
+                (!isStaff || (it.assignedStaffId?.isNotBlank() == true && (it.assignedStaffId == staffId || it.assignedStaffId == staffName)))
+            }
             val todaysPromises = billPromises.filter { it.promiseDate == todayStr }
             val overduePromises = billPromises.filter { 
                 try {
