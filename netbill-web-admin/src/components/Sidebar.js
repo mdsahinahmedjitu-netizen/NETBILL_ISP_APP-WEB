@@ -17,6 +17,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen, activePage, setActivePage, o
       { id: 'customers', icon: 'fa-users', label: t.subscribers_crm, visible: permissions.canAccessCustomers },
       { id: 'crm_tickets', icon: 'fa-headset', label: t.support_tickets, visible: permissions.canAccessTickets },
       { id: 'payments', icon: 'fa-money-check-dollar', label: t.payment_center, visible: permissions.canAccessPayments },
+      { id: 'update_bill', icon: 'fa-file-invoice-dollar', label: t.update_bill, visible: role === 'admin' },
       { id: 'reports', icon: 'fa-chart-pie', label: t.collection_report, visible: permissions.canAccessReports },
       { id: 'expenses', icon: 'fa-file-invoice-dollar', label: t.expense_title, visible: permissions.canAccessExpenses },
       { id: 'staff', icon: 'fa-user-tie', label: t.staff_team, visible: permissions.canAccessStaff },

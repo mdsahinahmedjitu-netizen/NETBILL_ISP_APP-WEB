@@ -3,12 +3,10 @@ package com.example.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import com.example.ui.theme.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,7 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.ExpenseEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -34,12 +32,43 @@ import java.util.*
 @Composable
 fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val expenses by viewModel.expensesList.collectAsState()
-    val currency = AppTranslation("currency_symbol")
-    var showAddExpenseDialog by remember { mutableStateOf(false) }
+    val staffPayouts by viewModel.staffPayouts.collectAsState()
+    val currency = appTranslation("currency_symbol")
+    var showAddExpenseDialog by remember { mutableStateOf(value = false) }
+    var selectedCategory by remember { mutableStateOf("All") }
 
-    val totalExpense = expenses.sumOf { it.amount }
+    val categories = remember(expenses) {
+        listOf("All", "Staff Salary") + expenses.asSequence().map { it.category }.distinct().toList()
+    }
+
+    // Filter calculations
+    val totalSalaryPaid = staffPayouts.asSequence().filter { it.type == "payment" }.sumOf { it.amount }
+    
+    val filteredGeneralExpenses = when (selectedCategory) {
+        "All" -> expenses
+        "Staff Salary" -> emptyList()
+        else -> expenses.filter { it.category == selectedCategory }
+    }
+    
+    val totalGeneralExpense = filteredGeneralExpenses.sumOf { it.amount }
+    
+    val combinedTotal = when (selectedCategory) {
+        "All" -> totalGeneralExpense + totalSalaryPaid
+        "Staff Salary" -> totalSalaryPaid
+        else -> totalGeneralExpense
+    }
+
     val todayDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-    val todayExpense = expenses.filter { it.expenseDate == todayDate }.sumOf { it.amount }
+    
+    val todayGeneralExpense = expenses.filter { 
+        (it.expenseDate == todayDate) && (selectedCategory == "All" || it.category == selectedCategory)
+    }.sumOf { it.amount }
+    
+    val todaySalaryPaid = if (selectedCategory == "All" || selectedCategory == "Staff Salary")
+                          staffPayouts.filter { it.date == todayDate && it.type == "payment" }.sumOf { it.amount }
+                          else 0.0
+                          
+    val combinedToday = todayGeneralExpense + todaySalaryPaid
 
     Column(
         modifier = Modifier
@@ -47,7 +76,7 @@ fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
             .background(SleekBg)
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // Back Button Row
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -56,7 +85,7 @@ fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 modifier = Modifier
                     .size(52.dp)
                     .background(Color.White, RoundedCornerShape(16.dp))
-                    .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+                    .border(1.dp, SleekBorder, RoundedCornerShape(16.dp)),
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = BkashPink)
             }
@@ -71,7 +100,7 @@ fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 .padding(28.dp)
         ) {
             Text(
-                text = AppTranslation("expense_title").uppercase(),
+                text = appTranslation("expense_title").uppercase(),
                 fontWeight = FontWeight.Black,
                 fontSize = 28.sp,
                 letterSpacing = 2.sp,
@@ -88,12 +117,39 @@ fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
             
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Category Filter
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                categories.forEach { cat ->
+                    val isSelected = selectedCategory == cat
+                    Surface(
+                        onClick = { selectedCategory = cat },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) IspRose else Color(0xFFF1F5F9),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = cat.uppercase(),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isSelected) Color.White else Slate600,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                StatBox(label = "TOTAL", value = "$currency${totalExpense.toInt()}", color = IspRose, modifier = Modifier.weight(1f))
-                StatBox(label = "TODAY", value = "$currency${todayExpense.toInt()}", color = IspAmber, modifier = Modifier.weight(1f))
+                StatBox(label = "TOTAL FOR: ${selectedCategory.uppercase()}", value = "$currency${combinedTotal.toInt()}", color = IspRose, modifier = Modifier.weight(1f))
+                StatBox(label = "TODAY", value = "$currency${combinedToday.toInt()}", color = IspAmber, modifier = Modifier.weight(1f))
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -135,9 +191,32 @@ fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
 
                     HorizontalDivider(color = SleekBorder)
 
-                    expenses.forEach { exp ->
+                    filteredGeneralExpenses.forEach { exp ->
                         ExpenseRow(exp, currency)
                         HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f))
+                    }
+                    
+                    if (selectedCategory == "All" || selectedCategory == "Staff Salary") {
+                        val totalSalary = staffPayouts.filter { it.type == "payment" }.sumOf { it.amount }
+                        if (totalSalary > 0) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "---", modifier = Modifier.width(100.dp), textAlign = TextAlign.Center)
+                                Column(modifier = Modifier.width(250.dp)) {
+                                    Text(text = "STAFF SALARIES TOTAL", fontWeight = FontWeight.Black, fontSize = 16.sp, color = IspIndigo)
+                                    Text(text = "TOTAL DISBURSED SALARIES", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Slate400)
+                                }
+                                Box(modifier = Modifier.width(150.dp), contentAlignment = Alignment.Center) {
+                                    Surface(shape = RoundedCornerShape(12.dp), color = IspIndigo.copy(alpha = 0.1f), border = BorderStroke(1.dp, IspIndigo)) {
+                                        Text(text = "STAFF SALARY", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = IspIndigo, fontWeight = FontWeight.Black, fontSize = 9.sp)
+                                    }
+                                }
+                                Text(text = "SYSTEM", modifier = Modifier.width(150.dp), fontSize = 12.sp, fontWeight = FontWeight.Black, color = Slate400, textAlign = TextAlign.Center)
+                                Text(text = "$currency${totalSalary.toInt()}", modifier = Modifier.width(120.dp), fontSize = 18.sp, fontWeight = FontWeight.Black, color = IspIndigo, textAlign = TextAlign.Right)
+                            }
+                        }
                     }
                 }
             }
@@ -148,12 +227,11 @@ fun ExpenseScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
 
     if (showAddExpenseDialog) {
         AddExpenseDialog(
-            onDismiss = { showAddExpenseDialog = false },
-            onSave = { title, category, amount, notes, date, spentBy ->
-                viewModel.addExpense(title, category, amount, notes, date, spentBy)
-                showAddExpenseDialog = false
-            }
-        )
+            onDismiss = { showAddExpenseDialog = false }
+        ) { title, category, amount, notes, date, spentBy ->
+            viewModel.addExpense(title, category, amount, notes, date, spentBy)
+            showAddExpenseDialog = false
+        }
     }
 }
 

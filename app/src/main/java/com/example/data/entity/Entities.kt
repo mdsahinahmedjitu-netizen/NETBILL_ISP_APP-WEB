@@ -54,6 +54,8 @@ data class CustomerEntity(
     @SerialName("request_date") val requestDate: String? = "",
     @SerialName("connection_type") val connectionType: String? = "",
     @SerialName("connection_fee") val connectionFee: Double = 0.0,
+    @SerialName("promise_date") val promiseDate: String? = "",
+    @SerialName("promise_note") val promiseNote: String? = "",
     val notes: String? = ""
 ) {
     @get:Ignore val joinDayOfMonth: Int

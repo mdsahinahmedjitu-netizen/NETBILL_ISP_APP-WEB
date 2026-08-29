@@ -30,7 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.StaffEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.components.ReadonlyDateField
 import com.example.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
@@ -43,7 +43,7 @@ fun StaffScreen(
     onNavigateToLedger: () -> Unit = {}
 ) {
     val staffList by viewModel.staffList.collectAsState()
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
     var showAddStaffDialog by remember { mutableStateOf(false) }
     var selectedStaffForSalary by remember { mutableStateOf<StaffEntity?>(null) }
     var selectedStaffForEdit by remember { mutableStateOf<StaffEntity?>(null) }
@@ -78,7 +78,7 @@ fun StaffScreen(
                 .padding(28.dp)
         ) {
             Text(
-                text = AppTranslation("staff_management").uppercase(),
+                text = appTranslation("staff_management").uppercase(),
                 fontWeight = FontWeight.Black,
                 fontSize = 28.sp,
                 letterSpacing = 2.sp,

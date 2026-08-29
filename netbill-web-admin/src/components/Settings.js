@@ -204,89 +204,94 @@ const Settings = ({ store, t, lang, setActivePage }) => {
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter transition-all">
-      <div className="flex justify-between items-end">
-        <div className="flex items-center space-x-6">
-           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
+    <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-12 pb-20 uppercase font-black tracking-tighter transition-all px-2 md:px-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex items-center space-x-4 md:space-x-6">
+           <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
               <i className="fas fa-arrow-left"></i>
            </button>
-           <div className="space-y-2">
-              <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">{t.settings_title}</h3>
-              <p className="text-xs text-teal-600 tracking-widest font-black uppercase italic">{t.master_control_panel}</p>
+           <div className="space-y-1 md:space-y-2">
+              <h3 className="text-3xl md:text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest uppercase">Settings</h3>
+              <p className="text-[10px] md:text-xs text-teal-600 tracking-widest font-black uppercase italic">{t.master_control_panel}</p>
            </div>
         </div>
-        <div className="bg-rose-50 dark:bg-rose-900/20 p-6 rounded-[32px] border-2 border-rose-100 dark:border-rose-800 space-y-4 text-center">
-           <p className="text-[10px] text-rose-600 font-bold tracking-widest uppercase">{t.data_migration}</p>
-           <button onClick={runMigration} disabled={migrating} className="bg-rose-600 text-white px-8 py-3 rounded-2xl font-black text-xs shadow-xl hover:scale-105 active:scale-95 transition-all">
+        <div className="w-full md:w-auto bg-rose-50 dark:bg-rose-900/20 p-4 md:p-6 rounded-[24px] md:rounded-[32px] border-2 border-rose-100 dark:border-rose-800 space-y-3 md:space-y-4 text-center">
+           <p className="text-[9px] md:text-[10px] text-rose-600 font-bold tracking-widest uppercase">{t.data_migration}</p>
+           <button onClick={runMigration} disabled={migrating} className="w-full md:w-auto bg-rose-600 text-white px-6 py-2.5 md:px-8 md:py-3 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shadow-xl hover:scale-105 active:scale-95 transition-all">
               {migrating ? t.migrating : t.start_transfer}
            </button>
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-2 gap-12 font-black">
-        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border-2 border-teal-500/20 lg:col-span-1">
-           <div className="flex items-center space-x-4 text-[#0D9488] mb-8"><div className="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center"><i className="fas fa-hand-holding-dollar text-3xl"></i></div><h3 className="text-2xl font-black uppercase tracking-tight">{t.accounts_section}</h3></div>
-           <div className="space-y-4">
+      <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-12 font-black">
+        <div className="bg-white dark:bg-slate-800 p-6 md:p-12 rounded-[32px] md:rounded-[56px] shadow-2xl border-2 border-teal-500/20 lg:col-span-1">
+           <div className="flex items-center space-x-3 md:space-x-4 text-[#0D9488] mb-6 md:mb-8 leading-none">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-teal-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-inner"><i className="fas fa-hand-holding-dollar text-xl md:text-3xl"></i></div>
+              <h3 className="text-lg md:text-2xl font-black uppercase tracking-tight">{t.accounts_section}</h3>
+           </div>
+           <div className="grid grid-cols-1 gap-4 md:gap-6">
               <SettingField label={t.bkash_no} value={settings.personalBkashNo} onChange={v => setSettings({...settings, personalBkashNo: v})} />
               <SettingField label={t.nagad_no} value={settings.personalNagadNo} onChange={v => setSettings({...settings, personalNagadNo: v})} />
            </div>
         </div>
-        <div className="space-y-12">
-            <div className="bg-white dark:bg-slate-800 p-10 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-8">
-               <div className="bg-blue-600 text-white p-5 rounded-2xl text-center text-[10px] font-black uppercase tracking-[3px]">{t.business_profile}</div>
-               <div className="space-y-6">
-                  <SettingField label={t.company_name_label} value={settings.companyName} onChange={v => setSettings({...settings, companyName: v})} />
-                  <SettingField label={t.hotline} value={settings.companyPhone} onChange={v => setSettings({...settings, companyPhone: v})} />
-               </div>
-            </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 md:p-10 rounded-[32px] md:rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-6 md:space-y-8">
+           <div className="bg-blue-600 text-white p-4 md:p-5 rounded-2xl text-center text-[9px] md:text-[10px] font-black uppercase tracking-[3px]">{t.business_profile}</div>
+           <div className="grid grid-cols-1 gap-4 md:gap-6">
+              <SettingField label={t.company_name_label} value={settings.companyName} onChange={v => setSettings({...settings, companyName: v})} />
+              <SettingField label={t.hotline} value={settings.companyPhone} onChange={v => setSettings({...settings, companyPhone: v})} />
+           </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border-2 border-slate-100 dark:border-slate-700 space-y-8 xl:col-span-2">
-           <div className="flex flex-col md:flex-row justify-between items-center bg-indigo-600 text-white p-8 rounded-3xl gap-6">
-              <div className="flex items-center space-x-4">
-                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl"><i className="fas fa-robot"></i></div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 md:p-12 rounded-[32px] md:rounded-[56px] shadow-2xl border-2 border-slate-100 dark:border-slate-700 space-y-6 md:space-y-8 xl:col-span-2">
+           <div className="flex flex-col md:flex-row justify-between items-center bg-indigo-600 text-white p-6 md:p-8 rounded-[24px] md:rounded-3xl gap-4 md:gap-6">
+              <div className="flex items-center space-x-3 md:space-x-4">
+                 <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-lg"><i className="fas fa-robot"></i></div>
                  <div className="space-y-1">
-                    <h3 className="text-2xl font-black uppercase tracking-tight">{t.sms_targets}</h3>
-                    <p className="text-[10px] opacity-70 font-bold tracking-[2px]">AUTOMATED NOTIFICATION ENGINE</p>
+                    <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight">{t.sms_targets}</h3>
+                    <p className="text-[8px] md:text-[10px] opacity-70 font-bold tracking-[2px]">AUTOMATED NOTIFICATION ENGINE</p>
                  </div>
               </div>
 
-              <div className="flex items-center space-x-6 bg-black/20 p-4 rounded-2xl border border-white/10">
-                 <div className="text-right">
-                    <p className="text-[10px] font-black opacity-60">SYSTEM STATUS</p>
-                    <p className={`text-sm font-black ${settings.isAutoSmsEnabled ? 'text-emerald-400' : 'text-rose-400'}`}>
-                       {settings.isAutoSmsEnabled ? 'AUTO SMS IS ACTIVE' : 'AUTO SMS IS DISABLED'}
+              <div className="flex items-center space-x-4 md:space-x-6 bg-black/20 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white/10 w-full md:w-auto justify-between md:justify-start">
+                 <div className="text-left md:text-right">
+                    <p className="text-[8px] md:text-[10px] font-black opacity-60 uppercase">System Status</p>
+                    <p className={`text-[10px] md:text-sm font-black ${settings.isAutoSmsEnabled ? 'text-emerald-400' : 'text-rose-400'}`}>
+                       {settings.isAutoSmsEnabled ? 'AUTO SMS ACTIVE' : 'AUTO SMS DISABLED'}
                     </p>
                  </div>
                  <div
                     onClick={() => setSettings({...settings, isAutoSmsEnabled: !settings.isAutoSmsEnabled})}
-                    className={`w-16 h-8 rounded-full relative cursor-pointer transition-all duration-300 ${settings.isAutoSmsEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                    className={`w-14 h-7 md:w-16 md:h-8 rounded-full relative cursor-pointer transition-all duration-300 ${settings.isAutoSmsEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`}
                  >
-                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.isAutoSmsEnabled ? 'left-9' : 'left-1'}`}></div>
+                    <div className={`absolute top-1 w-5 h-5 md:w-6 md:h-6 bg-white rounded-full shadow-md transition-all duration-300 ${settings.isAutoSmsEnabled ? 'left-8 md:left-9' : 'left-1'}`}></div>
                  </div>
               </div>
            </div>
-           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div className="space-y-2"><label className="text-[10px] text-slate-400 ml-4 tracking-widest uppercase">{t.target_label}</label><input type="number" value={settings.monthlyTarget} onChange={e => setSettings({...settings, monthlyTarget: parseFloat(e.target.value) || 0})} className="bg-slate-50 dark:bg-slate-900 border-none p-5 rounded-[28px] font-black text-4xl text-teal-600 w-full" /></div>
+
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8">
+              <div className="space-y-2"><label className="text-[9px] md:text-[10px] text-slate-400 ml-4 tracking-widest uppercase">{t.target_label}</label><input type="number" value={settings.monthlyTarget} onChange={e => setSettings({...settings, monthlyTarget: parseFloat(e.target.value) || 0})} className="bg-slate-50 dark:bg-slate-950 border-none p-4 md:p-5 rounded-[24px] md:rounded-[28px] font-black text-2xl md:text-4xl text-teal-600 w-full shadow-inner outline-none" /></div>
               <div className="md:col-span-1">
                 <SettingField label={t.sms_url} value={settings.smsApiUrl} onChange={v => setSettings({...settings, smsApiUrl: v})} />
-                <p className="text-[8px] text-slate-400 mt-2 ml-4">FORMAT: https://api.com/s?apikey={" {API_KEY} "}&number={" {MOBILE} "}&message={" {MESSAGE} "}</p>
+                <p className="text-[7px] md:text-[8px] text-slate-400 mt-2 ml-4">FORMAT: https://api.com/s?apikey={" {API_KEY} "}&number={" {MOBILE} "}&message={" {MESSAGE} "}</p>
               </div>
               <SettingField label={t.sms_token} value={settings.smsApiKey} onChange={v => setSettings({...settings, smsApiKey: v})} />
               <SettingField label={t.sms_sender} value={settings.smsSenderId} onChange={v => setSettings({...settings, smsSenderId: v})} />
            </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-12 rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-12 xl:col-span-2">
-           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="bg-rose-600 text-white px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[3px]">{t.staff_control_center}</div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 md:p-12 rounded-[32px] md:rounded-[56px] shadow-2xl border border-slate-100 dark:border-slate-700 space-y-8 md:space-y-12 xl:col-span-2">
+           <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
+              <div className="bg-rose-600 text-white px-6 py-2.5 md:px-10 md:py-4 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-[2px] md:tracking-[3px]">{t.staff_control_center}</div>
 
               {/* Role Selection Tabs */}
-              <div className="flex bg-slate-100 dark:bg-slate-900 p-2 rounded-[24px] space-x-2">
+              <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 md:p-2 rounded-[18px] md:rounded-[24px] space-x-1 md:space-x-2 w-full md:w-auto overflow-x-auto custom-scrollbar">
                  {['Collector', 'Lineman', 'Support', 'Management'].map(role => (
                     <button
                        key={role}
                        type="button"
                        onClick={() => setActiveRoleTab(role)}
-                       className={`px-6 py-3 rounded-xl text-[10px] font-black transition-all ${activeRoleTab === role ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-md scale-105' : 'text-slate-800 dark:text-slate-300 hover:text-black'}`}
+                       className={`flex-1 md:flex-none px-4 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black transition-all whitespace-nowrap ${activeRoleTab === role ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-md scale-105' : 'text-slate-500 hover:text-black dark:hover:text-white'}`}
                     >
                        {role === 'Collector' ? t.collector : role === 'Lineman' ? t.lineman : role === 'Support' ? t.support : t.management}
                     </button>
@@ -294,20 +299,20 @@ const Settings = ({ store, t, lang, setActivePage }) => {
               </div>
            </div>
 
-           <div className="bg-slate-50/50 dark:bg-slate-900/30 p-10 rounded-[40px] border border-slate-100 dark:border-slate-800 animate-in fade-in duration-500">
-              <div className="flex items-center space-x-4 mb-10">
-                 <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20"><i className="fas fa-user-shield"></i></div>
+           <div className="bg-slate-50/50 dark:bg-slate-950/30 p-6 md:p-10 rounded-[28px] md:rounded-[40px] border border-slate-100 dark:border-slate-800 animate-in fade-in duration-500">
+              <div className="flex items-center space-x-3 md:space-x-4 mb-6 md:mb-10">
+                 <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-600 text-white rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20"><i className="fas fa-user-shield"></i></div>
                  <div>
-                    <h4 className="text-xl font-black text-slate-800 dark:text-white leading-none uppercase">{t.configuring}: {activeRoleTab === 'Collector' ? t.collector : activeRoleTab === 'Lineman' ? t.lineman : activeRoleTab === 'Support' ? t.support : t.management}</h4>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1 tracking-[2px]">{t.rules_for_all} {(activeRoleTab === 'Collector' ? t.collector : activeRoleTab === 'Lineman' ? t.lineman : activeRoleTab === 'Support' ? t.support : t.management).toUpperCase()} {t.staff_label}</p>
+                    <h4 className="text-lg md:text-xl font-black text-slate-800 dark:text-white leading-none uppercase">{t.configuring}: {activeRoleTab}</h4>
+                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold mt-1 tracking-[2px]">{t.rules_for_all} {activeRoleTab.toUpperCase()} STAFF</p>
                  </div>
               </div>
 
-              <div className="space-y-10">
+              <div className="space-y-10 md:space-y-14">
                   {/* Category: Financials */}
-                  <div className="space-y-6">
-                     <h4 className="text-xs font-black text-slate-400 tracking-[4px] border-l-4 border-teal-500 pl-4 uppercase">{t.financial_ops}</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="space-y-4 md:space-y-6">
+                     <h4 className="text-[10px] md:text-xs font-black text-slate-400 tracking-[3px] md:tracking-[4px] border-l-4 border-teal-500 pl-4 uppercase leading-none">Financial Operations</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <RuleToggle label={t.rule_collect_payments} checked={settings.rolePermissions[activeRoleTab]?.canCollect} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canCollect: v}}})} />
                         <RuleToggle label={t.rule_collect_direct} checked={settings.rolePermissions[activeRoleTab]?.canCollectDirect} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canCollectDirect: v}}})} />
                         <RuleToggle label={t.rule_give_discount} checked={settings.rolePermissions[activeRoleTab]?.canDiscount} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canDiscount: v}}})} />
@@ -320,9 +325,9 @@ const Settings = ({ store, t, lang, setActivePage }) => {
                   </div>
 
                   {/* Category: User Management */}
-                  <div className="space-y-6">
-                     <h4 className="text-xs font-black text-slate-400 tracking-[4px] border-l-4 border-indigo-500 pl-4 uppercase">{t.user_mgmt}</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="space-y-4 md:space-y-6">
+                     <h4 className="text-[10px] md:text-xs font-black text-slate-400 tracking-[3px] md:tracking-[4px] border-l-4 border-indigo-500 pl-4 uppercase leading-none">User Management</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <RuleToggle label={t.rule_enroll_users} checked={settings.rolePermissions[activeRoleTab]?.canAdd} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAdd: v}}})} />
                         <RuleToggle label={t.rule_edit_profiles} checked={settings.rolePermissions[activeRoleTab]?.canEdit} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canEdit: v}}})} />
                         <RuleToggle label={t.rule_modify_pricing} checked={settings.rolePermissions[activeRoleTab]?.canModifyPricing} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canModifyPricing: v}}})} />
@@ -334,20 +339,19 @@ const Settings = ({ store, t, lang, setActivePage }) => {
                   </div>
 
                   {/* Category: System Control */}
-                  <div className="space-y-6">
-                     <h4 className="text-xs font-black text-slate-400 tracking-[4px] border-l-4 border-rose-500 pl-4 uppercase">System Control & Administration</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="space-y-4 md:space-y-6">
+                     <h4 className="text-[10px] md:text-xs font-black text-slate-400 tracking-[3px] md:tracking-[4px] border-l-4 border-rose-500 pl-4 uppercase leading-none">System Control</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <RuleToggle label={t.rule_manage_staff} checked={settings.rolePermissions[activeRoleTab]?.canManageStaff} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canManageStaff: v}}})} />
                         <RuleToggle label={t.rule_view_logs} checked={settings.rolePermissions[activeRoleTab]?.canViewLogs} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canViewLogs: v}}})} />
                         <RuleToggle label={t.permanent_delete} checked={settings.rolePermissions[activeRoleTab]?.canDelete} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canDelete: v}}})} />
                      </div>
                   </div>
 
-
-                  {/* Category: Infrastructure & Assets */}
-                  <div className="space-y-6">
-                     <h4 className="text-xs font-black text-slate-400 tracking-[4px] border-l-4 border-blue-500 pl-4 uppercase">Infrastructure & Assets</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Category: Infrastructure */}
+                  <div className="space-y-4 md:space-y-6">
+                     <h4 className="text-[10px] md:text-xs font-black text-slate-400 tracking-[3px] md:tracking-[4px] border-l-4 border-blue-500 pl-4 uppercase leading-none">Infrastructure & Assets</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                         <RuleToggle label={t.rule_manage_stock} checked={settings.rolePermissions[activeRoleTab]?.canManageStock} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canManageStock: v}}})} />
                         <RuleToggle label={t.rule_assign_assets} checked={settings.rolePermissions[activeRoleTab]?.canAssignAssets} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAssignAssets: v}}})} />
                         <RuleToggle label={t.rule_manage_zones} checked={settings.rolePermissions[activeRoleTab]?.canManageZones} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canManageZones: v}}})} />
@@ -355,47 +359,28 @@ const Settings = ({ store, t, lang, setActivePage }) => {
                      </div>
                   </div>
 
-                  {/* Category: Support & Comms */}
-                  <div className="space-y-6">
-                     <h4 className="text-xs font-black text-slate-400 tracking-[4px] border-l-4 border-amber-500 pl-4 uppercase">Support & Communications</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <RuleToggle label={t.rule_resolve_tickets} checked={settings.rolePermissions[activeRoleTab]?.canResolveTickets} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canResolveTickets: v}}})} />
-                        <RuleToggle label={t.rule_send_bulk_sms} checked={settings.rolePermissions[activeRoleTab]?.canSendBulkSMS} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSendBulkSMS: v}}})} />
-                        <RuleToggle label={t.rule_edit_templates} checked={settings.rolePermissions[activeRoleTab]?.canEditTemplates} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canEditTemplates: v}}})} />
-                     </div>
-                  </div>
-
                   {/* Category: Dashboard & Sidebar */}
-                  <div className="space-y-6">
-                     <h4 className="text-xs font-black text-slate-400 tracking-[4px] border-l-4 border-rose-500 pl-4 uppercase">Visibility Controls (Dashboard & Sidebar)</h4>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <RuleToggle label={t.rule_see_stats_cards} checked={settings.rolePermissions[activeRoleTab]?.canSeeStatsCards} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeStatsCards: v}}})} />
-                        <RuleToggle label={t.rule_see_expiry_alerts} checked={settings.rolePermissions[activeRoleTab]?.canSeeExpiryAlerts} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeExpiryAlerts: v}}})} />
-                        <RuleToggle label={t.rule_see_complaints_bar} checked={settings.rolePermissions[activeRoleTab]?.canSeeComplaintsAlert} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeComplaintsAlert: v}}})} />
-                        <RuleToggle label={t.rule_see_verification_bar} checked={settings.rolePermissions[activeRoleTab]?.canSeeVerificationAlert} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeVerificationAlert: v}}})} />
-                        <RuleToggle label={t.rule_see_today_collection} checked={settings.rolePermissions[activeRoleTab]?.canSeeTodayCollection} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeTodayCollection: v}}})} />
-                        <RuleToggle label={t.rule_see_total_collection} checked={settings.rolePermissions[activeRoleTab]?.canSeeTotalCollection} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeTotalCollection: v}}})} />
-                        <RuleToggle label={t.rule_access_billing} checked={settings.rolePermissions[activeRoleTab]?.canAccessBilling} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessBilling: v}}})} />
-                        <RuleToggle label={t.rule_access_reports} checked={settings.rolePermissions[activeRoleTab]?.canAccessReports} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessReports: v}}})} />
-                        <RuleToggle label={t.rule_access_inventory} checked={settings.rolePermissions[activeRoleTab]?.canAccessInventory} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessInventory: v}}})} />
-                        <RuleToggle label={t.rule_access_packages} checked={settings.rolePermissions[activeRoleTab]?.canAccessPackages} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessPackages: v}}})} />
-                        <RuleToggle label={t.rule_access_sms} checked={settings.rolePermissions[activeRoleTab]?.canAccessSMS} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessSMS: v}}})} />
-                        <RuleToggle label={t.rule_access_salary} checked={settings.rolePermissions[activeRoleTab]?.canAccessSalary} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessSalary: v}}})} />
-                        <RuleToggle label={t.rule_access_tickets} checked={settings.rolePermissions[activeRoleTab]?.canAccessTickets} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessTickets: v}}})} />
-                        <RuleToggle label={t.rule_access_customers} checked={settings.rolePermissions[activeRoleTab]?.canAccessCustomers} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessCustomers: v}}})} />
-                        <RuleToggle label={t.rule_access_payments} checked={settings.rolePermissions[activeRoleTab]?.canAccessPayments} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessPayments: v}}})} />
-                        <RuleToggle label={t.rule_access_expenses} checked={settings.rolePermissions[activeRoleTab]?.canAccessExpenses} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessExpenses: v}}})} />
-                        <RuleToggle label={t.rule_access_staff} checked={settings.rolePermissions[activeRoleTab]?.canAccessStaff} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessStaff: v}}})} />
-                        <RuleToggle label={t.rule_access_infrastructure} checked={settings.rolePermissions[activeRoleTab]?.canAccessInfrastructure} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessInfrastructure: v}}})} />
-                        <RuleToggle label={t.rule_access_sms_logs} checked={settings.rolePermissions[activeRoleTab]?.canAccessSmsLogs} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessSmsLogs: v}}})} />
-                        <RuleToggle label={t.rule_access_global_settings} checked={settings.rolePermissions[activeRoleTab]?.canAccessGlobalSettings} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessGlobalSettings: v}}})} />
+                  <div className="space-y-4 md:space-y-6">
+                     <h4 className="text-[10px] md:text-xs font-black text-slate-400 tracking-[3px] md:tracking-[4px] border-l-4 border-amber-500 pl-4 uppercase leading-none">Visibility Controls</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+                        <RuleToggle label="DASHBOARD CARDS" checked={settings.rolePermissions[activeRoleTab]?.canSeeStatsCards} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeStatsCards: v}}})} />
+                        <RuleToggle label="EXPIRY ALERTS" checked={settings.rolePermissions[activeRoleTab]?.canSeeExpiryAlerts} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeExpiryAlerts: v}}})} />
+                        <RuleToggle label="TICKETS BAR" checked={settings.rolePermissions[activeRoleTab]?.canSeeComplaintsAlert} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeComplaintsAlert: v}}})} />
+                        <RuleToggle label="APPROVAL BAR" checked={settings.rolePermissions[activeRoleTab]?.canSeeVerificationAlert} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canSeeVerificationAlert: v}}})} />
+                        <RuleToggle label="BILLING MENU" checked={settings.rolePermissions[activeRoleTab]?.canAccessBilling} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessBilling: v}}})} />
+                        <RuleToggle label="REPORTS MENU" checked={settings.rolePermissions[activeRoleTab]?.canAccessReports} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessReports: v}}})} />
+                        <RuleToggle label="INVENTORY MENU" checked={settings.rolePermissions[activeRoleTab]?.canAccessInventory} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessInventory: v}}})} />
+                        <RuleToggle label="STAFF MENU" checked={settings.rolePermissions[activeRoleTab]?.canAccessStaff} onChange={v => setSettings({...settings, rolePermissions: {...settings.rolePermissions, [activeRoleTab]: {...settings.rolePermissions[activeRoleTab], canAccessStaff: v}}})} />
                      </div>
                   </div>
               </div>
            </div>
         </div>
-        <div className="xl:col-span-2 flex justify-center pt-10 pb-20">
-           <button type="submit" disabled={isProcessing} className="bg-slate-900 text-white px-32 py-10 rounded-[64px] font-black uppercase tracking-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all border-b-8 border-slate-700">{t.save_all_settings}</button>
+
+        <div className="xl:col-span-2 flex justify-center pt-6 md:pt-10 pb-10">
+           <button type="submit" disabled={isProcessing} className="w-full md:w-auto bg-slate-900 text-white px-16 py-6 md:px-32 md:py-10 rounded-[32px] md:rounded-[64px] font-black uppercase tracking-[5px] md:tracking-[10px] shadow-2xl hover:scale-105 active:scale-95 transition-all border-b-8 border-slate-700 h-20 md:h-auto">
+              {isProcessing ? 'SAVING...' : 'SAVE ALL SETTINGS'}
+           </button>
         </div>
       </form>
     </div>

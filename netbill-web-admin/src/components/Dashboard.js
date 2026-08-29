@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 
-const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, setInitialFilters, setReportInitialTab, navigateToAddCustomer, openSearch, openSummary, t }) => {
+const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, setInitialFilters, setReportInitialTab, navigateToAddCustomer, openSearch, openSummary, setPreSelectedCustomer, t }) => {
   const [activeFilter, setActiveFilter] = useState('today');
   const [customDate, setCustomDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [isPromiseExpanded, setIsPromiseExpanded] = useState(true);
 
   // Date Range Selection for Expiry Audit
   const [showExpiryRangeModal, setShowExpiryRangeModal] = useState(false);
@@ -34,34 +35,42 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const tomorrowCustom = `${tomorrow.getDate().toString().padStart(2, '0')}-${months[tomorrow.getMonth()]}-${tomorrow.getFullYear()}`;
 
-  // Expiry Alert Logic: Analyzes all customers daily (Filters only UNPAID customers)
-  const expiringTomorrow = store.customers.filter(c => {
-    const eDate = c.expireDate || c.expire_date;
-    const isDue = (parseFloat(c.currentDue || c.current_due || 0) > 0);
+  const expiringTomorrow = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowISO = tomorrow.toLocaleDateString('en-CA');
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const tomorrowCustom = `${tomorrow.getDate().toString().padStart(2, '0')}-${months[tomorrow.getMonth()]}-${tomorrow.getFullYear()}`;
 
-    if (!eDate || c.status !== 'Active' || !isDue) return false;
-    return eDate === tomorrowISO || eDate === tomorrowCustom;
-  });
+    return store.customers.filter(c => {
+      const eDate = c.expireDate || c.expire_date;
+      const isDue = (parseFloat(c.currentDue || c.current_due || 0) > 0);
+      if (!eDate || c.status !== 'Active' || !isDue) return false;
+      return eDate === tomorrowISO || eDate === tomorrowCustom;
+    });
+  }, [store.customers, tomorrowISO, tomorrowCustom]);
 
   const yesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
   const last7DaysAgoStr = new Date(Date.now() - 7 * 86400000).toLocaleDateString('en-CA');
   const currentMonthStr = todayStr.substring(0, 7);
 
-  const filteredPayments = store.payments.filter(p => {
-    const pDate = p.payment_date || p.paymentDate;
+  const filteredPayments = useMemo(() => {
+    return store.payments.filter(p => {
+      const pDate = p.payment_date || p.paymentDate;
 
-    // Staff Isolation: Only show their own collections if role is 'staff'
-    if (session?.role === 'staff') {
-       if (p.collected_by_id !== session.data.id && p.collected_by !== session.data.name && p.collectedBy !== session.data.name) return false;
-    }
+      // Staff Isolation: Only show their own collections if role is 'staff'
+      if (session?.role === 'staff') {
+         if (p.collected_by_id !== session.data.id && p.collected_by !== session.data.name && p.collectedBy !== session.data.name) return false;
+      }
 
-    if (activeFilter === 'today') return pDate === todayStr;
-    if (activeFilter === 'yesterday') return pDate === yesterdayStr;
-    if (activeFilter === 'last7') return pDate >= last7DaysAgoStr;
-    if (activeFilter === 'month') return pDate && pDate.startsWith(currentMonthStr);
-    if (activeFilter === 'custom') return pDate === customDate;
-    return true;
-  });
+      if (activeFilter === 'today') return pDate === todayStr;
+      if (activeFilter === 'yesterday') return pDate === yesterdayStr;
+      if (activeFilter === 'last7') return pDate >= last7DaysAgoStr;
+      if (activeFilter === 'month') return pDate && pDate.startsWith(currentMonthStr);
+      if (activeFilter === 'custom') return pDate === customDate;
+      return true;
+    });
+  }, [store.payments, activeFilter, todayStr, yesterdayStr, last7DaysAgoStr, currentMonthStr, customDate, session]);
 
   // Role-Based Customer Filtering for Stats
   const visibleCustomers = useMemo(() => {
@@ -71,10 +80,15 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
     return store.customers;
   }, [store.customers, session]);
 
-  const selectedTotal = filteredPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-  const dueTotal = visibleCustomers.reduce((s, c) => s + (parseFloat(c.current_due || c.currentDue) || 0), 0);
-  const expiredTotalCount = visibleCustomers.filter(c => c.status === 'Expired' || c.status === 'Suspended').length;
-  const newJoinsThisMonth = visibleCustomers.filter(c => (c.joinDate || c.join_date)?.startsWith(currentMonthStr)).length;
+  const { selectedTotal, dueTotal, expiredTotalCount, newJoinsThisMonth } = useMemo(() => {
+    const selectedTotal = filteredPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const dueTotal = visibleCustomers.reduce((s, c) => s + (parseFloat(c.current_due || c.currentDue) || 0), 0);
+    const expiredTotalCount = visibleCustomers.filter(c => c.status === 'Expired' || c.status === 'Suspended').length;
+    const newJoinsThisMonth = visibleCustomers.filter(c => (c.joinDate || c.join_date)?.startsWith(currentMonthStr)).length;
+
+    return { selectedTotal, dueTotal, expiredTotalCount, newJoinsThisMonth };
+  }, [filteredPayments, visibleCustomers, currentMonthStr]);
+
   const targetPlan = store.settings?.monthlyTarget || store.settings?.monthly_target || 0;
 
   // VERIFICATION LOGIC
@@ -210,26 +224,62 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
     }
   };
 
+  // BILL PROMISE REMINDERS
+  const billPromises = useMemo(() => {
+    return store.customers.filter(c => c.promiseDate && parseFloat(c.currentDue || c.current_due || 0) > 0);
+  }, [store.customers]);
+
+  const todaysPromises = billPromises.filter(c => c.promiseDate === todayStr);
+  const overduePromises = billPromises.filter(c => c.promiseDate < todayStr);
+
   return (
-    <div className="max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-widest transition-all relative">
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-12 pb-20 uppercase font-black tracking-widest transition-all relative">
+
+      {/* BILL PROMISE REMINDERS */}
+      {(todaysPromises.length > 0 || overduePromises.length > 0) && (
+        <div className="space-y-4">
+           <div
+             onClick={() => setIsPromiseExpanded(!isPromiseExpanded)}
+             className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-[24px] cursor-pointer hover:bg-indigo-100 transition-all border-2 border-indigo-100 dark:border-indigo-800 shadow-sm"
+           >
+              <div className="flex items-center space-x-3 text-indigo-600">
+                 <i className="fas fa-calendar-check text-xl"></i>
+                 <h3 className="text-sm font-black tracking-[4px]">{t.bill_promise_reminders}</h3>
+              </div>
+              <i className={`fas ${isPromiseExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-indigo-600`}></i>
+           </div>
+
+           {isPromiseExpanded && (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fadeIn">
+                {/* Overdue first */}
+                {overduePromises.map(c => (
+                  <PromiseCard key={c.id} customer={c} isOverdue={true} onPay={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
+                ))}
+                {todaysPromises.map(c => (
+                  <PromiseCard key={c.id} customer={c} isOverdue={false} onPay={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
+                ))}
+             </div>
+           )}
+        </div>
+      )}
 
       {/* TOP NOTIFICATION BAR - CUSTOMER COMPLAINTS / TICKETS */}
       {store.tickets?.filter(t => t.status === 'Open' || t.status === 'Pending').length > 0 && permissions.canSeeComplaintsAlert && (
         <div
           onClick={() => setActivePage('crm_tickets')}
-          className="bg-amber-500 text-slate-900 p-6 rounded-[32px] shadow-2xl flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all border-b-4 border-amber-700"
+          className="bg-amber-500 text-slate-900 p-4 md:p-6 rounded-[24px] md:rounded-[32px] shadow-2xl flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all border-b-4 border-amber-700"
         >
-           <div className="flex items-center space-x-5">
-              <div className="w-14 h-14 bg-black/10 rounded-2xl flex items-center justify-center text-2xl relative text-black">
+           <div className="flex items-center space-x-3 md:space-x-5">
+              <div className="w-10 h-10 md:w-14 md:h-14 bg-black/10 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl relative text-black">
                  <i className="fas fa-headset"></i>
-                 <span className="absolute -top-1 -right-1 bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-amber-500 shadow-sm">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length}</span>
+                 <span className="absolute -top-1 -right-1 bg-slate-900 text-white w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[8px] md:text-[10px] font-black border-2 border-amber-500 shadow-sm">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length}</span>
               </div>
               <div>
-                 <h4 className="text-xl font-black uppercase tracking-tighter leading-none">{t.tickets_attention}</h4>
-                 <p className="text-sm font-black opacity-80 mt-1 uppercase tracking-widest">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length} {t.tickets_pending_msg}</p>
+                 <h4 className="text-sm md:text-xl font-black uppercase tracking-tighter leading-none">{t.tickets_attention}</h4>
+                 <p className="text-[8px] md:text-sm font-black opacity-80 mt-1 uppercase tracking-widest leading-tight">{store.tickets.filter(t => t.status === 'Open' || t.status === 'Pending').length} {t.tickets_pending_msg}</p>
               </div>
            </div>
-           <div className="w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-black shadow-lg">
+           <div className="w-8 h-8 md:w-12 md:h-12 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm md:text-xl font-black shadow-lg">
               <i className="fas fa-chevron-right"></i>
            </div>
         </div>
@@ -237,28 +287,28 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
 
       {/* PENDING VERIFICATION ALERTS */}
       {pendingRequests.length > 0 && permissions.canSeeVerificationAlert && (
-        <div className="bg-rose-50 dark:bg-rose-900/20 p-10 rounded-[56px] border-4 border-rose-500/20 space-y-8 animate-pulse">
-           <div className="flex items-center space-x-5 text-rose-600">
-              <div className="w-14 h-14 bg-rose-500 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg">
+        <div className="bg-rose-50 dark:bg-rose-900/20 p-6 md:p-10 rounded-[32px] md:rounded-[56px] border-4 border-rose-500/20 space-y-6 md:space-y-8 animate-pulse">
+           <div className="flex items-center space-x-3 md:space-x-5 text-rose-600">
+              <div className="w-10 h-10 md:w-14 md:h-14 bg-rose-500 text-white rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-lg">
                  <i className="fas fa-bell"></i>
               </div>
-              <h3 className="text-3xl font-black uppercase tracking-tighter">{t.needs_verification}: {pendingRequests.length}</h3>
+              <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter">{t.needs_verification}: {pendingRequests.length}</h3>
            </div>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {pendingRequests.map(req => (
-                <div key={req.id} className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-xl border border-rose-100 flex justify-between items-center group">
-                   <div className="space-y-2 leading-none">
+                <div key={req.id} className="bg-white dark:bg-slate-800 p-4 md:p-8 rounded-[24px] md:rounded-[40px] shadow-xl border border-rose-100 flex justify-between items-center group">
+                   <div className="space-y-1 md:space-y-2 leading-none">
                       <div className="flex items-center space-x-2">
-                         <p className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg uppercase">{req.collected_by || 'Staff'}</p>
-                         <p className="text-sm font-black text-slate-400">TrxID: <span className="text-rose-500">{req.trxId || req.trx_id || 'N/A'}</span></p>
+                         <p className="text-[8px] md:text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg uppercase">{req.collected_by || 'Staff'}</p>
+                         <p className="text-[10px] md:text-sm font-black text-slate-400">TrxID: <span className="text-rose-500">{req.trxId || req.trx_id || 'N/A'}</span></p>
                       </div>
-                      <h4 className="text-xl font-black text-slate-800 dark:text-white uppercase">{req.customerName}</h4>
-                      <p className="text-2xl font-black text-emerald-600">৳ {req.amount}</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{req.billing_month}</p>
+                      <h4 className="text-sm md:text-xl font-black text-slate-800 dark:text-white uppercase truncate max-w-[150px] md:max-w-none">{req.customerName}</h4>
+                      <p className="text-xl md:text-2xl font-black text-emerald-600">৳ {req.amount}</p>
+                      <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest">{req.billing_month}</p>
                    </div>
-                   <div className="flex space-x-3">
-                      <button onClick={() => handleApprove(req)} className="w-14 h-14 bg-emerald-500 text-white rounded-2xl shadow-lg hover:scale-110 active:scale-95 transition-all"><i className="fas fa-check"></i></button>
-                      <button onClick={() => handleReject(req.id)} className="w-14 h-14 bg-rose-100 text-rose-500 rounded-2xl shadow-sm hover:scale-110 transition-all"><i className="fas fa-times"></i></button>
+                   <div className="flex space-x-2 md:space-x-3">
+                      <button onClick={() => handleApprove(req)} className="w-10 h-10 md:w-14 md:h-14 bg-emerald-500 text-white rounded-xl md:rounded-2xl shadow-lg hover:scale-110 active:scale-95 transition-all"><i className="fas fa-check"></i></button>
+                      <button onClick={() => handleReject(req.id)} className="w-10 h-10 md:w-14 md:h-14 bg-rose-100 text-rose-500 rounded-xl md:rounded-2xl shadow-sm hover:scale-110 transition-all"><i className="fas fa-times"></i></button>
                    </div>
                 </div>
               ))}
@@ -328,17 +378,17 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
       {permissions.canSeeTotalCollection && (
       <div className="bg-[#0D9488] p-6 md:p-12 rounded-[32px] md:rounded-[64px] text-white shadow-2xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-white/5 rounded-full -mr-24 md:-mr-48 -mt-24 md:-mt-48 duration-1000 group-hover:scale-110"></div>
-        <div className="flex flex-col md:flex-row justify-between items-start relative z-10 font-black tracking-widest leading-none uppercase gap-8">
-          <div className="space-y-6 md:space-y-12 w-full leading-none">
-            <p className="text-[10px] md:text-sm font-black opacity-90 tracking-[5px] uppercase">{t.financial_total}</p>
-            <h2 className="text-3xl sm:text-5xl md:text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString('en-US')}</h2>
-            <div className="flex flex-col md:flex-row md:space-x-24 gap-6 md:gap-0 pt-6 md:pt-10 font-black tracking-widest uppercase">
-               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px]">{t.target_plan}</p><p className="text-lg md:text-3xl font-black">৳ {targetPlan.toLocaleString('en-US')}</p></div>
+        <div className="flex flex-col md:flex-row justify-between items-start relative z-10 font-black tracking-widest leading-none uppercase gap-6 md:gap-8">
+          <div className="space-y-4 md:space-y-12 w-full leading-none">
+            <p className="text-[10px] md:text-sm font-black opacity-90 tracking-[3px] md:tracking-[5px] uppercase">{t.financial_total}</p>
+            <h2 className="text-4xl sm:text-5xl md:text-9xl font-black tracking-tighter leading-none tracking-widest uppercase">৳ {Math.floor(selectedTotal).toLocaleString('en-US')}</h2>
+            <div className="flex flex-col md:flex-row md:space-x-24 gap-6 md:gap-0 pt-4 md:pt-10 font-black tracking-widest uppercase">
+               <div className="flex flex-col"><p className="text-[8px] md:text-[11px] font-bold opacity-70 mb-1 md:mb-4 tracking-[2px] md:tracking-[3px]">{t.target_plan}</p><p className="text-xl md:text-3xl font-black">৳ {targetPlan.toLocaleString('en-US')}</p></div>
                <div className="hidden md:block w-px h-20 bg-white/20"></div>
-               <div><p className="text-[9px] md:text-[11px] font-bold opacity-70 mb-2 md:mb-4 tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-lg md:text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString('en-US')}</p></div>
+               <div className="flex flex-col"><p className="text-[8px] md:text-[11px] font-bold opacity-70 mb-1 md:mb-4 tracking-[2px] md:tracking-[3px] text-amber-300 uppercase">{t.total_outstanding}</p><p className="text-xl md:text-3xl text-amber-300 font-black tracking-widest uppercase">৳ {Math.floor(dueTotal).toLocaleString('en-US')}</p></div>
             </div>
           </div>
-          <div className="w-12 h-12 md:w-24 md:h-24 bg-white/10 rounded-xl md:rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12 self-end md:self-start"><i className="fas fa-chart-line text-xl md:text-4xl text-white"></i></div>
+          <div className="w-12 h-12 md:w-24 md:h-24 bg-white/10 rounded-2xl md:rounded-[40px] flex items-center justify-center shadow-xl backdrop-blur-md transition-all group-hover:rotate-12 self-end md:self-start absolute top-4 right-4 md:relative md:top-0 md:right-0"><i className="fas fa-chart-line text-xl md:text-4xl text-white"></i></div>
         </div>
       </div>
       )}
@@ -454,6 +504,28 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
     </div>
   );
 };
+
+const PromiseCard = ({ customer, isOverdue, onPay }) => (
+  <div className={`p-5 rounded-[28px] border-2 flex items-center justify-between shadow-xl transition-all hover:scale-[1.02] ${isOverdue ? 'bg-rose-50 border-rose-100 text-rose-700 animate-pulse' : 'bg-white border-slate-100 dark:bg-slate-800 dark:border-slate-700'}`}>
+     <div className="flex items-center space-x-4">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-lg ${isOverdue ? 'bg-rose-500 text-white' : 'bg-indigo-600 text-white'}`}>
+           <i className={`fas ${isOverdue ? 'fa-triangle-exclamation' : 'fa-calendar-day'}`}></i>
+        </div>
+        <div>
+           <h4 className="text-sm font-black uppercase tracking-tighter leading-none mb-1">{customer.name}</h4>
+           <div className="flex flex-col space-y-1">
+              <span className="text-[10px] font-black text-slate-500">ZONE: <span className="text-slate-800 dark:text-slate-200 font-black">{customer.zone || 'Global'}</span></span>
+              <span className="text-[11px] font-black">DUE: <span className={isOverdue ? 'text-rose-600' : 'text-emerald-600'}>৳{Math.floor(customer.currentDue || customer.current_due || 0)}</span></span>
+              {customer.promiseNote && <span className="text-[9px] font-bold text-indigo-500 italic">"{customer.promiseNote}"</span>}
+           </div>
+        </div>
+     </div>
+     <div className="flex items-center space-x-2">
+        <a href={`tel:${customer.mobile}`} className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all"><i className="fas fa-phone"></i></a>
+        <button onClick={onPay} className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"><i className="fas fa-hand-holding-dollar"></i></button>
+     </div>
+  </div>
+);
 
 const FeatureCard = ({ title, icon, grad, onClick }) => (
   <div onClick={onClick} className={`feature-card ${grad} h-32 md:h-40 rounded-[24px] md:rounded-[44px] p-4 md:p-8 flex flex-col justify-center text-white cursor-pointer transition-all hover:-translate-y-1 hover:brightness-110 shadow-lg font-black uppercase tracking-widest`}>

@@ -251,39 +251,43 @@ const Staff = ({ store, session, t, lang, setActivePage }) => {
   };
 
   return (
-    <div className="w-full px-4 space-y-8 pb-20 uppercase font-black tracking-tighter transition-all">
+    <div className="w-full px-2 md:px-4 space-y-6 md:space-y-8 pb-20 uppercase font-black tracking-tighter transition-all">
       {/* Header */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
-        <div className="flex items-center space-x-4">
-           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
+        <div className="flex items-center space-x-3 md:space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100 dark:border-slate-800">
               <i className="fas fa-arrow-left"></i>
            </button>
            <div className="space-y-1">
-              <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Staff Team</h3>
-              <p className="text-[10px] text-indigo-600 font-bold tracking-[4px] uppercase mt-1">Lineman & Management Staff</p>
+              <h3 className="text-xl md:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">Staff Team</h3>
+              <p className="text-[8px] md:text-[10px] text-indigo-600 font-bold tracking-[3px] md:tracking-[4px] uppercase mt-1">Lineman & Management Staff</p>
            </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-           <div className="relative mr-4">
+        <div className="flex flex-wrap gap-2 md:gap-3 w-full xl:w-auto">
+           <div className="relative flex-1 md:flex-none">
              <input
                type="text"
-               placeholder="Search Staff..."
+               placeholder="Search..."
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
-               className="pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none text-[10px] font-black w-64 shadow-inner outline-none focus:ring-2 focus:ring-indigo-500/20"
+               className="pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none text-[10px] font-black w-full md:w-64 shadow-inner outline-none focus:ring-2 focus:ring-indigo-500/20"
              />
              <i className="fas fa-search absolute left-4 top-3.5 text-slate-300 text-xs"></i>
            </div>
-           <StatCard label="TOTAL STAFF" value={store.staff?.length} color="slate" />
-           <StatCard label="FIELD STAFF" value={store.staff?.filter(s => s.role === 'Lineman').length} color="indigo" />
-           <button onClick={syncTomaCustomers} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl shadow-lg font-black text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-700 active:scale-95 flex items-center space-x-2"><i className="fas fa-sync"></i><span>Sync TOMA Customers</span></button>
-           <button onClick={() => setShowReport(true)} className="bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-lg font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-900 active:scale-95 flex items-center space-x-2"><i className="fas fa-file-invoice-dollar"></i><span>Payroll Report</span></button>
-           <button onClick={openAddModal} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl shadow-2xl font-black uppercase text-sm tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-indigo-900">+ Recruit Staff</button>
+           <div className="flex gap-2 w-full md:w-auto">
+             <StatCard label="TOTAL" value={store.staff?.length} color="slate" />
+             <StatCard label="LINEMAN" value={store.staff?.filter(s => s.role === 'Lineman').length} color="indigo" />
+           </div>
+           <div className="flex flex-wrap gap-2 w-full md:w-auto">
+              <button onClick={syncTomaCustomers} className="flex-1 md:flex-none bg-emerald-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl shadow-lg font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-700 active:scale-95 flex items-center justify-center space-x-2"><i className="fas fa-sync"></i><span className="hidden sm:inline">Sync TOMA</span><span className="sm:hidden">SYNC</span></button>
+              <button onClick={() => setShowReport(true)} className="flex-1 md:flex-none bg-slate-800 text-white px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl shadow-lg font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all hover:bg-slate-900 active:scale-95 flex items-center justify-center space-x-2"><i className="fas fa-file-invoice-dollar"></i><span className="hidden sm:inline">Payroll</span><span className="sm:hidden">PAYROLL</span></button>
+              <button onClick={openAddModal} className="flex-1 md:flex-none bg-indigo-600 text-white px-6 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl shadow-2xl font-black uppercase text-[10px] md:text-sm tracking-[1px] md:tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-indigo-900">+ RECRUIT</button>
+           </div>
         </div>
       </div>
 
       {/* Staff Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
         {filteredStaff?.map(s => {
           const assignedCount = store.customers.filter(c => c.assignedStaffId === s.name || c.assignedStaffId === s.id).length;
           const monthCollection = store.payments
@@ -291,9 +295,9 @@ const Staff = ({ store, session, t, lang, setActivePage }) => {
             .reduce((sum, p) => sum + (p.amount || 0), 0);
 
           return (
-            <div key={s.id} onClick={() => setSelectedStaff(s)} className={`bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-xl flex flex-col space-y-6 cursor-pointer hover:-translate-y-1 transition-all ${selectedStaff?.id === s.id ? 'ring-4 ring-indigo-500' : ''}`}>
+            <div key={s.id} onClick={() => setSelectedStaff(s)} className={`bg-white dark:bg-slate-800 p-4 md:p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-xl flex flex-col space-y-4 md:space-y-6 cursor-pointer hover:-translate-y-1 transition-all ${selectedStaff?.id === s.id ? 'ring-4 ring-indigo-500' : ''}`}>
               <div className="flex justify-between items-start">
-                <div className="w-16 h-16 bg-teal-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-teal-600 text-3xl shadow-inner">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-teal-50 dark:bg-slate-950 rounded-xl md:rounded-2xl flex items-center justify-center text-teal-600 text-2xl md:text-3xl shadow-inner">
                   <i className="fas fa-user-tie"></i>
                 </div>
                 <div className="flex space-x-2">
@@ -303,34 +307,29 @@ const Staff = ({ store, session, t, lang, setActivePage }) => {
               </div>
 
               <div>
-                <h4 className="text-xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{s.name}</h4>
-                <div className="flex items-center space-x-2 mt-1.5">
-                  <p className="text-[9px] font-black text-teal-600 uppercase tracking-[3px]">{s.role} • {s.mobile}</p>
-                  {s.receiveAlerts && <span className="text-[8px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black">ALERTS ON</span>}
+                <h4 className="text-lg md:text-xl font-black text-slate-800 dark:text-white tracking-tighter uppercase leading-none">{s.name}</h4>
+                <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-1.5">
+                  <p className="text-[8px] md:text-[9px] font-black text-teal-600 uppercase tracking-[2px] md:tracking-[3px]">{s.role} • {s.mobile}</p>
+                  {s.receiveAlerts && <span className="text-[7px] md:text-[8px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-black">ALERTS ON</span>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                 <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl text-center border border-slate-100 dark:border-slate-800 shadow-inner">
-                    <p className="text-[8px] text-slate-400 mb-1 font-black tracking-widest uppercase">ACCOUNT BALANCE</p>
-                    <p className={`text-xl font-black tracking-tighter leading-none ${s.balance >= 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
+              <div className="grid grid-cols-2 gap-2 md:gap-3">
+                 <div className="bg-slate-50 dark:bg-slate-950 p-2 md:p-3 rounded-2xl text-center border border-slate-100 dark:border-slate-800 shadow-inner">
+                    <p className="text-[7px] md:text-[8px] text-slate-400 mb-1 font-black tracking-widest uppercase">BALANCE</p>
+                    <p className={`text-base md:text-xl font-black tracking-tighter leading-none ${s.balance >= 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
                       {s.balance >= 0 ? `+ ৳${s.balance}` : `- ৳${Math.abs(s.balance)}`}
                     </p>
-                    <p className="text-[7px] font-bold mt-1 text-slate-400 uppercase">{s.balance >= 0 ? 'Pao-na (Due)' : 'Advance'}</p>
                  </div>
-                 <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl text-center border border-slate-100 dark:border-slate-800 shadow-inner">
-                    <p className="text-[8px] text-slate-400 mb-1 font-black tracking-widest uppercase">COLLECTION</p>
-                    <p className="text-xl font-black text-emerald-600 tracking-tighter leading-none">৳{Math.floor(monthCollection)}</p>
+                 <div className="bg-slate-50 dark:bg-slate-950 p-2 md:p-3 rounded-2xl text-center border border-slate-100 dark:border-slate-800 shadow-inner">
+                    <p className="text-[7px] md:text-[8px] text-slate-400 mb-1 font-black tracking-widest uppercase">COLLECTION</p>
+                    <p className="text-base md:text-xl font-black text-emerald-600 tracking-tighter leading-none">৳{Math.floor(monthCollection)}</p>
                  </div>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-900 w-full py-3 rounded-2xl font-black text-slate-500 text-xs tracking-[2px] text-center border border-slate-100 dark:border-slate-800 shadow-inner">
-                ৳ {s.salary} / MONTH
               </div>
 
               <button
                 onClick={(e) => { e.stopPropagation(); openPayModal(s); }}
-                className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[3px] shadow-lg hover:bg-emerald-700 transition-all border-b-4 border-emerald-900"
+                className="w-full bg-emerald-600 text-white py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-[2px] md:tracking-[3px] shadow-lg hover:bg-emerald-700 transition-all border-b-4 border-emerald-900"
               >
                 <i className="fas fa-hand-holding-dollar mr-2"></i> Pay Salary
               </button>

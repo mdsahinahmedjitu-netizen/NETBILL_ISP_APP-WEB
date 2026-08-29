@@ -31,6 +31,12 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
   const [custToChangeDate, setCustToChangeDate] = useState(null);
   const [newDates, setNewDates] = useState({ expireDate: '', requestDate: '' });
 
+  // Quick Promise States
+  const [showPromiseModal, setShowPromiseModal] = useState(false);
+  const [custForPromise, setCustForPromise] = useState(null);
+  const [promiseData, setPromiseData] = useState({ date: '', note: '' });
+  const [isSavingPromise, setIsSavingPromise] = useState(false);
+
 
   const [visibleColumns, setVisibleColumns] = useState({
     cb: true, id: true, sl: true, customer: true, mikrotik: true, zone: true,
@@ -89,7 +95,8 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     expireDate: '', requestDate: '', connectionType: '', status: 'Active',
     subscriptionType: 'Prepaid', connectionFee: 0, joinDate: new Date().toLocaleDateString('en-CA'),
     assignedStaffId: '', referenceName: '', referenceMobile: '',
-    currentDue: 0, advanceBalance: 0, discountAmount: 0
+    currentDue: 0, advanceBalance: 0, discountAmount: 0,
+    promiseDate: '', promiseNote: ''
   };
   const [formData, setFormData] = useState(initialState);
 
@@ -141,6 +148,38 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     };
   }, [selectedCust]);
 
+  const getCollectorColor = (name) => {
+    if (!name || name === '---' || name === 'No Staff') return 'text-slate-600 bg-slate-50 border-slate-200';
+
+    // Explicit colors
+    if (name.toUpperCase().includes('TOMA')) return 'text-pink-700 bg-pink-50 border-pink-200';
+    if (name.toUpperCase().includes('SUPER ADMIN')) return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+    if (name.toUpperCase().includes('JITU')) return 'text-blue-700 bg-blue-50 border-blue-200';
+
+    // Improved hashing to avoid collisions
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = (hash << 5) - hash + name.charCodeAt(i);
+        hash |= 0;
+    }
+
+    const colors = [
+      'text-indigo-700 bg-indigo-50 border-indigo-200',
+      'text-teal-700 bg-teal-50 border-teal-200',
+      'text-rose-700 bg-rose-50 border-rose-200',
+      'text-amber-700 bg-amber-50 border-amber-200',
+      'text-blue-700 bg-blue-50 border-blue-200',
+      'text-violet-700 bg-violet-50 border-violet-200',
+      'text-pink-700 bg-pink-50 border-pink-200',
+      'text-orange-700 bg-orange-50 border-orange-200',
+      'text-emerald-700 bg-emerald-50 border-emerald-200',
+      'text-cyan-700 bg-cyan-50 border-cyan-200',
+      'text-fuchsia-700 bg-fuchsia-50 border-fuchsia-200'
+    ];
+
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   const filteredCustomers = store.customers.filter(c => {
     const searchMatch = !search ||
       c.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -182,9 +221,18 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     } else if (filters.expiryUpTo) {
         if (cDateStr) {
             const customerExpire = parseDate(cDateStr);
-            const filterUpTo = new Date(filters.expiryUpTo);
-            filterUpTo.setHours(23, 59, 59, 999);
-            expiryMatch = customerExpire && customerExpire <= filterUpTo;
+            const filterDate = new Date(filters.expiryUpTo);
+
+            // Normalize both dates to compare just YYYY-MM-DD
+            const cY = customerExpire.getFullYear();
+            const cM = customerExpire.getMonth();
+            const cD = customerExpire.getDate();
+
+            const fY = filterDate.getFullYear();
+            const fM = filterDate.getMonth();
+            const fD = filterDate.getDate();
+
+            expiryMatch = customerExpire && cY === fY && cM === fM && cD === fD;
         } else {
             expiryMatch = false;
         }
@@ -605,6 +653,40 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
     setActiveMenuId(null);
   };
 
+  const openPromiseModal = (cust) => {
+    setCustForPromise(cust);
+    setPromiseData({
+      date: cust.promiseDate || cust.promise_date || '',
+      note: cust.promiseNote || cust.promise_note || ''
+    });
+    setShowPromiseModal(true);
+    setActiveMenuId(null);
+  };
+
+  const handleQuickPromiseUpdate = async () => {
+    if (!custForPromise) return;
+    setIsSavingPromise(true);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          promise_date: promiseData.date,
+          promise_note: promiseData.note
+        })
+        .eq('id', custForPromise.id);
+
+      if (error) throw error;
+      alert("Bill Promise Saved!");
+      setShowPromiseModal(false);
+      setCustForPromise(null);
+    } catch (e) {
+      console.error("Promise save error:", e);
+      alert("Failed to save promise: " + (e.message || "Unknown error"));
+    } finally {
+      setIsSavingPromise(false);
+    }
+  };
+
   const handleQuickDateUpdate = async () => {
     if (!custToChangeDate) return;
     try {
@@ -712,6 +794,8 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         reference_name: formData.referenceName,
         reference_mobile: formData.referenceMobile,
         assigned_staff_id: formData.assignedStaffId,
+        promise_date: formData.promiseDate,
+        promise_note: formData.promiseNote,
         notes: formData.notes,
         current_due: parseFloat(formData.currentDue) || 0,
         advance_balance: parseFloat(formData.advanceBalance) || 0
@@ -916,21 +1000,22 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
           {/* Toolbar */}
           <div className="flex flex-col xl:flex-row gap-4 items-center">
               <div className="relative w-full xl:max-w-xl group">
-                <input type="text" placeholder={t.search_placeholder} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-12 pr-6 py-4 bg-white dark:bg-slate-800 rounded-3xl border-none shadow-2xl focus:ring-4 focus:ring-teal-500/5 font-black text-xl transition-all uppercase placeholder:opacity-30" />
+                <input type="text" placeholder={t.search_placeholder} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-12 pr-6 py-4 bg-white dark:bg-slate-800 rounded-3xl border-none shadow-2xl focus:ring-4 focus:ring-teal-500/5 font-black text-lg md:text-xl transition-all uppercase placeholder:opacity-30 w-full" />
                 <i className="fas fa-search absolute left-5 top-5 text-slate-300 text-xl group-focus-within:text-teal-500 transition-colors"></i>
               </div>
-              <div className="flex flex-wrap gap-3 font-black">
-                 <button onClick={() => setShowFilterDrawer(true)} className="bg-white dark:bg-slate-800 text-teal-600 px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest border-2 border-teal-500/20 leading-none">
-                    <i className="fas fa-filter text-lg"></i>
-                    <span>Advanced Filter {Object.values(filters).filter(v => v !== 'All').length > 0 && `(${Object.values(filters).filter(v => v !== 'All').length})`}</span>
+              <div className="flex flex-wrap gap-2 md:gap-3 font-black justify-center md:justify-start">
+                 <button onClick={() => setShowFilterDrawer(true)} className="bg-white dark:bg-slate-800 text-teal-600 px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-[20px] font-black text-[9px] md:text-[10px] flex items-center space-x-2 md:space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest border-2 border-teal-500/20 leading-none h-11 md:h-auto">
+                    <i className="fas fa-filter text-base md:text-lg"></i>
+                    <span className="hidden sm:inline">Advanced Filter</span>
+                    {Object.values(filters).filter(v => v !== 'All' && v !== '' && v !== false).length > 0 && `(${Object.values(filters).filter(v => v !== 'All' && v !== '' && v !== false).length})`}
                  </button>
-                 <ActionButtonLarge label={`${t.download_excel} (${selectedIds.length || 'All'})`} icon="fa-file-excel" onClick={downloadExcel} />
-                 <ActionButtonLarge label={`${t.print} (${selectedIds.length || 'All'})`} icon="fa-print" onClick={handlePrint} />
-                 <ActionButtonLarge label={t.select_columns} icon="fa-columns" onClick={() => setShowColumnSelector(true)} />
-                 <ActionButtonLarge label={`${t.sms_send} (${selectedIds.length || 'All'})`} icon="fa-paper-plane" onClick={() => setShowSmsModal(true)} />
-                 <button onClick={() => setShowImportModal(true)} className="bg-rose-600 text-white px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest leading-none"><i className="fas fa-file-import text-lg"></i><span>{t.import_excel}</span></button>
+                 <ActionButtonSmall label="EXCEL" icon="fa-file-excel" onClick={downloadExcel} />
+                 <ActionButtonSmall label="PRINT" icon="fa-print" onClick={handlePrint} />
+                 <ActionButtonSmall label="COLS" icon="fa-columns" onClick={() => setShowColumnSelector(true)} />
+                 <ActionButtonSmall label="SMS" icon="fa-paper-plane" onClick={() => setShowSmsModal(true)} />
+                 <button onClick={() => setShowImportModal(true)} className="bg-rose-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-[20px] font-black text-[9px] md:text-[10px] flex items-center space-x-2 md:space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest leading-none h-11 md:h-auto"><i className="fas fa-file-import text-base md:text-lg"></i><span className="hidden sm:inline">{t.import_excel}</span><span className="sm:hidden">IMPORT</span></button>
              {selectedIds.length > 0 && session?.role === 'admin' && (
-               <button onClick={handleBulkDelete} className="bg-red-600 text-white px-6 py-3 rounded-[20px] font-black text-[10px] flex items-center space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest leading-none animate-bounce"><i className="fas fa-trash-alt text-lg"></i><span>DELETE ({selectedIds.length})</span></button>
+               <button onClick={handleBulkDelete} className="bg-red-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-[20px] font-black text-[9px] md:text-[10px] flex items-center space-x-2 md:space-x-3 shadow-xl hover:scale-105 transition-all uppercase tracking-widest leading-none h-11 md:h-auto animate-bounce"><i className="fas fa-trash-alt text-base md:text-lg"></i><span>DEL ({selectedIds.length})</span></button>
              )}
               </div>
           </div>
@@ -1023,7 +1108,11 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                         </td>}
                         {visibleColumns.collector && (
                           <td className="p-3 text-center">
-                            <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase border border-indigo-100">
+                            <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase border shadow-sm ${getCollectorColor((() => {
+                                  const sid = c.assignedStaffId || c.assigned_staff_id || c.collectorId || c.collector_id;
+                                  const staff = store.staff?.find(s => s.id === sid || s.name === sid);
+                                  return staff?.name || sid || '---';
+                              })())}`}>
                               {(() => {
                                   const sid = c.assignedStaffId || c.assigned_staff_id || c.collectorId || c.collector_id;
                                   const staff = store.staff?.find(s => s.id === sid || s.name === sid);
@@ -1080,13 +1169,14 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                              <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === c.id ? null : c.id); }} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-teal-600 hover:text-white transition-all shadow-xl"><i className="fas fa-ellipsis-v text-lg"></i></button>
                              {activeMenuId === c.id && (
                                <div className="absolute right-20 top-0 w-64 bg-white dark:bg-slate-800 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-slate-700 z-[100] py-4 animate-scaleIn overflow-hidden font-black">
-                                  <ActionItem icon="fa-hand-holding-dollar" label="Payment" color="text-emerald-600" onClick={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
+                                  <ActionItem icon="fa-hand-holding-dollar" label={t.action_payment} color="text-emerald-600" onClick={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
                                   <ActionItem icon="fa-power-off" label={c.status === 'Active' ? 'Disable / Inactive' : 'Enable / Active'} color={c.status === 'Active' ? 'text-rose-500' : 'text-emerald-500'} onClick={() => toggleStatus(c)} />
-                                  <ActionItem icon="fa-user-circle" label="Full Profile" color="text-blue-600" onClick={() => setProfileId(c.id)} />
+                                  <ActionItem icon="fa-user-circle" label={t.action_profile} color="text-blue-600" onClick={() => setProfileId(c.id)} />
+                                  <ActionItem icon="fa-calendar-check" label={t.action_promise} color="text-indigo-600" onClick={() => openPromiseModal(c)} />
                                   <ActionItem icon="fa-calendar-day" label="Change Dates" color="text-amber-600" onClick={() => openDateChangeModal(c)} />
                                   <ActionItem icon="fa-map-location-dot" label="Change Zone" color="text-teal-600" onClick={() => openZoneChangeModal(c)} />
-                                  <ActionItem icon="fa-edit" label="Edit" color="text-slate-600" onClick={() => openEditModal(c)} />
-                                  <ActionItem icon="fa-trash" label="Delete" color="text-rose-600" onClick={() => handleDelete(c.id)} />
+                                  <ActionItem icon="fa-edit" label={t.action_edit} color="text-slate-600" onClick={() => openEditModal(c)} />
+                                  <ActionItem icon="fa-trash" label={t.action_delete} color="text-rose-600" onClick={() => handleDelete(c.id)} />
                                </div>
                              )}
                           </td>
@@ -1149,6 +1239,13 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
         waTargetCust={waTargetCust}
         waMessage={waMessage}
         setWaMessage={setWaMessage}
+        showPromiseModal={showPromiseModal}
+        setShowPromiseModal={setShowPromiseModal}
+        custForPromise={custForPromise}
+        promiseData={promiseData}
+        setPromiseData={setPromiseData}
+        handleQuickPromiseUpdate={handleQuickPromiseUpdate}
+        isSavingPromise={isSavingPromise}
       />
 
       {showModal && (
@@ -1232,6 +1329,21 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                   <div className="pt-4 md:pt-8 border-t-2 border-cyan-200">
                     <Field label={t.assigned_staff + " *"} value={formData.assignedStaffId} onChange={v => setFormData({...formData, assignedStaffId: v})} type="select" options={['No Staff', ...store.staff?.map(s => s.name)]} color="cyan" />
                   </div>
+
+                  <div className="space-y-4 pt-4 border-t-2 border-cyan-200">
+                    <p className="text-[10px] text-slate-400 font-black tracking-[4px] uppercase text-center">Bill Promise (প্রতিশ্রুতি)</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                           <label className="text-[10px] text-slate-400 ml-2 uppercase">Date</label>
+                           <input type="date" value={formData.promiseDate} onChange={e => setFormData({...formData, promiseDate: e.target.value})} className="w-full bg-white p-3 rounded-xl border font-black text-xs" />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] text-slate-400 ml-2 uppercase">Note</label>
+                           <input type="text" placeholder="Note..." value={formData.promiseNote} onChange={e => setFormData({...formData, promiseNote: e.target.value})} className="w-full bg-white p-3 rounded-xl border font-black text-xs" />
+                        </div>
+                    </div>
+                  </div>
+
                   <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[24px] md:rounded-[40px] space-y-4 md:space-y-5 shadow-inner">
                     <p className="text-[10px] md:text-[11px] text-slate-400 font-black text-center tracking-[2px] md:tracking-[4px]">REF</p>
                     <input type="text" placeholder={t.ref_name} value={formData.referenceName} onChange={e => setFormData({...formData, referenceName: e.target.value})} className="bg-slate-50 dark:bg-slate-800 p-3 md:p-4 rounded-xl md:rounded-2xl border-none text-[10px] md:text-xs w-full font-black uppercase" />
@@ -1288,7 +1400,7 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
                       className="w-full bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border-none font-black text-xs shadow-inner outline-none cursor-pointer text-emerald-600"
                   >
                       <option value="">-- Select a Template --</option>
-                      {store.smsTemplates?.filter(t => ["Create Customer", "Expired Customer", "Expiry Reminder (Tomorrow)", "Complain to Customer", "Area Wise Customer List", "All Customer"].includes(t.title)).map(t => (
+                      {store.smsTemplates?.filter(t => ["Create Customer", "Expired Customer", "Expiry Reminder (Tomorrow)", "Expiry Reminder (Today)", "Complain to Customer", "Area Wise Customer List", "All Customer"].includes(t.title)).map(t => (
                           <option key={t.id} value={t.title}>{t.title}</option>
                       ))}
                   </select>
@@ -1336,9 +1448,56 @@ const ActionModals = ({
   showFilterDrawer, setShowFilterDrawer, filters, setFilters, store,
   showZoneChangeModal, setShowZoneChangeModal, custToChangeZone, newZoneData, setNewZoneData, handleQuickZoneUpdate,
   showDateChangeModal, setShowDateChangeModal, custToChangeDate, newDates, setNewDates, handleQuickDateUpdate,
-  showWhatsAppModal, setShowWhatsAppModal, waTargetCust, waMessage, setWaMessage
+  showWhatsAppModal, setShowWhatsAppModal, waTargetCust, waMessage, setWaMessage,
+  showPromiseModal, setShowPromiseModal, custForPromise, promiseData, setPromiseData, handleQuickPromiseUpdate, isSavingPromise
 }) => (
     <>
+      {showPromiseModal && (
+        <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[5000] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
+          <div className="bg-white dark:bg-slate-800 rounded-[56px] w-full max-w-xl p-12 shadow-2xl border-4 border-indigo-500/20 space-y-8 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-3 bg-indigo-600"></div>
+             <div className="flex justify-between items-center border-b pb-6">
+                <div>
+                   <h3 className="text-3xl font-black uppercase tracking-tighter leading-none">Bill Promise</h3>
+                   <p className="text-[10px] text-slate-400 font-bold mt-2 tracking-[3px]">Subscriber: {custForPromise?.name}</p>
+                </div>
+                <button onClick={() => setShowPromiseModal(false)} className="text-rose-500 text-2xl hover:scale-110 transition-all"><i className="fas fa-times-circle"></i></button>
+             </div>
+
+             <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px]">Promise Date</label>
+                  <input
+                    type="date"
+                    value={promiseData.date}
+                    onChange={e => setPromiseData({...promiseData, date: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none cursor-pointer shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 ml-4 tracking-[3px]">Note / Remarks</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 500 TK dibe"
+                    value={promiseData.note}
+                    onChange={e => setPromiseData({...promiseData, note: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl font-black text-sm outline-none border-none shadow-inner"
+                  />
+                </div>
+             </div>
+
+             <button
+                onClick={handleQuickPromiseUpdate}
+                disabled={isSavingPromise}
+                className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black uppercase tracking-[5px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+             >
+                {isSavingPromise ? 'SAVING...' : 'SAVE BILL PROMISE'}
+             </button>
+          </div>
+        </div>
+      )}
+
       {showColumnSelector && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl z-[600] flex items-center justify-center p-6 animate-fadeIn font-black uppercase">
           <div className="bg-white dark:bg-slate-800 rounded-[72px] w-full max-w-xl p-14 shadow-2xl border-2 border-slate-100">
@@ -1387,7 +1546,7 @@ const ActionModals = ({
                             className="w-full bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border-none font-black text-xs shadow-inner outline-none cursor-pointer text-indigo-600"
                         >
                             <option value="">-- Select a Template --</option>
-                            {store.smsTemplates?.filter(t => ["Create Customer", "Expired Customer", "Expiry Reminder (Tomorrow)", "Complain to Customer", "Area Wise Customer List", "All Customer"].includes(t.title)).map(t => (
+                            {store.smsTemplates?.filter(t => ["Create Customer", "Expired Customer", "Expiry Reminder (Tomorrow)", "Expiry Reminder (Today)", "Complain to Customer", "Area Wise Customer List", "All Customer"].includes(t.title)).map(t => (
                                 <option key={t.id} value={t.title}>{t.title}</option>
                             ))}
                         </select>
@@ -1474,14 +1633,14 @@ const ActionModals = ({
                 />
 
                 <div className="space-y-3">
-                  <label className="text-[10px] text-slate-400 ml-2 tracking-[3px] font-black uppercase">Show Expiries Up To Date</label>
+                  <label className="text-[10px] text-slate-400 ml-2 tracking-[3px] font-black uppercase">Show Expiries On Specific Date</label>
                   <input
                     type="date"
                     value={filters.expiryUpTo}
                     onChange={e => setFilters({...filters, expiryUpTo: e.target.value})}
                     className="w-full bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border-none font-black text-xs outline-none focus:ring-2 focus:ring-teal-500/20 uppercase shadow-inner cursor-pointer"
                   />
-                  <p className="text-[8px] text-slate-400 ml-2 mt-1 uppercase italic">* তারিখ পর্যন্ত সব এক্সপায়ার্ড কাস্টমার দেখাবে</p>
+                  <p className="text-[8px] text-slate-400 ml-2 mt-1 uppercase italic">* শুধুমাত্র এই নির্দিষ্ট তারিখের এক্সপায়ার হওয়া গ্রাহক দেখাবে</p>
                 </div>
 
                 <FilterSelect
@@ -1733,6 +1892,13 @@ const ActionItem = ({ icon, label, color, onClick }) => (
 const ActionButtonLarge = ({ label, icon, onClick }) => (
   <button onClick={onClick} className="bg-[#20879e] text-white px-4 py-2 rounded-xl font-black text-[9px] flex items-center space-x-2 shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-b-2 border-[#16667a] leading-none">
     <i className={`fas ${icon} text-base`}></i>
+    <span>{label}</span>
+  </button>
+);
+
+const ActionButtonSmall = ({ label, icon, onClick }) => (
+  <button onClick={onClick} className="bg-[#20879e] text-white px-3 py-2 rounded-xl font-black text-[8px] md:text-[9px] flex items-center space-x-1.5 md:space-x-2 shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-b-2 border-[#16667a] leading-none h-11 md:h-auto">
+    <i className={`fas ${icon} text-sm md:text-base`}></i>
     <span>{label}</span>
   </button>
 );

@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.SmsLogEntity
 import com.example.data.entity.SupportTicketEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.components.CustomerSmsLogsBottomSheet
 import com.example.viewmodel.MainViewModel
 
@@ -80,13 +80,13 @@ fun NotificationScreen(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = AppTranslation("sms_notifications"),
+                    text = appTranslation("sms_notifications"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Slate900
                 )
                 Text(
-                    text = AppTranslation("sms_tracker_desc"),
+                    text = appTranslation("sms_tracker_desc"),
                     fontSize = 11.sp,
                     color = Slate600,
                     maxLines = 1,
@@ -170,7 +170,7 @@ fun NotificationScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = AppTranslation("sms_tracker_title"),
+                                        text = appTranslation("sms_tracker_title"),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
                                         color = Slate900
@@ -186,7 +186,7 @@ fun NotificationScreen(
                             IconButton(onClick = { viewModel.clearSmsLogs() }) {
                                 Icon(
                                     Icons.Default.DeleteSweep,
-                                    contentDescription = AppTranslation("clear_logs"),
+                                    contentDescription = appTranslation("clear_logs"),
                                     tint = Slate500,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -207,7 +207,7 @@ fun NotificationScreen(
                                 border = BorderStroke(1.dp, SleekBorder)
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
-                                    Text(AppTranslation("total_sent_sms"), fontSize = 9.sp, color = Slate600)
+                                    Text(appTranslation("total_sent_sms"), fontSize = 9.sp, color = Slate600)
                                     Text("$totalSentCount", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Slate900)
                                 }
                             }
@@ -219,7 +219,7 @@ fun NotificationScreen(
                                 border = BorderStroke(1.dp, Color(0xFFA7F3D0))
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
-                                    Text(AppTranslation("status_delivered"), fontSize = 9.sp, color = Teal600)
+                                    Text(appTranslation("status_delivered"), fontSize = 9.sp, color = Teal600)
                                     Text("$deliveredCount", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Teal600)
                                 }
                             }
@@ -231,7 +231,7 @@ fun NotificationScreen(
                                 border = BorderStroke(1.dp, Color(0xFFFECDD3))
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
-                                    Text(AppTranslation("status_failed"), fontSize = 9.sp, color = Color(0xFFE11D48))
+                                    Text(appTranslation("status_failed"), fontSize = 9.sp, color = Color(0xFFE11D48))
                                     Text("$failedCount", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE11D48))
                                 }
                             }
@@ -243,7 +243,7 @@ fun NotificationScreen(
                                 border = BorderStroke(1.dp, Color(0xFFBFDBFE))
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
-                                    Text(AppTranslation("delivered_rate"), fontSize = 9.sp, color = ElectricBlue)
+                                    Text(appTranslation("delivered_rate"), fontSize = 9.sp, color = ElectricBlue)
                                     Text("$successRate%", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ElectricBlue)
                                 }
                             }
@@ -264,7 +264,7 @@ fun NotificationScreen(
                             ) {
                                 Icon(Icons.Default.Campaign, contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(AppTranslation("send_support_sms"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(appTranslation("send_support_sms"), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
 
                             if (failedCount > 0) {
@@ -277,7 +277,7 @@ fun NotificationScreen(
                                 ) {
                                     Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("${AppTranslation("resend_failed")} ($failedCount)", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${appTranslation("resend_failed")} ($failedCount)", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -299,8 +299,8 @@ fun NotificationScreen(
                                 label = {
                                     val txt = when (status) {
                                         "Sent" -> "Sent (সফল)"
-                                        "Failed" -> AppTranslation("status_failed")
-                                        else -> AppTranslation("status_all")
+                                        "Failed" -> appTranslation("status_failed")
+                                        else -> appTranslation("status_all")
                                     }
                                     Text(txt, fontSize = 11.sp)
                                 },
@@ -323,11 +323,11 @@ fun NotificationScreen(
                                 onClick = { typeFilter = type },
                                 label = {
                                     val txt = when (type) {
-                                        "Billing Alert" -> AppTranslation("type_billing_alert")
-                                        "Support Update" -> AppTranslation("type_support_update")
-                                        "Payment Receipt" -> AppTranslation("type_payment_receipt")
-                                        "20th Day Reminder" -> AppTranslation("type_20th_reminder")
-                                        else -> AppTranslation("type_all")
+                                        "Billing Alert" -> appTranslation("type_billing_alert")
+                                        "Support Update" -> appTranslation("type_support_update")
+                                        "Payment Receipt" -> appTranslation("type_payment_receipt")
+                                        "20th Day Reminder" -> appTranslation("type_20th_reminder")
+                                        else -> appTranslation("type_all")
                                     }
                                     Text(txt, fontSize = 11.sp)
                                 }
@@ -482,7 +482,7 @@ fun SmsDeliveryLogCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isDelivered) "Sent" else AppTranslation("status_failed"),
+                            text = if (isDelivered) "Sent" else appTranslation("status_failed"),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = statusText
@@ -584,7 +584,7 @@ fun SmsDeliveryLogCard(
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(12.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(AppTranslation("resend_now"), fontSize = 10.sp)
+                            Text(appTranslation("resend_now"), fontSize = 10.sp)
                         }
                     }
                 }
@@ -609,7 +609,7 @@ fun SendSupportUpdateSmsDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Campaign, contentDescription = null, tint = Teal600)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(AppTranslation("send_support_sms"), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(appTranslation("send_support_sms"), fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         },
         text = {

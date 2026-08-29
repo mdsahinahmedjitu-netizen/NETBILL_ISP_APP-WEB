@@ -12,6 +12,7 @@ export const translations = {
     collection_report: "Collection Report",
     salary_ledger: "Salary Ledger",
     support_tickets: "Support Tickets",
+    update_bill: "Update Bill",
     sms_setup: "SMS Setup",
     sms_history: "SMS History",
     expense_title: "Daily Expenses",
@@ -303,7 +304,15 @@ export const translations = {
     coll_confirm_delete: "Confirm Delete?",
     coll_delete: "DELETE",
     coll_cancel: "CANCEL",
-    coll_no_collector: "No Collector"
+    coll_no_collector: "No Collector",
+
+    // Actions Menu
+    action_payment: "PAYMENT",
+    action_profile: "FULL PROFILE",
+    action_promise: "BILL PROMISE",
+    action_edit: "EDIT / IDENTITY",
+    action_delete: "DELETE",
+    bill_promise_reminders: "BILL PROMISE REMINDERS"
   },
   bn: {
     // Sidebar
@@ -318,6 +327,7 @@ export const translations = {
     collection_report: "কালেকশন রিপোর্ট",
     salary_ledger: "বেতন হিসাব (লেজার)",
     support_tickets: "সাপোর্ট টিকিট",
+    update_bill: "বিল আপডেট করুন",
     sms_setup: "এসএমএস সেটআপ",
     sms_history: "এসএমএস হিস্ট্রি",
     expense_title: "দৈনন্দিন খরচ",
@@ -609,6 +619,14 @@ export const translations = {
     coll_confirm_delete: "মুছে ফেলার নিশ্চিতকরণ",
     coll_delete: "মুছে ফেলুন",
     coll_cancel: "বাতিল",
-    coll_no_collector: "কোন সংগ্রাহক নেই"
+    coll_no_collector: "কোন সংগ্রাহক নেই",
+
+    // Actions Menu
+    action_payment: "পেমেন্ট নিন",
+    action_profile: "পুরো প্রোফাইল",
+    action_promise: "বিলের প্রতিশ্রুতি",
+    action_edit: "তথ্য সংশোধন",
+    action_delete: "মুছে ফেলুন",
+    bill_promise_reminders: "আজকের বিল প্রতিশ্রুতি"
   }
 };

@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
@@ -62,7 +63,7 @@ class ISPRepository(db: AppDatabase) {
     suspend inline fun <reified T : Any> syncTable(
         tableName: String,
         noinline onDelete: (String) -> Unit,
-        noinline onSync: (T) -> Unit
+        noinline onSync: (T) -> Unit,
     ) {
         try {
             val data = supabase.postgrest.from(tableName).select().decodeList<T>()
@@ -83,7 +84,7 @@ class ISPRepository(db: AppDatabase) {
                 is PostgresAction.Update -> onSync(action.decodeRecord<T>())
                 is PostgresAction.Delete -> {
                     val id = action.oldRecord["id"]?.toString()?.replace("\"", "")
-                    if (id != null) onDelete(id)
+                    id?.let { onDelete(it) }
                 }
                 else -> {}
             }
@@ -116,7 +117,7 @@ class ISPRepository(db: AppDatabase) {
         customerName: String = ""
     ) {
         val template = smsTemplateDao.getAllTemplates().first().find { it.title == type }
-        if (template == null || !template.isActive) {
+        if ((template == null) || !template.isActive) {
             Log.w("ISPRepository", "SMS Trigger skipped: Template '$type' not found or inactive.")
             return
         }
@@ -206,6 +207,8 @@ class ISPRepository(db: AppDatabase) {
                 "request_date" to customer.requestDate,
                 "connection_type" to customer.connectionType,
                 "connection_fee" to customer.connectionFee,
+                "promise_date" to customer.promiseDate,
+                "promise_note" to customer.promiseNote,
                 "notes" to customer.notes
             )
             
@@ -552,14 +555,60 @@ class ISPRepository(db: AppDatabase) {
         collectorId: String,
         remarks: String,
         customDate: String? = null,
-        billingMonth: String? = null
+        billingMonth: String? = null,
+        isBangla: Boolean = true
     ): PaymentCollectionEntity? {
         val customer = customerDao.getCustomerById(customerId) ?: return null
         val todayISO = customDate ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val timeStr = SimpleDateFormat("hh:mm a", Locale.US).format(Date())
         val paymentId = UUID.randomUUID().toString()
         val receiptNo = "REC-${System.currentTimeMillis().toString().takeLast(6)}"
-        val finalBillingMonth = billingMonth ?: SimpleDateFormat("MMMM yyyy", Locale.US).format(Date())
+        
+        val locale = if (isBangla) Locale.forLanguageTag("bn-BD") else Locale.US
+
+        // Dynamic Billing Month Detection Logic
+        val finalBillingMonth = if (billingMonth != null) {
+            billingMonth
+        } else if ((customer.monthlyBill > 0) && (amount > 0)) {
+            val totalMonthsDue = kotlin.math.ceil(customer.currentDue / customer.monthlyBill).toInt()
+            val monthsPaid = kotlin.math.floor(amount / customer.monthlyBill).toInt()
+            
+            if ((monthsPaid > 0) && (totalMonthsDue > 0)) {
+                val startOffset = -(totalMonthsDue - 1)
+                val monthsList = mutableListOf<String>()
+                val yearSet = mutableSetOf<String>()
+                val banglaDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
+                val banglaMonths = mapOf(
+                    "January" to "জানুয়ারি", "February" to "ফেব্রুয়ারি", "March" to "মার্চ", "April" to "এপ্রিল",
+                    "May" to "মে", "June" to "জুন", "July" to "জুলাই", "August" to "আগস্ট",
+                    "September" to "সেপ্টেম্বর", "October" to "অক্টোবর", "November" to "নভেম্বর", "December" to "ডিসেম্বর"
+                )
+                
+                for (i in 0 until monthsPaid) {
+                    val tempCal = Calendar.getInstance()
+                    tempCal[Calendar.DAY_OF_MONTH] = 1
+                    tempCal.add(Calendar.MONTH, startOffset + i)
+                    
+                    val monthEn = SimpleDateFormat("MMMM", Locale.US).format(tempCal.time)
+                    val monthName = if (isBangla) banglaMonths[monthEn] ?: monthEn else monthEn
+                    monthsList.add(monthName)
+                    
+                    var yearStr = SimpleDateFormat("yyyy", Locale.US).format(tempCal.time)
+                    if (isBangla) {
+                        yearStr = yearStr.map { if (it.isDigit()) banglaDigits[it - '0'] else it }.joinToString("")
+                    }
+                    yearSet.add(yearStr)
+                }
+                
+                val yearsStr = yearSet.joinToString("-")
+                if (monthsList.size == 1) "${monthsList[0]} $yearsStr"
+                else "${monthsList.joinToString("-")} $yearsStr"
+            } else {
+                SimpleDateFormat("MMMM yyyy", locale).format(Date())
+            }
+        } else {
+            SimpleDateFormat("MMMM yyyy", locale).format(Date())
+        }
 
         val payment = PaymentCollectionEntity(
             id = paymentId,
@@ -618,7 +667,7 @@ class ISPRepository(db: AppDatabase) {
             
             // Auto-Enable Internet if Suspended and Paid
             if (updatedCustomer.status == "Active" && customer.status == "Suspended") {
-                scope.launch { setCustomerInternetStatus(customer.id, true) }
+                scope.launch { setCustomerInternetStatus(customer.id, active = true) }
             }
             
             Log.d("ISPRepository", "Local payment records saved.")

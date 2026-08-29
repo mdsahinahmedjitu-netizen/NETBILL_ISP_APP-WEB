@@ -1,8 +1,6 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import com.example.ui.theme.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,13 +36,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.example.data.entity.PackageEntity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.localization.AppTranslation
-import com.example.ui.theme.*
+import com.example.localization.appTranslation
+import com.example.ui.theme.ElectricBlue
+import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.Slate600
+import com.example.ui.theme.Slate900
+import com.example.ui.theme.SleekBg
+import com.example.ui.theme.SleekBorder
+import com.example.ui.theme.SleekCard
+import com.example.ui.theme.Teal600
 import com.example.viewmodel.MainViewModel
 import java.util.Locale
 
@@ -52,8 +56,8 @@ import java.util.Locale
 @Composable
 fun PackageScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val packages by viewModel.packagesList.collectAsState()
-    val currency = AppTranslation("currency_symbol")
-    var showAddPkgDialog by remember { mutableStateOf(false) }
+    val currency = appTranslation("currency_symbol")
+    var showAddPkgDialog by remember { mutableStateOf(value = false) }
 
     Scaffold(
         topBar = {
@@ -64,31 +68,31 @@ fun PackageScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddPkgDialog = true },
                 containerColor = ElectricBlue,
-                contentColor = Color.White
+                contentColor = Color.White,
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Package")
             }
         },
-        containerColor = SleekBg
+        containerColor = SleekBg,
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(16.dp),
         ) {
             Text(
-                text = AppTranslation("package_management"),
+                text = appTranslation("package_management"),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Slate900
+                color = Slate900,
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -99,12 +103,12 @@ fun PackageScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = SleekCard),
-                        border = BorderStroke(1.dp, SleekBorder)
+                        border = BorderStroke(1.dp, SleekBorder),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Speed, contentDescription = null, tint = Teal600)
@@ -120,7 +124,7 @@ fun PackageScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                 text = "$currency ${String.format(Locale.US, "%,.0f", pkg.monthlyPrice)}/mo",
                                 fontWeight = FontWeight.Bold,
                                 color = EmeraldSuccess,
-                                fontSize = 16.sp
+                                fontSize = 16.sp,
                             )
                         }
                     }
@@ -132,11 +136,10 @@ fun PackageScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     if (showAddPkgDialog) {
         AddPackageDialog(
             onDismiss = { showAddPkgDialog = false },
-            onAdd = { name, speed, price ->
-                viewModel.addPackage(name, speed, price)
-                showAddPkgDialog = false
-            }
-        )
+        ) { name, speed, price ->
+            viewModel.addPackage(name, speed, price)
+            showAddPkgDialog = false
+        }
     }
 }
 
@@ -162,6 +165,6 @@ fun AddPackageDialog(onDismiss: () -> Unit, onAdd: (String, String, Double) -> U
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Slate600) } },
-        containerColor = SleekCard
+        containerColor = SleekCard,
     )
 }

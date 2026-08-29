@@ -1,10 +1,6 @@
 package com.example.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,56 +18,37 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.PaymentCollectionEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.NagadOrange
 import com.example.ui.theme.RocketViolet
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
-import com.example.ui.theme.Slate500
-import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.SleekBorder
 import com.example.ui.theme.SleekCard
@@ -101,7 +78,7 @@ data class PaymentMethodRowData(
     val icon: ImageVector,
     val brandColor: Color,
     val amount: Double,
-    val percentage: Float
+    val percentage: Float,
 )
 
 data class CollectionCalculatedSummary(
@@ -117,7 +94,7 @@ data class CollectionCalculatedSummary(
     val bankTotal: Double,
     val otherTotal: Double,
     val methodRows: List<PaymentMethodRowData>,
-    val periodLabel: String
+    val periodLabel: String,
 )
 
 @Composable
@@ -125,10 +102,10 @@ fun TodaysCollectionCard(
     payments: List<PaymentCollectionEntity>,
     modifier: Modifier = Modifier,
     selectedFilter: CollectionFilterPeriod = CollectionFilterPeriod.TODAY,
-    onFilterSelected: (CollectionFilterPeriod) -> Unit = {}
+    onFilterSelected: (CollectionFilterPeriod) -> Unit = {},
 ) {
     var customDateString by remember { mutableStateOf(getTodayDateString()) }
-    var showDatePickerDialog by remember { mutableStateOf(false) }
+    var showDatePickerDialog by remember { mutableStateOf(value = false) }
     val dividerColor = Slate200
 
     // Calculate aggregated statistics based on selected filter
@@ -136,7 +113,7 @@ fun TodaysCollectionCard(
         calculateCollectionSummary(
             payments = payments,
             filter = selectedFilter,
-            customDateStr = customDateString
+            customDateStr = customDateString,
         )
     }
 
@@ -145,7 +122,7 @@ fun TodaysCollectionCard(
         shape = RoundedCornerShape(44.dp),
         colors = CardDefaults.cardColors(containerColor = SleekCard),
         border = androidx.compose.foundation.BorderStroke(1.dp, SleekBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier.padding(32.dp)
@@ -169,9 +146,9 @@ fun TodaysCollectionCard(
                         )
                         Text(
                             text = if (selectedFilter == CollectionFilterPeriod.TODAY)
-                                AppTranslation("todays_collection").uppercase()
+                                appTranslation("todays_collection").uppercase()
                             else
-                                "${summary.periodLabel} ${AppTranslation("todays_collection")}".uppercase(),
+                                "${summary.periodLabel} ${appTranslation("todays_collection")}".uppercase(),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Black,
                             color = Slate900,
@@ -224,17 +201,17 @@ fun TodaysCollectionCard(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                FilterChipItem(label = "Today", isSelected = selectedFilter == CollectionFilterPeriod.TODAY, onClick = { onFilterSelected(CollectionFilterPeriod.TODAY) })
-                FilterChipItem(label = "Yesterday", isSelected = selectedFilter == CollectionFilterPeriod.YESTERDAY, onClick = { onFilterSelected(CollectionFilterPeriod.YESTERDAY) })
-                FilterChipItem(label = "Last 7 Days", isSelected = selectedFilter == CollectionFilterPeriod.LAST_7_DAYS, onClick = { onFilterSelected(CollectionFilterPeriod.LAST_7_DAYS) })
-                FilterChipItem(label = "Month", isSelected = selectedFilter == CollectionFilterPeriod.THIS_MONTH, onClick = { onFilterSelected(CollectionFilterPeriod.THIS_MONTH) })
+                FilterChipItem(label = "Today", isSelected = selectedFilter == CollectionFilterPeriod.TODAY) { onFilterSelected(CollectionFilterPeriod.TODAY) }
+                FilterChipItem(label = "Yesterday", isSelected = selectedFilter == CollectionFilterPeriod.YESTERDAY) { onFilterSelected(CollectionFilterPeriod.YESTERDAY) }
+                FilterChipItem(label = "Last 7 Days", isSelected = selectedFilter == CollectionFilterPeriod.LAST_7_DAYS) { onFilterSelected(CollectionFilterPeriod.LAST_7_DAYS) }
+                FilterChipItem(label = "Month", isSelected = selectedFilter == CollectionFilterPeriod.THIS_MONTH) { onFilterSelected(CollectionFilterPeriod.THIS_MONTH) }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
             // Payment Methods Breakdown
             Text(
-                text = AppTranslation("collection_breakdown").uppercase(),
+                text = appTranslation("collection_breakdown").uppercase(),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Black,
                 color = Slate400,
@@ -263,13 +240,12 @@ fun TodaysCollectionCard(
     if (showDatePickerDialog) {
         CustomDatePickerDialog(
             currentDate = customDateString,
-            onDismiss = { showDatePickerDialog = false },
-            onDateSelected = { dateStr ->
-                customDateString = dateStr
-                onFilterSelected(CollectionFilterPeriod.CUSTOM)
-                showDatePickerDialog = false
-            }
-        )
+            onDismiss = { showDatePickerDialog = false }
+        ) { dateStr ->
+            customDateString = dateStr
+            onFilterSelected(CollectionFilterPeriod.CUSTOM)
+            showDatePickerDialog = false
+        }
     }
 }
 
@@ -381,62 +357,12 @@ fun PaymentMethodItemRow(
     }
 }
 
-fun activeFilterLabel(filter: CollectionFilterPeriod): String {
-    return when (filter) {
-        CollectionFilterPeriod.TODAY -> "Today"
-        CollectionFilterPeriod.YESTERDAY -> "Yesterday"
-        CollectionFilterPeriod.LAST_7_DAYS -> "Last 7 Days"
-        CollectionFilterPeriod.THIS_MONTH -> "Month"
-        CollectionFilterPeriod.CUSTOM -> "Custom"
-    }
-}
-
-@Composable
-fun ExtraMetricTile(
-    label: String,
-    value: String,
-    icon: ImageVector,
-    accentColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFF8FAFC),
-        border = androidx.compose.foundation.BorderStroke(1.dp, SleekBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(12.dp)
-                )
-                Text(
-                    text = label,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate500,
-                    maxLines = 1
-                )
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = value,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Slate900,
-                maxLines = 1
-            )
-        }
-    }
+fun activeFilterLabel(filter: CollectionFilterPeriod): String = when (filter) {
+    CollectionFilterPeriod.TODAY -> "Today"
+    CollectionFilterPeriod.YESTERDAY -> "Yesterday"
+    CollectionFilterPeriod.LAST_7_DAYS -> "Last 7 Days"
+    CollectionFilterPeriod.THIS_MONTH -> "Month"
+    CollectionFilterPeriod.CUSTOM -> "Custom"
 }
 
 @Composable
@@ -452,11 +378,10 @@ fun CustomDatePickerDialog(
         com.example.util.DatePickerUtils.showDatePicker(
             context = context,
             initialDate = currentDate,
-            onDateSelected = { 
-                onDateSelected(it)
-                onDismiss()
-            }
-        )
+        ) { 
+            onDateSelected(it)
+            onDismiss()
+        }
     }
 }
 
@@ -468,7 +393,7 @@ fun calculateCollectionSummary(
 ): CollectionCalculatedSummary {
     val todayStr = getTodayDateString()
     val yesterdayStr = getYesterdayDateString()
-    val sevenDaysAgoStr = getNDaysAgoDateString(6)
+    val sevenDaysAgoStr = get6DaysAgoDateString()
     val thisMonthPrefix = getThisMonthPrefix()
 
     val filteredPayments = payments.filter { payment ->
@@ -476,7 +401,7 @@ fun calculateCollectionSummary(
         when (filter) {
             CollectionFilterPeriod.TODAY -> pDate == todayStr
             CollectionFilterPeriod.YESTERDAY -> pDate == yesterdayStr
-            CollectionFilterPeriod.LAST_7_DAYS -> pDate >= sevenDaysAgoStr && pDate <= todayStr
+            CollectionFilterPeriod.LAST_7_DAYS -> (pDate >= sevenDaysAgoStr) && (pDate <= todayStr)
             CollectionFilterPeriod.THIS_MONTH -> pDate.startsWith(thisMonthPrefix)
             CollectionFilterPeriod.CUSTOM -> pDate == customDateStr
         }
@@ -615,9 +540,9 @@ private fun getYesterdayDateString(): String {
     return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
 }
 
-private fun getNDaysAgoDateString(n: Int): String {
+private fun get6DaysAgoDateString(): String {
     val cal = Calendar.getInstance()
-    cal.add(Calendar.DATE, -n)
+    cal.add(Calendar.DATE, -6)
     return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
 }
 

@@ -31,6 +31,7 @@ data class DashboardStats(
     val inactiveCustomers: Int = 0,
     val newCustomers: Int = 0,
     val bandwidthUsageMbps: Double = 1161.2,
+    val smsBalance: String = "৳ ---"
 )
 
 data class CustomerFilterState(
@@ -203,11 +204,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             monthlyExpense = exps.filter { it.expenseDate.startsWith(yearMonthStr) }.sumOf { it.amount },
             activeCustomers = visibleCusts.count { it.status == "Active" },
             expiredCustomers = visibleCusts.count { com.example.util.ExpiryUtils.isExpired(it) },
-            newCustomers = visibleCusts.count { it.joinDate.orEmpty().startsWith(yearMonthStr) }
+            newCustomers = visibleCusts.count { it.joinDate.orEmpty().startsWith(yearMonthStr) },
+            smsBalance = _smsBalance.value
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats())
 
+    private val _smsBalance = MutableStateFlow("৳ ---")
+
+    private fun startSmsBalancePolling() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            while (true) {
+                val apiKey = settingsState.value?.smsApiKey ?: ""
+                if (apiKey.isNotBlank()) {
+                    try {
+                        val url = java.net.URL("https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?action=balance&apikey=$apiKey")
+                        val text = url.readText()
+                        if (text.contains("balance")) {
+                             val balance = text.substringAfter("\"balance\":").substringBefore(",").substringBefore("}").trim()
+                             _smsBalance.value = "৳ $balance"
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SMS", "Failed to fetch balance", e)
+                    }
+                }
+                delay(60.seconds)
+            }
+        }
+    }
+
     init {
+        startSmsBalancePolling()
         // Observe settings and update gateway config
         viewModelScope.launch {
             repository.settings.collect { _ ->
@@ -436,6 +462,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val finalCollector = collectorName ?: currentUser.value?.name ?: "Admin"
             val collectorId = currentUser.value?.id ?: ""
+            val isBangla = _currentLanguage.value == AppLanguage.BANGLA
             val payment = repository.recordPayment(
                 customerId = customerId,
                 amount = amount,
@@ -445,7 +472,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 collectorId = collectorId,
                 remarks = remarks,
                 customDate = date,
-                billingMonth = billingMonth
+                billingMonth = billingMonth,
+                isBangla = isBangla
             )
             if (payment != null) {
                 _selectedReceipt.value = payment

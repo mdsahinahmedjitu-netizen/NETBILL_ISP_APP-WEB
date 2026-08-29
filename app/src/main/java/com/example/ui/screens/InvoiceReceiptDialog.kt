@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.entity.PaymentCollectionEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
@@ -66,7 +66,7 @@ fun InvoiceReceiptDialog(
     val ispName = settings?.ispName ?: "NetBill Broadband ISP"
     val ispAddress = settings?.address ?: "Uttara, Dhaka-1230"
     val ispHelpline = settings?.supportNumber ?: "01711000000"
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     var showPrinterSelector by remember { mutableStateOf(false) }
 

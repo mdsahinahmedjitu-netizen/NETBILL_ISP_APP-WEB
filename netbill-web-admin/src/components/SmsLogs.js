@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 const SmsLogs = ({ store, setActivePage }) => {
@@ -6,7 +6,32 @@ const SmsLogs = ({ store, setActivePage }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [search, setSearch] = useState('');
 
-  const logs = store.smsLogs || [];
+  const [dbLogs, setDbLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    try {
+        const { data, error } = await supabase
+            .from('sms_logs')
+            .select('*')
+            .order('sent_timestamp', { ascending: false })
+            .limit(500);
+
+        if (error) throw error;
+        setDbLogs(data || []);
+    } catch (e) {
+        console.error("SMS Logs fetch error:", e);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const logs = dbLogs.length > 0 ? dbLogs : (store.smsLogs || []);
 
   // Calculate Stats
   const stats = useMemo(() => {

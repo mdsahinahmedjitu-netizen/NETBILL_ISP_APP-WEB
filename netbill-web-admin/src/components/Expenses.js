@@ -90,9 +90,30 @@ const Expenses = ({ store, session, t, setActivePage }) => {
     }).sort((a, b) => new Date(b.expenseDate || b.date) - new Date(a.expenseDate || a.date));
   }, [store.expenses, filterCategory, search]);
 
-  const totalExpense = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-  const todayExpense = store.expenses?.filter(e => (e.expenseDate || e.date) === new Date().toLocaleDateString('en-CA'))
-    .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  const totalGeneralExpense = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+  const salaryTotal = useMemo(() => {
+    if (filterCategory !== 'All' && filterCategory !== 'Staff Salary') return 0;
+    return store.staffPayouts?.filter(p => p.type === 'payment')
+      .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0;
+  }, [store.staffPayouts, filterCategory]);
+
+  const combinedTotal = (filterCategory === 'Staff Salary') ? salaryTotal : (totalGeneralExpense + salaryTotal);
+
+  const todayStr = new Date().toLocaleDateString('en-CA');
+
+  const todayGeneralExpense = store.expenses?.filter(e => {
+    const isToday = (e.expenseDate || e.date) === todayStr;
+    const matchCat = filterCategory === 'All' || e.category === filterCategory;
+    return isToday && matchCat;
+  }).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0;
+
+  const todaySalaryPaid = (filterCategory === 'All' || filterCategory === 'Staff Salary')
+    ? (store.staffPayouts?.filter(p => p.date === todayStr && p.type === 'payment')
+        .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0)
+    : 0;
+
+  const combinedToday = todayGeneralExpense + todaySalaryPaid;
 
 
   const handleAddExpense = async (e) => {
@@ -137,33 +158,36 @@ const Expenses = ({ store, session, t, setActivePage }) => {
   };
 
   return (
-    <div className="w-full space-y-8 pb-20 font-sans tracking-tight uppercase font-black">
+    <div className="w-full space-y-6 md:space-y-8 pb-20 font-sans tracking-tight uppercase font-black px-2 md:px-0">
       {/* HEADER & STATS */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div className="flex items-center space-x-4">
-           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-rose-500 shadow-sm border border-slate-100">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-slate-800 p-4 md:p-6 rounded-[24px] md:rounded-[32px] shadow-xl border border-slate-50 dark:border-slate-700">
+        <div className="flex items-center space-x-3 md:space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-center text-rose-500 shadow-sm border border-slate-100 dark:border-slate-800">
               <i className="fas fa-arrow-left"></i>
            </button>
            <div className="space-y-1">
-              <h3 className="text-4xl md:text-5xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{t.expense_manager}</h3>
-              <p className="text-[10px] text-rose-500 font-bold tracking-[4px] uppercase mt-1">Financial Outflow & Operational Costs</p>
+              <h3 className="text-xl md:text-5xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{t.expense_manager}</h3>
+              <p className="text-[8px] md:text-[10px] text-rose-500 font-bold tracking-[2px] md:tracking-[4px] uppercase mt-1">Financial Outflow & Operational Costs</p>
            </div>
         </div>
-        <div className="flex flex-wrap gap-4">
-           <StatBox label={t.total_selected} value={`৳ ${totalExpense.toLocaleString()}`} color="text-rose-600" bgColor="bg-rose-50 dark:bg-rose-900/20" />
-           <StatBox label={t.todays_outflow} value={`৳ ${todayExpense.toLocaleString()}`} color="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-900/20" />
-           <div className="flex gap-2">
+        <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-center">
+           <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-center">
+              <StatBox label="TOTAL EXPENSE" value={`৳ ${combinedTotal.toLocaleString()}`} color="text-rose-600" bgColor="bg-rose-50 dark:bg-rose-900/20" />
+              <StatBox label="TOTAL SALARY" value={`৳ ${salaryTotal.toLocaleString()}`} color="text-indigo-600" bgColor="bg-indigo-50 dark:bg-indigo-900/20" />
+              <StatBox label="TODAY" value={`৳ ${combinedToday.toLocaleString()}`} color="text-amber-600" bgColor="bg-amber-50 dark:bg-amber-900/20" />
+           </div>
+           <div className="flex gap-2 w-full sm:w-auto">
              <button
                onClick={() => setShowCategoryModal(true)}
-               className="bg-teal-50 text-teal-600 px-6 py-5 rounded-[28px] shadow-sm font-black text-xs tracking-[2px] transition-all border-2 border-teal-100"
+               className="flex-1 sm:flex-none bg-teal-50 text-teal-600 px-4 py-3 md:px-6 md:py-5 rounded-xl md:rounded-[28px] shadow-sm font-black text-[9px] md:text-xs tracking-[1px] md:tracking-[2px] transition-all border-2 border-teal-100 dark:bg-teal-900/10 dark:border-teal-800"
              >
-                <i className="fas fa-tags mr-2"></i>{t.expense_categories?.split(' ')[1] || 'CATEGORIES'}
+                <i className="fas fa-tags mr-2"></i>CATEGORIES
              </button>
              <button
                onClick={openAddModal}
-               className="bg-slate-900 text-white px-10 py-5 rounded-[28px] shadow-2xl font-black text-xs tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-slate-700"
+               className="flex-[1.5] sm:flex-none bg-slate-900 text-white px-6 py-3 md:px-10 md:py-5 rounded-xl md:rounded-[28px] shadow-2xl font-black text-[9px] md:text-xs tracking-[1px] md:tracking-[2px] transition-all hover:scale-105 active:scale-95 border-b-4 border-slate-700"
              >
-                + {t.add_expense}
+                + ADD EXPENSE
              </button>
            </div>
         </div>
@@ -197,40 +221,40 @@ const Expenses = ({ store, session, t, setActivePage }) => {
             <table className="w-full text-left whitespace-nowrap">
                <thead className="bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-700 text-[10px] text-slate-400 tracking-[2px] font-black uppercase">
                   <tr>
-                     <th className="p-6">{t.day}</th>
-                     <th className="p-6">Description / Title</th>
-                     <th className="p-6">Category</th>
-                     <th className="p-6">Spent By</th>
-                     <th className="p-6 text-right">Amount</th>
-                     <th className="p-6 text-center">Action</th>
+                     <th className="p-4 md:p-6">{t.day}</th>
+                     <th className="p-4 md:p-6 text-left">Title / Detail</th>
+                     <th className="p-4 md:p-6 hidden sm:table-cell">Category</th>
+                     <th className="p-4 md:p-6 hidden lg:table-cell">By</th>
+                     <th className="p-4 md:p-6 text-right">Amount</th>
+                     <th className="p-4 md:p-6 text-center">Action</th>
                   </tr>
                </thead>
                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                   {filteredExpenses.map(exp => (
-                    <tr key={exp.id} className="hover:bg-rose-50/20 transition-all group">
-                       <td className="p-6 text-xs font-black text-slate-500">{exp.expenseDate || exp.date}</td>
-                       <td className="p-6">
-                          <p className="text-lg font-black text-slate-800 dark:text-white tracking-tighter leading-none">{exp.title || exp.item}</p>
-                          <p className="text-[9px] text-slate-400 mt-1.5 font-bold italic uppercase">{exp.notes || exp.remarks || 'No extra notes'}</p>
+                    <tr key={exp.id} className="hover:bg-rose-50/10 transition-all group">
+                       <td className="p-4 md:p-6 text-[10px] md:text-xs font-black text-slate-500 whitespace-nowrap">{exp.expenseDate || exp.date}</td>
+                       <td className="p-4 md:p-6 text-left">
+                          <p className="text-sm md:text-lg font-black text-slate-800 dark:text-white tracking-tighter leading-tight uppercase truncate max-w-[120px] md:max-w-none">{exp.title || exp.item}</p>
+                          <p className="text-[8px] md:text-[9px] text-slate-400 mt-1 font-bold italic uppercase hidden sm:block">{exp.notes || exp.remarks || 'No notes'}</p>
                        </td>
-                       <td className="p-6">
-                          <span className="bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl text-[9px] font-black tracking-widest border border-slate-200 dark:border-slate-700">{getCatLabel(exp.category)}</span>
+                       <td className="p-4 md:p-6 hidden sm:table-cell">
+                          <span className="bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-lg text-[8px] md:text-[9px] font-black tracking-widest border border-slate-200 dark:border-slate-700 uppercase">{getCatLabel(exp.category)}</span>
                        </td>
-                       <td className="p-6 text-xs font-black text-indigo-600 uppercase italic">{exp.expenseBy}</td>
-                       <td className="p-6 text-right font-black text-2xl text-rose-500 tracking-tighter">৳ {exp.amount}</td>
-                       <td className="p-6 text-center">
+                       <td className="p-4 md:p-6 text-[10px] font-black text-indigo-600 uppercase italic hidden lg:table-cell">{exp.expenseBy}</td>
+                       <td className="p-4 md:p-6 text-right font-black text-lg md:text-2xl text-rose-500 tracking-tighter">৳{exp.amount}</td>
+                       <td className="p-4 md:p-6 text-center">
                           <div className="flex justify-center space-x-2">
                              <button
                                onClick={() => openEditModal(exp)}
-                               className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                               className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-400 hover:text-indigo-600 transition-colors shadow-sm"
                              >
-                                <i className="fas fa-edit text-xs"></i>
+                                <i className="fas fa-edit text-[10px] md:text-xs"></i>
                              </button>
                              <button
                                onClick={() => handleDelete(exp.id)}
-                               className="w-10 h-10 rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                               className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
                              >
-                                <i className="fas fa-trash-alt text-xs"></i>
+                                <i className="fas fa-trash-alt text-[10px] md:text-xs"></i>
                              </button>
                           </div>
                        </td>

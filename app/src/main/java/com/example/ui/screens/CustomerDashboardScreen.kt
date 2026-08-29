@@ -28,15 +28,12 @@ import java.util.Locale
 import com.example.data.entity.CustomerEntity
 import com.example.viewmodel.MainViewModel
 import com.example.ui.theme.*
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerDashboardScreen(viewModel: MainViewModel) {
     val customer by viewModel.currentCustomer.collectAsState()
     val payments by viewModel.paymentsList.collectAsState()
-    val tickets by viewModel.supportTickets.collectAsState()
     val invoices by viewModel.invoicesList.collectAsState()
     val settings by viewModel.settingsState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -60,10 +57,6 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
     val myInvoices = remember(invoices, cust.id) {
         invoices.filter { it.customerId == cust.id }.sortedByDescending { it.billingMonthYear }
     }
-    
-    val myTickets = remember(tickets, cust.id) {
-        tickets.filter { it.customerId == cust.id }.sortedByDescending { it.createdAt }
-    }
 
     Scaffold(
         containerColor = if (isDarkMode) Slate900 else Color(0xFFF8FAFC)
@@ -72,121 +65,124 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            // WEB-STYLE HEADER
+            // WEB-STYLE BOLD HEADER
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            modifier = Modifier.size(56.dp),
-                            shape = RoundedCornerShape(18.dp),
-                            color = Teal600
+                            modifier = Modifier.size(72.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            color = Teal600,
+                            shadowElevation = 8.dp
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.AccountCircle, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                                Icon(Icons.Default.Bolt, null, tint = Color.White, modifier = Modifier.size(40.dp))
                             }
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(20.dp))
                         Column {
-                            Text("WELCOME BACK,", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Teal600, letterSpacing = 2.sp)
-                            Text(cust.name, fontSize = 24.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, letterSpacing = (-1).sp)
+                            Text("NETBILL ISP", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Teal600, letterSpacing = 4.sp)
+                            Text(cust.name.uppercase(), fontSize = 32.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, letterSpacing = (-2).sp, lineHeight = 32.sp)
                         }
                     }
                     IconButton(
                         onClick = { viewModel.logout() },
-                        modifier = Modifier.background(CoralWarning.copy(alpha = 0.1f), CircleShape)
+                        modifier = Modifier.size(56.dp).background(CoralWarning.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, null, tint = CoralWarning, modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.Logout, null, tint = CoralWarning, modifier = Modifier.size(24.dp))
                     }
                 }
             }
 
-            // HERO DUE CARD (MATCHES WEB)
+            // HUGE HERO DUE CARD
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(44.dp),
+                    shape = RoundedCornerShape(56.dp),
                     colors = CardDefaults.cardColors(containerColor = Teal600),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 20.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Brush.verticalGradient(listOf(Teal600, Color(0xFF0F766E))))
-                            .padding(32.dp)
+                            .background(Brush.verticalGradient(listOf(Teal600, Color(0xFF0F172A))))
+                            .padding(horizontal = 32.dp, vertical = 48.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.Start) {
-                            Text("মোট বকেয়া (TOTAL DUE)", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.7f), letterSpacing = 3.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("$currency ${String.format(Locale.US, "%,.0f", cust.currentDue)}", fontSize = 64.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = (-2).sp)
+                            Text("TOTAL OUTSTANDING DUE", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.6f), letterSpacing = 5.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("$currency ${String.format(Locale.US, "%,.0f", cust.currentDue)}", fontSize = 84.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = (-4).sp, lineHeight = 80.sp)
                             
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(32.dp))
                             
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column {
-                                    Text("MONTHLY BILL", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.6f))
-                                    Text("$currency ${cust.monthlyBill}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                    Text("MONTHLY RENT", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.5f), letterSpacing = 2.sp)
+                                    Text("$currency ${cust.monthlyBill.toInt()}", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color.White)
                                 }
-                                Column {
-                                    Text("EXPIRATION", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.6f))
-                                    Text(cust.expireDate ?: "Not Set", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                Box(modifier = Modifier.width(2.dp).height(40.dp).background(Color.White.copy(alpha = 0.1f)))
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("EXPIRE DATE", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.5f), letterSpacing = 2.sp)
+                                    Text(cust.expireDate?.uppercase() ?: "NOT SET", fontSize = 22.sp, fontWeight = FontWeight.Black, color = if(cust.status == "Active") EmeraldSuccess else IspRose)
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(32.dp))
+                            Spacer(modifier = Modifier.height(48.dp))
 
                             Button(
                                 onClick = { showPayDialog = true },
-                                modifier = Modifier.fillMaxWidth().height(72.dp),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Teal700),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                                modifier = Modifier.fillMaxWidth().height(88.dp),
+                                shape = RoundedCornerShape(32.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF0F172A)),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 10.dp)
                             ) {
-                                Text("PAY BILL NOW", fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = 2.sp)
+                                Text("PAY BILL NOW", fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = 3.sp)
                             }
                         }
                     }
                 }
             }
 
-            // INFO GRID
+            // NEO-BRUTALIST GRID
             item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    InfoSmallCard(label = "CURRENT PLAN", value = cust.packageName, icon = Icons.Default.Wifi, color = ElectricBlue, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
-                    InfoSmallCard(label = "ZONE / AREA", value = cust.zone.orEmpty().ifEmpty { "Global" }, icon = Icons.Default.Place, color = Teal600, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    InfoSmallCard(label = "PLAN SPEED", value = cust.packageName, icon = Icons.Default.Wifi, color = ElectricBlue, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
+                    InfoSmallCard(label = "USER STATUS", value = cust.status.uppercase(), icon = Icons.Default.Shield, color = if(cust.status == "Active") EmeraldSuccess else IspRose, modifier = Modifier.weight(1f), isDarkMode = isDarkMode)
                 }
             }
 
-            // MONTHLY BILL STATUS
+            // BILLING TRACKER
             if (myInvoices.isNotEmpty()) {
                 item {
-                    Text("MONTHLY BILL STATUS / মাসিক বিলের অবস্থা", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 3.sp)
-                }
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        myInvoices.forEach { inv ->
-                            Card(
-                                modifier = Modifier.width(140.dp),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (inv.status == "Paid") EmeraldSuccess.copy(alpha = 0.1f) else IspRose.copy(alpha = 0.1f)
-                                ),
-                                border = BorderStroke(1.dp, if (inv.status == "Paid") EmeraldSuccess.copy(alpha = 0.2f) else IspRose.copy(alpha = 0.2f))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(inv.billingMonthYear, fontSize = 9.sp, fontWeight = FontWeight.Black, color = Slate500)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(inv.status.uppercase(), fontSize = 14.sp, fontWeight = FontWeight.Black, color = if (inv.status == "Paid") EmeraldSuccess else IspRose)
-                                    Text("$currency ${inv.totalPayable.toInt()}", fontSize = 11.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900)
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("BILLING STATUS MONITOR", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 5.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            myInvoices.forEach { inv ->
+                                Card(
+                                    modifier = Modifier.width(160.dp),
+                                    shape = RoundedCornerShape(32.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (inv.status == "Paid") EmeraldSuccess.copy(alpha = 0.08f) else IspRose.copy(alpha = 0.08f)
+                                    ),
+                                    border = BorderStroke(2.dp, if (inv.status == "Paid") EmeraldSuccess.copy(alpha = 0.15f) else IspRose.copy(alpha = 0.15f))
+                                ) {
+                                    Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.Start) {
+                                        Text(inv.billingMonthYear.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 2.sp)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(inv.status.uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Black, color = if (inv.status == "Paid") EmeraldSuccess else IspRose)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("$currency ${inv.totalPayable.toInt()}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, letterSpacing = (-1).sp)
+                                    }
                                 }
                             }
                         }
@@ -194,62 +190,64 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
                 }
             }
 
-            // ACTIONS
+            // SUPPORT & HELP
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("SUPPORT CENTER", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 3.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("CUSTOMER SUPPORT", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 5.sp)
                     Card(
                         onClick = { showSupportDialog = true },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(40.dp),
                         colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Slate800 else Color.White),
-                        border = BorderStroke(1.dp, if (isDarkMode) Slate700 else Color(0xFFE2E8F0))
+                        border = BorderStroke(2.dp, if (isDarkMode) Slate700 else Color(0xFFF1F5F9)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(48.dp).background(Color(0xFFFBBF24).copy(alpha = 0.1f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                                Icon(Icons.AutoMirrored.Filled.Help, null, tint = Color(0xFFD97706))
+                        Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(64.dp).background(IspAmber.copy(alpha = 0.1f), RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
+                                Icon(Icons.AutoMirrored.Filled.Help, null, tint = IspAmber, modifier = Modifier.size(32.dp))
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(20.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("REPORT A PROBLEM", fontSize = 14.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900)
-                                Text("আমাদের প্রতিনিধি শীঘ্রই যোগাযোগ করবে", fontSize = 11.sp, color = Slate500)
+                                Text("REPORT AN ISSUE", fontSize = 18.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, letterSpacing = (-1).sp)
+                                Text("অভিযোগ জানাতে এখানে ক্লিক করুন", fontSize = 12.sp, color = Slate500, fontWeight = FontWeight.Bold)
                             }
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Slate300)
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Slate300, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
             }
 
-            // PAYMENT HISTORY
+            // TRANSACTION HISTORY
             if (myPayments.isNotEmpty()) {
                 item {
-                    Text("PAYMENT HISTORY / পেমেন্ট ইতিহাস", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 3.sp)
+                    Text("RECENT TRANSACTIONS", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 5.sp)
                 }
                 items(myPayments) { pymt ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(32.dp),
                         colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Slate800 else Color.White),
-                        border = BorderStroke(1.dp, if (isDarkMode) Slate700 else Color(0xFFF1F5F9))
+                        border = BorderStroke(2.dp, if (isDarkMode) Slate700 else Color(0xFFF8FAFC)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Row(modifier = Modifier.padding(24.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(44.dp).background(EmeraldSuccess.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Receipt, null, tint = EmeraldSuccess, modifier = Modifier.size(20.dp))
+                                Box(modifier = Modifier.size(56.dp).background(EmeraldSuccess.copy(alpha = 0.08f), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Receipt, null, tint = EmeraldSuccess, modifier = Modifier.size(28.dp))
                                 }
-                                Spacer(modifier = Modifier.width(16.dp))
+                                Spacer(modifier = Modifier.width(20.dp))
                                 Column {
-                                    Text("Receipt: ${pymt.receiptNo}", fontSize = 14.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900)
-                                    Text("${pymt.paymentDate} • ${pymt.paymentMethod}", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Bold)
+                                    Text("REF: ${pymt.receiptNo}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, letterSpacing = (-0.5).sp)
+                                    Text("${pymt.paymentDate.uppercase()} • ${pymt.paymentMethod.uppercase()}", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                                 }
                             }
-                            Text("$currency ${String.format(Locale.US, "%,.0f", pymt.amount)}", fontSize = 20.sp, fontWeight = FontWeight.Black, color = EmeraldSuccess)
+                            Text("$currency ${pymt.amount.toInt()}", fontSize = 28.sp, fontWeight = FontWeight.Black, color = EmeraldSuccess, letterSpacing = (-1.5).sp)
                         }
                     }
                 }
             }
             
-            item { Spacer(modifier = Modifier.height(40.dp)) }
+            item { Spacer(modifier = Modifier.height(60.dp)) }
         }
     }
 
@@ -282,190 +280,18 @@ fun CustomerDashboardScreen(viewModel: MainViewModel) {
 fun InfoSmallCard(label: String, value: String, icon: ImageVector, color: Color, modifier: Modifier, isDarkMode: Boolean) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(40.dp),
         colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Slate800 else Color.White),
-        border = BorderStroke(1.dp, if (isDarkMode) Slate700 else Color(0xFFE2E8F0))
+        border = BorderStroke(2.dp, if (isDarkMode) Slate700 else Color(0xFFF1F5F9)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Box(modifier = Modifier.size(40.dp).background(color.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(label, fontSize = 8.sp, fontWeight = FontWeight.Black, color = Slate400, letterSpacing = 1.sp)
-            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, maxLines = 1)
-        }
-    }
-}
-
-@Composable
-fun PremiumHeader(cust: CustomerEntity) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = Teal600),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Brush.linearGradient(listOf(Teal600, Color(0xFF0D9488), Color(0xFF0F766E))))
-                .padding(24.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.2f))
-                        .border(2.dp, Color.White.copy(alpha = 0.4f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = cust.name.take(1).uppercase(), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
-                }
-                Spacer(modifier = Modifier.width(20.dp))
-                Column {
-                    Text("Assalamualikum,", color = Teal100, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text(cust.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Fingerprint, null, tint = Teal100, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("ID: ${cust.customerCode}", color = Teal50, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ConnectivitySection(status: String, up: Double, down: Double, expireDate: String) {
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SpeedCard(label = "Download", value = "$down", unit = "Mbps", icon = Icons.Default.ArrowDownward, color = ElectricBlue, modifier = Modifier.weight(1f))
-            SpeedCard(label = "Upload", value = "$up", unit = "Mbps", icon = Icons.Default.ArrowUpward, color = Teal600, modifier = Modifier.weight(1f))
-        }
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE2E8F0))) {
-            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(if(status == "Active") EmeraldSuccess else CoralWarning))
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text("Connection: $status", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-                Text("Exp: $expireDate", color = CoralWarning, fontWeight = FontWeight.Black, fontSize = 12.sp)
-            }
-        }
-    }
-}
-
-@Composable
-fun SpeedCard(label: String, value: String, unit: String, icon: ImageVector, color: Color, modifier: Modifier) {
-    Card(modifier = modifier, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE2E8F0))) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(String.format(Locale.US, "%.2f", value.toDoubleOrNull() ?: 0.0), fontSize = 24.sp, fontWeight = FontWeight.Black, color = Slate900)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(unit, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = color, modifier = Modifier.padding(bottom = 4.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun BillingActionCard(due: Double, advance: Double, onPayClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), border = BorderStroke(1.dp, Color(0xFFE2E8F0))) {
         Column(modifier = Modifier.padding(24.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text("মোট বকেয়া (Total Due)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CoralWarning)
-                    Text("৳ ${String.format(Locale.US, "%,.0f", due)}", fontSize = 36.sp, fontWeight = FontWeight.Black, color = CoralWarning)
-                }
-                Button(onClick = onPayClick, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = BkashPink), modifier = Modifier.height(50.dp).padding(horizontal = 4.dp)) {
-                    Icon(Icons.Outlined.Payments, null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("PAY NOW", fontWeight = FontWeight.Black)
-                }
+            Box(modifier = Modifier.size(56.dp).background(color.copy(alpha = 0.08f), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
             }
-            if (advance > 0) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Surface(color = EmeraldSuccess.copy(alpha = 0.05f), shape = RoundedCornerShape(12.dp)) {
-                    Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Savings, null, tint = EmeraldSuccess, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("You have ৳ ${String.format(Locale.US, "%,.0f", advance)} advance in account.", fontSize = 11.sp, color = EmeraldSuccess, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ServiceGrid(onReportClick: () -> Unit, onHistoryClick: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        ServiceItem(label = "Report Issue", icon = Icons.Outlined.NetworkCheck, color = Color(0xFFF59E0B), onClick = onReportClick, modifier = Modifier.weight(1f))
-        ServiceItem(label = "Bill History", icon = Icons.Outlined.History, color = ElectricBlue, onClick = onHistoryClick, modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-fun ServiceItem(label: String, icon: ImageVector, color: Color, onClick: () -> Unit, modifier: Modifier) {
-    Card(modifier = modifier.clip(RoundedCornerShape(24.dp)).clickable { onClick() }, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)), border = BorderStroke(1.dp, color.copy(alpha = 0.2f))) {
-        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(32.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Black, color = color, textAlign = TextAlign.Center)
-        }
-    }
-}
-
-@Composable
-fun SectionHeader(title: String, icon: ImageVector) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
-        Icon(icon, null, tint = Slate600, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(title, fontWeight = FontWeight.Black, color = Slate900, fontSize = 14.sp, letterSpacing = 1.sp)
-    }
-}
-
-@Composable
-fun TicketCompactItem(ticket: com.example.data.entity.SupportTicketEntity) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF1F5F9))) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(if(ticket.status == "Resolved") EmeraldSuccess.copy(alpha = 0.1f) else Color(0xFFFEF3C7)), contentAlignment = Alignment.Center) {
-                Icon(if(ticket.status == "Resolved") Icons.Default.CheckCircle else Icons.Default.Pending, null, tint = if(ticket.status == "Resolved") EmeraldSuccess else Color(0xFFD97706), modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(ticket.issueType, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Slate900)
-                Text(ticket.description, fontSize = 12.sp, color = Slate500, maxLines = 1)
-            }
-            Text(ticket.status, fontWeight = FontWeight.Black, fontSize = 10.sp, color = if(ticket.status == "Resolved") EmeraldSuccess else Color(0xFFD97706))
-        }
-    }
-}
-
-@Composable
-fun PaymentCompactItem(pymt: com.example.data.entity.PaymentCollectionEntity, currency: String) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF1F5F9))) {
-        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(Teal50), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Receipt, null, tint = Teal600, modifier = Modifier.size(20.dp))
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(pymt.billingMonth, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Slate900)
-                    Text("${pymt.paymentDate} • ${pymt.paymentMethod}", fontSize = 11.sp, color = Slate500)
-                }
-            }
-            Text("$currency ${String.format(Locale.US, "%,.0f", pymt.amount)}", fontWeight = FontWeight.Black, color = EmeraldSuccess, fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(label.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 2.sp)
+            Text(value.uppercase(), fontSize = 18.sp, fontWeight = FontWeight.Black, color = if (isDarkMode) Color.White else Slate900, maxLines = 1, letterSpacing = (-1).sp)
         }
     }
 }
@@ -482,40 +308,68 @@ fun CustomerManualPayDialog(
     var trxId by remember { mutableStateOf("") }
     val paymentNumber = if (selectedMethod == "bKash") settings?.personalBkashNo ?: "017XXXXXXXX" else settings?.personalNagadNo ?: "018XXXXXXXX"
 
-    AlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("বিল পরিশোধ নির্দেশিকা", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.padding(24.dp).fillMaxWidth()
+    ) {
+        Surface(
+            shape = RoundedCornerShape(48.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.padding(32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Text("BILL PAYMENT GUIDE", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     listOf("bKash", "Nagad").forEach { m ->
                         val isSel = selectedMethod == m
                         val color = if (m == "bKash") BkashPink else NagadOrange
-                        Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (isSel) color else Slate100).clickable { selectedMethod = m }.padding(12.dp), contentAlignment = Alignment.Center) {
-                            Text(m, color = if (isSel) Color.White else Slate700, fontWeight = FontWeight.Bold)
+                        Surface(
+                            onClick = { selectedMethod = m },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSel) color else Slate100,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(modifier = Modifier.padding(16.dp), contentAlignment = Alignment.Center) {
+                                Text(m, color = if (isSel) Color.White else Slate700, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                            }
                         }
                     }
                 }
-                Card(colors = CardDefaults.cardColors(containerColor = Teal50), shape = RoundedCornerShape(12.dp)) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("১. আপনার $selectedMethod অ্যাপ থেকে নিচের নাম্বারে Send Money করুন।", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate800)
-                        Text(paymentNumber, fontSize = 22.sp, fontWeight = FontWeight.Black, color = Teal700, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                        Text("পরিমাণ: ৳${String.format(Locale.US, "%,.0f", currentDue)}", fontSize = 11.sp, color = Slate600)
+                
+                Card(colors = CardDefaults.cardColors(containerColor = Teal600.copy(alpha = 0.05f)), shape = RoundedCornerShape(24.dp), border = BorderStroke(2.dp, Teal600.copy(alpha = 0.1f))) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("১. আপনার $selectedMethod অ্যাপ থেকে Send Money করুন:", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Slate600, letterSpacing = 1.sp)
+                        Text(paymentNumber, fontSize = 28.sp, fontWeight = FontWeight.Black, color = Teal600, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                        Text("প্রদেয় পরিমাণ: ৳${String.format(Locale.US, "%,.0f", currentDue)}", fontSize = 12.sp, color = Slate800, fontWeight = FontWeight.Black)
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("২. টাকা পাঠানোর পর ট্রানজেকশন আইডি (TrxID) দিন:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate800)
-                    OutlinedTextField(value = trxId, onValueChange = { trxId = it }, placeholder = { Text("E.g. BK89201472X") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("২. ট্রানজেকশন আইডি (TrxID) এখানে লিখুন:", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Slate600, letterSpacing = 1.sp)
+                    OutlinedTextField(
+                        value = trxId, 
+                        onValueChange = { trxId = it }, 
+                        placeholder = { Text("E.G. BK89201472X", color = Slate900.copy(alpha = 0.3f)) }, 
+                        modifier = Modifier.fillMaxWidth(), 
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(56.dp)) { Text("CANCEL", fontWeight = FontWeight.Black) }
+                    Button(
+                        onClick = { if (trxId.length >= 8) onSave(selectedMethod, trxId) }, 
+                        colors = ButtonDefaults.buttonColors(containerColor = Teal600),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.weight(1.5f).height(56.dp)
+                    ) { Text("SUBMIT PAYMENT", fontWeight = FontWeight.Black) }
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = { if (trxId.length >= 8) onSave(selectedMethod, trxId) }, colors = ButtonDefaults.buttonColors(containerColor = Teal600)) { Text("পেমেন্ট সাবমিট করুন") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("বাতিল") }
         }
-    )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -527,31 +381,57 @@ fun CustomerTicketDialog(
     var issueType by remember { mutableStateOf("Internet Slow") }
     var description by remember { mutableStateOf("") }
 
-    AlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("নতুন অভিযোগ দিন (New Complaint)", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("সমস্যার ধরণ নির্বাচন করুন:", fontSize = 12.sp, color = Slate600)
-                val issues = listOf("Internet Slow", "No Internet / LOS", "Router Config", "Billing Issue")
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    issues.take(2).forEach { issue ->
-                        FilterChip(selected = issueType == issue, onClick = { issueType = issue }, label = { Text(issue, fontSize = 10.sp) })
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.padding(24.dp).fillMaxWidth()
+    ) {
+        Surface(
+            shape = RoundedCornerShape(48.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.padding(32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Text("NEW COMPLAINT", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+                
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("SELECT ISSUE TYPE:", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate500, letterSpacing = 2.sp)
+                    val issues = listOf("Internet Slow", "No Internet / LOS", "Router Config", "Billing Issue")
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        issues.forEach { issue ->
+                            FilterChip(
+                                selected = issueType == issue, 
+                                onClick = { issueType = issue }, 
+                                label = { Text(issue, fontSize = 11.sp, fontWeight = FontWeight.Black) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Teal600,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
                     }
                 }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    issues.takeLast(2).forEach { issue ->
-                        FilterChip(selected = issueType == issue, onClick = { issueType = issue }, label = { Text(issue, fontSize = 10.sp) })
-                    }
+
+                OutlinedTextField(
+                    value = description, 
+                    onValueChange = { description = it }, 
+                    label = { Text("DESCRIBE YOUR PROBLEM", fontWeight = FontWeight.Black, fontSize = 11.sp) }, 
+                    modifier = Modifier.fillMaxWidth(), 
+                    minLines = 4,
+                    shape = RoundedCornerShape(20.dp)
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(56.dp)) { Text("CANCEL", fontWeight = FontWeight.Black) }
+                    Button(
+                        onClick = { if (description.isNotBlank()) onSave(issueType, description) }, 
+                        colors = ButtonDefaults.buttonColors(containerColor = Teal600),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.weight(1.5f).height(56.dp)
+                    ) { Text("SUBMIT ISSUE", fontWeight = FontWeight.Black) }
                 }
-                OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("সমস্যার বিস্তারিত লিখুন") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
             }
-        },
-        confirmButton = {
-            Button(onClick = { if (description.isNotBlank()) onSave(issueType, description) }, colors = ButtonDefaults.buttonColors(containerColor = Teal600)) { Text("অভিযোগ জমা দিন") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("বাতিল") }
         }
-    )
+    }
 }

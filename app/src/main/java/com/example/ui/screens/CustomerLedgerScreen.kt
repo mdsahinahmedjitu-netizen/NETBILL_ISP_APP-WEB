@@ -1,10 +1,8 @@
 package com.example.ui.screens
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,21 +19,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -50,10 +44,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -76,7 +68,7 @@ import com.example.data.entity.InvoiceEntity
 import com.example.data.entity.LedgerEntity
 import com.example.data.entity.PaymentCollectionEntity
 import com.example.util.AppUtils
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.components.ReadonlyDateField
 import com.example.ui.theme.BkashPink
 import java.text.SimpleDateFormat
@@ -86,17 +78,12 @@ import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.NagadOrange
-import com.example.ui.theme.Navy800
-import com.example.ui.theme.Slate100
-import com.example.ui.theme.Slate200
-import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.SleekBg
 import com.example.ui.theme.SleekBorder
 import com.example.ui.theme.SleekCard
-import com.example.ui.theme.Teal50
 import com.example.ui.theme.Teal600
 import com.example.viewmodel.MainViewModel
 
@@ -105,7 +92,7 @@ import com.example.viewmodel.MainViewModel
 fun CustomerLedgerScreen(
     customer: CustomerEntity,
     viewModel: MainViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val ledgerList by viewModel.getLedgerForCustomer(customer.id).collectAsState(initial = emptyList())
@@ -118,45 +105,45 @@ fun CustomerLedgerScreen(
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Timeline, 1 = Bill History, 2 = Payment & Receipts
     var searchQuery by remember { mutableStateOf("") }
     var selectedTypeFilter by remember { mutableStateOf("All") }
-    var showAddLedgerDialog by remember { mutableStateOf(false) }
+    var showAddLedgerDialog by remember { mutableStateOf(value = false) }
 
     // Selected receipt for dialog view
     val selectedReceipt by viewModel.selectedReceipt.collectAsState()
 
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     // Calculations for Summary Cards
-    val totalBills = ledgerList.filter { it.type == "Monthly Bill" || it.type == "Manual Charge" }.sumOf { it.amount }
-    val totalPayments = ledgerList.filter { it.type == "Payment" }.sumOf { it.amount }
-    val totalDiscounts = ledgerList.filter { it.type == "Discount" || it.type == "Waiver" }.sumOf { it.amount }
-    val totalAdvance = ledgerList.filter { it.type == "Advance" }.sumOf { it.amount }
-    val previousDue = ledgerList.filter { it.type == "Previous Due" }.sumOf { it.amount }
-    val carryForwardDue = ledgerList.filter { it.type == "Carry Forward Due" }.sumOf { it.amount }
+    val totalBills = ledgerList.asSequence().filter { (it.type == "Monthly Bill") || (it.type == "Manual Charge") }.sumOf { it.amount }
+    val totalPayments = ledgerList.asSequence().filter { it.type == "Payment" }.sumOf { it.amount }
+    val totalDiscounts = ledgerList.asSequence().filter { (it.type == "Discount") || (it.type == "Waiver") }.sumOf { it.amount }
+    val totalAdvance = ledgerList.asSequence().filter { it.type == "Advance" }.sumOf { it.amount }
+    val previousDue = ledgerList.asSequence().filter { it.type == "Previous Due" }.sumOf { it.amount }
+    val carryForwardDue = ledgerList.asSequence().filter { it.type == "Carry Forward Due" }.sumOf { it.amount }
     val netOutstanding = customer.currentDue
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SleekBg)
-            .padding(16.dp)
+            .padding(16.dp),
     ) {
         // Top Action Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Slate900)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Slate900)
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 Column {
                     Text(
-                        text = AppTranslation("customer_ledger"),
+                        text = appTranslation("customer_ledger"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Slate900
+                        color = Slate900,
                     )
                     Text(
                         text = "${customer.name} (${customer.customerCode})",
@@ -175,7 +162,7 @@ fun CustomerLedgerScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(AppTranslation("add_ledger_entry"), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(appTranslation("add_ledger_entry"), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -238,7 +225,7 @@ fun CustomerLedgerScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Column {
                                 Text("Package & Monthly Bill", fontSize = 11.sp, color = Slate600)
@@ -276,7 +263,7 @@ fun CustomerLedgerScreen(
             item {
                 Column {
                     Text(
-                        text = AppTranslation("ledger_summary"),
+                        text = appTranslation("ledger_summary"),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate800,
@@ -288,19 +275,19 @@ fun CustomerLedgerScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SummaryCard(
-                            title = AppTranslation("net_outstanding"),
+                            title = appTranslation("net_outstanding"),
                             amount = "$currency ${netOutstanding.toInt()}",
                             color = CoralWarning,
                             modifier = Modifier.weight(1f)
                         )
                         SummaryCard(
-                            title = AppTranslation("current_due"),
+                            title = appTranslation("current_due"),
                             amount = "$currency ${customer.currentDue.toInt()}",
                             color = CoralWarning,
                             modifier = Modifier.weight(1f)
                         )
                         SummaryCard(
-                            title = AppTranslation("total_paid"),
+                            title = appTranslation("total_paid"),
                             amount = "$currency ${totalPayments.toInt()}",
                             color = EmeraldSuccess,
                             modifier = Modifier.weight(1f)
@@ -314,19 +301,19 @@ fun CustomerLedgerScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SummaryCard(
-                            title = AppTranslation("previous_due"),
+                            title = appTranslation("previous_due"),
                             amount = "$currency ${previousDue.toInt()}",
                             color = Slate800,
                             modifier = Modifier.weight(1f)
                         )
                         SummaryCard(
-                            title = AppTranslation("carry_forward_due"),
+                            title = appTranslation("carry_forward_due"),
                             amount = "$currency ${carryForwardDue.toInt()}",
                             color = Slate800,
                             modifier = Modifier.weight(1f)
                         )
                         SummaryCard(
-                            title = AppTranslation("total_generated_bill"),
+                            title = appTranslation("total_generated_bill"),
                             amount = "$currency ${totalBills.toInt()}",
                             color = Teal600,
                             modifier = Modifier.weight(1f)
@@ -340,13 +327,13 @@ fun CustomerLedgerScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SummaryCard(
-                            title = AppTranslation("total_discount"),
+                            title = appTranslation("total_discount"),
                             amount = "$currency ${totalDiscounts.toInt()}",
                             color = ElectricBlue,
                             modifier = Modifier.weight(1f)
                         )
                         SummaryCard(
-                            title = AppTranslation("total_advance"),
+                            title = appTranslation("total_advance"),
                             amount = "$currency ${totalAdvance.toInt()}",
                             color = CyanAccent,
                             modifier = Modifier.weight(1f)
@@ -363,10 +350,10 @@ fun CustomerLedgerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = AppTranslation("ledger_timeline"),
+                        text = appTranslation("ledger_timeline"),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Slate900
+                        color = Slate900,
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -380,7 +367,7 @@ fun CustomerLedgerScreen(
                         ) {
                             Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(AppTranslation("export_ledger"), fontSize = 11.sp)
+                            Text(appTranslation("export_ledger"), fontSize = 11.sp)
                         }
                     }
                 }
@@ -388,17 +375,11 @@ fun CustomerLedgerScreen(
 
             // Tabs Row (0 = Timeline, 1 = Bill History, 2 = Payment History)
             item {
-                ScrollableTabRow(
+                SecondaryScrollableTabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = SleekCard,
                     contentColor = Teal600,
-                    edgePadding = 0.dp,
-                    indicator = { tabPositions ->
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                            color = Teal600
-                        )
-                    }
+                    edgePadding = 0.dp
                 ) {
                     Tab(
                         selected = selectedTab == 0,
@@ -445,7 +426,7 @@ fun CustomerLedgerScreen(
                             )
 
                             // Type Filter Dropdown
-                            var dropdownExpanded by remember { mutableStateOf(false) }
+                            var dropdownExpanded by remember { mutableStateOf(value = false) }
                             Box {
                                 OutlinedButton(
                                     onClick = { dropdownExpanded = true },
@@ -488,7 +469,7 @@ fun CustomerLedgerScreen(
                             entry.referenceNo.contains(searchQuery, ignoreCase = true) ||
                             entry.description.contains(searchQuery, ignoreCase = true) ||
                             entry.type.contains(searchQuery, ignoreCase = true)
-                    val matchType = selectedTypeFilter == "All" || entry.type == selectedTypeFilter
+                    val matchType = (selectedTypeFilter == "All") || (entry.type == selectedTypeFilter)
                     matchQuery && matchType
                 }
 
@@ -538,8 +519,7 @@ fun CustomerLedgerScreen(
                         PaymentHistoryItemCard(
                             payment = pymt,
                             currency = currency,
-                            onViewReceipt = { viewModel.setSelectedReceipt(pymt) }
-                        )
+                        ) { viewModel.setSelectedReceipt(pymt) }
                     }
                 }
             }
@@ -551,20 +531,19 @@ fun CustomerLedgerScreen(
         AddLedgerEntryDialog(
             customerName = customer.name,
             onDismiss = { showAddLedgerDialog = false },
-            onSubmit = { type, amount, isDebit, desc, refNo, payMethod, date ->
-                viewModel.addCustomLedgerEntry(
-                    customerId = customer.id,
-                    type = type,
-                    amount = amount,
-                    isDebit = isDebit,
-                    description = desc,
-                    referenceNo = refNo,
-                    method = payMethod,
-                    date = date
-                )
-                showAddLedgerDialog = false
-            }
-        )
+        ) { type, amount, isDebit, desc, refNo, payMethod, date ->
+            viewModel.addCustomLedgerEntry(
+                customerId = customer.id,
+                type = type,
+                amount = amount,
+                isDebit = isDebit,
+                description = desc,
+                referenceNo = refNo,
+                method = payMethod,
+                date = date
+            )
+            showAddLedgerDialog = false
+        }
     }
 
     // Invoice/Receipt View Modal Dialog
@@ -572,8 +551,7 @@ fun CustomerLedgerScreen(
         InvoiceReceiptDialog(
             payment = pymt,
             viewModel = viewModel,
-            onDismiss = { viewModel.setSelectedReceipt(null) }
-        )
+        ) { viewModel.setSelectedReceipt(null) }
     }
 }
 
@@ -758,7 +736,7 @@ fun BillHistoryItemCard(invoice: InvoiceEntity, currency: String) {
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
                     Text("Bill Amount", fontSize = 10.sp, color = Slate600)
@@ -852,18 +830,22 @@ fun PaymentHistoryItemCard(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onViewReceipt) {
+                TextButton(
+                    onClick = onViewReceipt,
+                ) {
                     Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(14.dp), tint = Teal600)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(AppTranslation("download_receipt"), fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.Bold)
+                    Text(appTranslation("download_receipt"), fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                TextButton(onClick = onViewReceipt) {
+                TextButton(
+                    onClick = onViewReceipt,
+                ) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = Teal600)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(AppTranslation("share_receipt"), fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.Bold)
+                    Text(appTranslation("share_receipt"), fontSize = 11.sp, color = Teal600, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -902,7 +884,7 @@ fun AddLedgerEntryDialog(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Select Ledger Entry Type", fontSize = 12.sp, color = Slate600, fontWeight = FontWeight.Bold)
 
-                var typeDropdownExpanded by remember { mutableStateOf(false) }
+                var typeDropdownExpanded by remember { mutableStateOf(value = false) }
                 Box {
                     OutlinedButton(
                         onClick = { typeDropdownExpanded = true },
@@ -962,7 +944,7 @@ fun AddLedgerEntryDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                if (selectedType == "Payment" || selectedType == "Refund" || selectedType == "Advance") {
+                if ((selectedType == "Payment") || (selectedType == "Refund") || (selectedType == "Advance")) {
                     OutlinedTextField(
                         value = paymentMethodText,
                         onValueChange = { paymentMethodText = it },

@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.util.AppUtils
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.CoralWarning
 import com.example.ui.components.CustomerSmsLogsBottomSheet
@@ -94,7 +94,7 @@ fun CustomerDetailScreen(
 
     val customerPayments = payments.filter { it.customerId == customer.id }
     val customerInvoices = invoices.filter { it.customerId == customer.id }
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     Column(
         modifier = Modifier

@@ -4,11 +4,19 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,7 +28,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -30,8 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.PaymentCollectionEntity
-import com.example.util.AppUtils
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
@@ -42,8 +48,8 @@ import java.util.*
 fun PaymentCollectionScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val payments by viewModel.paymentsList.collectAsState()
     val customers by viewModel.customersList.collectAsState()
-    val permissions by viewModel.currentPermissions.collectAsState()
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
+    val currentLanguage by viewModel.currentLanguage.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val staffList by viewModel.staffList.collectAsState()
     val preSelectedCustomer by viewModel.preSelectedCustomerForPayment.collectAsState()
@@ -65,48 +71,61 @@ fun PaymentCollectionScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     }
     val currentMonth = SimpleDateFormat("MMMM yyyy", Locale.US).format(Date())
     var billingMonth by remember { mutableStateOf(currentMonth) }
-    
-    val months = remember {
-        val list = mutableListOf<String>()
-        val cal = Calendar.getInstance()
-        val sdf = SimpleDateFormat("MMMM yyyy", Locale.US)
-        repeat(6) {
-            list.add(sdf.format(cal.time))
-            cal.add(Calendar.MONTH, -1)
-        }
-        list
-    }
 
     // Dynamic Billing Month Selection Logic
-    LaunchedEffect(amount, selectedCustomer) {
+    LaunchedEffect(amount, selectedCustomer, currentLanguage) {
         val cust = selectedCustomer ?: return@LaunchedEffect
         val totalDue = cust.currentDue
         val monthlyBill = cust.monthlyBill
         val payAmt = amount.toDoubleOrNull() ?: 0.0
 
-        if (monthlyBill > 0) {
-            val monthsDue = Math.ceil(totalDue / monthlyBill).toInt()
-            if (payAmt < totalDue && monthsDue >= 2) {
-                // Suggest the oldest month
-                if (monthsDue <= months.size) {
-                    billingMonth = months[monthsDue - 1]
+        val isBangla = currentLanguage == com.example.localization.AppLanguage.BANGLA
+        val locale = if (isBangla) Locale.forLanguageTag("bn-BD") else Locale.US
+
+        if ((monthlyBill > 0) && (payAmt > 0)) {
+            val monthsDueCount = kotlin.math.ceil(totalDue / monthlyBill).toInt()
+            val monthsPaidCount = kotlin.math.floor(payAmt / monthlyBill).toInt()
+            
+            if ((monthsPaidCount > 0) && (monthsDueCount > 0)) {
+                val startOffset = -(monthsDueCount - 1)
+                val monthsList = mutableListOf<String>()
+                val years = mutableSetOf<String>()
+                val banglaDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
+                
+                for (i in 0 until monthsPaidCount) {
+                    val tempCal = Calendar.getInstance()
+                    tempCal[Calendar.DAY_OF_MONTH] = 1
+                    tempCal.add(Calendar.MONTH, startOffset + i)
+                    monthsList.add(SimpleDateFormat("MMMM", locale).format(tempCal.time))
+                    
+                    var yearStr = SimpleDateFormat("yyyy", Locale.US).format(tempCal.time)
+                    if (isBangla) {
+                        yearStr = yearStr.map { if (it.isDigit()) banglaDigits[it - '0'] else it }.joinToString("")
+                    }
+                    years.add(yearStr)
                 }
+                
+                val yearsStr = years.joinToString("-")
+                billingMonth = if (monthsList.size == 1) "${monthsList[0]} $yearsStr"
+                else "${monthsList.joinToString("-")} $yearsStr"
             } else {
-                billingMonth = months[0]
+                billingMonth = SimpleDateFormat("MMMM yyyy", locale).format(Date())
             }
+        } else {
+            billingMonth = SimpleDateFormat("MMMM yyyy", locale).format(Date())
         }
     }
     var selectedCollector by remember { mutableStateOf(currentUser?.name ?: "Super Admin") }
-    var expandedCollectorDropdown by remember { mutableStateOf(false) }
-    var expandedCustomerDropdown by remember { mutableStateOf(false) }
+    var expandedCollectorDropdown by remember { mutableStateOf(value = false) }
+    var expandedCustomerDropdown by remember { mutableStateOf(value = false) }
 
     val filteredCustomers = remember(searchTerm, customers) {
         if (searchTerm.isEmpty()) emptyList()
-        else customers.filter {
+        else customers.asSequence().filter {
             it.name.contains(searchTerm, ignoreCase = true) ||
             it.customerCode.contains(searchTerm, ignoreCase = true) ||
-            it.pppoeUsername?.contains(searchTerm, ignoreCase = true) == true
-        }.take(10)
+            it.pppoeUsername.contains(searchTerm, ignoreCase = true)
+        }.take(10).toList()
     }
 
     Scaffold(containerColor = SleekBg) { innerPadding ->
@@ -116,7 +135,7 @@ fun PaymentCollectionScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             // Back Button Row
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -125,7 +144,7 @@ fun PaymentCollectionScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     modifier = Modifier
                         .size(52.dp)
                         .background(Color.White, RoundedCornerShape(16.dp))
-                        .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+                        .border(1.dp, SleekBorder, RoundedCornerShape(16.dp)),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = IspTealPrimary)
                 }
@@ -137,14 +156,14 @@ fun PaymentCollectionScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                     .fillMaxWidth()
                     .background(Color.White, RoundedCornerShape(44.dp))
                     .border(1.dp, SleekBorder, RoundedCornerShape(44.dp))
-                    .padding(28.dp)
+                    .padding(28.dp),
             ) {
                 Text(
-                    text = AppTranslation("payment_collection").uppercase(),
+                    text = appTranslation("payment_collection").uppercase(),
                     fontWeight = FontWeight.Black,
                     fontSize = 32.sp,
                     letterSpacing = 2.sp,
-                    color = Slate900
+                    color = Slate900,
                 )
                 Text(
                     text = "ENTERPRISE COLLECTION HUB • REAL-TIME SYNC",
@@ -178,7 +197,7 @@ fun PaymentCollectionScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
                                 readOnly = true,
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCollectorDropdown) },
                                 shape = RoundedCornerShape(20.dp),
-                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                                 textStyle = TextStyle(fontWeight = FontWeight.Black, letterSpacing = 2.sp, fontSize = 14.sp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedContainerColor = Color(0xFFF1F5F9),

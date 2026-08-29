@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.InvoiceEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.AmberAlert
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.CoralWarning
@@ -87,7 +87,7 @@ fun CarryForwardDueCard(
 ) {
     val customers by viewModel.customersList.collectAsState()
     val invoices by viewModel.invoicesList.collectAsState()
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     var expandedSimulator by remember { mutableStateOf(false) }
     var selectedCustomerId by remember { mutableStateOf<String?>(null) }

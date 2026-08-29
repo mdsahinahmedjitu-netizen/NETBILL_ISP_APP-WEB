@@ -28,54 +28,91 @@ serve(async (req) => {
         return data;
     }
 
-    // ACTION: AUTO SUSPEND (Triggered by Cron Job)
+    // ACTION: AUTO SUSPEND (Triggered by Server-side Cron Job)
     if (action === 'auto_suspend') {
-        const todayStr = new Date().toLocaleDateString('en-CA');
-        const { data: expired } = await supabaseAdmin.from('customers').select('*').eq('status', 'Active').lt('expire_date', todayStr);
+        const now = new Date();
+        // Convert to BD Time to get correct "Today" string
+        const bdNow = new Date(now.getTime() + (6 * 60 * 60 * 1000));
+        const todayStr = bdNow.toISOString().split('T')[0]; // YYYY-MM-DD
+        const todayStartISO = todayStr + 'T00:00:00Z';
 
-        if (expired && expired.length > 0) {
+        const { data: activeCustomers } = await supabaseAdmin
+            .from('customers')
+            .select('*')
+            .eq('status', 'Active');
+
+        if (activeCustomers && activeCustomers.length > 0) {
             const { data: settings } = await supabaseAdmin.from('settings').select('*').limit(1).maybeSingle();
             const { data: templates } = await supabaseAdmin.from('sms_templates').select('*');
             const template = templates?.find(t => t.title === 'Expired Customer' && t.is_active);
 
-            for (const cust of expired) {
-                const router = await getRouter(cust.router_id);
-                if (router) {
-                    const auth = btoa(`${router.api_user}:${router.api_pass}`);
-                    const baseUrl = `http://${router.host}:${router.port}/rest`;
-                    const headers = { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' };
-                    const find = await fetch(`${baseUrl}/ppp/secret?name=${encodeURIComponent(cust.pppoe_username)}`, { headers }).then(r => r.json());
-                    if (Array.isArray(find) && find[0]) {
-                        await fetch(`${baseUrl}/ppp/secret/set`, { method: 'POST', headers, body: JSON.stringify({ ".id": find[0]['.id'], "disabled": "yes" }) });
-                        const act = await fetch(`${baseUrl}/ppp/active?name=${encodeURIComponent(cust.pppoe_username)}`, { headers }).then(r => r.json());
-                        if (Array.isArray(act) && act[0]) await fetch(`${baseUrl}/ppp/active/${act[0]['.id']}`, { method: 'DELETE', headers });
+            // Fetch already sent logs for today to prevent duplicates
+            const { data: sentLogs } = await supabaseAdmin
+                .from('sms_logs')
+                .select('customer_id')
+                .eq('notification_type', 'Expired (Auto-Server)')
+                .gte('sent_timestamp', todayStartISO);
+
+            const sentSet = new Set(sentLogs?.map(l => l.customer_id) || []);
+
+            const parseDate = (s: string | null) => {
+              if(!s) return null;
+              if(s.includes('-') && s.split('-')[0].length === 4) return new Date(s + "T00:00:00");
+              const p = s.split('-');
+              if(p.length === 3) {
+                const mArr: any = {"Jan":0,"Feb":1,"Mar":2,"Apr":3,"May":4,"Jun":5,"Jul":6,"Aug":7,"Sep":8,"Oct":9,"Nov":10,"Dec":11};
+                return new Date(parseInt(p[2]), mArr[p[1]], parseInt(p[0]), 0, 0, 0);
+              }
+              return null;
+            };
+
+            for (const cust of activeCustomers) {
+                const expDate = parseDate(cust.expire_date || cust.expireDate);
+                const reqDate = parseDate(cust.request_date || cust.requestDate);
+                const todayObj = new Date(todayStr + "T00:00:00");
+
+                // --- CRITICAL LOGIC: ONLY SUSPEND IF EXPIRED AND NO VALID REQUEST DATE ---
+                const isExpired = expDate && expDate < todayObj;
+                const hasValidRequest = reqDate && reqDate >= todayObj;
+
+                if (isExpired && !hasValidRequest) {
+                    console.log(`Server Suspending: ${cust.name}`);
+
+                    // 1. Sync to MikroTik
+                    const router = await getRouter(cust.router_id);
+                    if (router) {
+                        const auth = btoa(`${router.api_user}:${router.api_pass}`);
+                        const baseUrl = `http://${router.host}:${router.port}/rest`;
+                        const headers = { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/json' };
+                        const find = await fetch(`${baseUrl}/ppp/secret?name=${encodeURIComponent(cust.pppoe_username)}`, { headers }).then(r => r.json());
+                        if (Array.isArray(find) && find[0]) {
+                            await fetch(`${baseUrl}/ppp/secret/set`, { method: 'POST', headers, body: JSON.stringify({ ".id": find[0]['.id'], "disabled": "yes" }) });
+                            const act = await fetch(`${baseUrl}/ppp/active?name=${encodeURIComponent(cust.pppoe_username)}`, { headers }).then(r => r.json());
+                            if (Array.isArray(act) && act[0]) await fetch(`${baseUrl}/ppp/active/${act[0]['.id']}`, { method: 'DELETE', headers });
+                        }
                     }
-                }
-                await supabaseAdmin.from('customers').update({ status: 'Suspended' }).eq('id', cust.id);
 
-                // --- SEND EXPIRED SMS ---
-                if (settings?.sms_api_key && cust.mobile && template) {
-                    let msg = template.message_content
-                        .replace(/{NAME}/g, cust.name || '')
-                        .replace(/{CUSTOMER_CODE}/g, cust.customer_code || '')
-                        .replace(/{AMOUNT}/g, Math.floor(cust.current_due || 0))
-                        .replace(/{DUE}/g, Math.floor(cust.current_due || 0))
-                        .replace(/{DATE}/g, cust.expire_date || '');
+                    // 2. Update Database
+                    await supabaseAdmin.from('customers').update({ status: 'Suspended' }).eq('id', cust.id);
 
-                    let cleanMobile = cust.mobile.replace(/[^0-9]/g, "");
-                    if (cleanMobile.startsWith('0')) cleanMobile = '88' + cleanMobile;
-                    else if (cleanMobile.length === 10) cleanMobile = '880' + cleanMobile;
-                    else if (!cleanMobile.startsWith('88')) cleanMobile = '88' + cleanMobile;
+                    // 3. Send SMS (Only if not sent today)
+                    if (settings?.sms_api_key && cust.mobile && template && !sentSet.has(cust.id)) {
+                        let msg = template.message_content
+                            .replace(/{NAME}/g, cust.name || '')
+                            .replace(/{CUSTOMER_CODE}/g, cust.customer_code || '')
+                            .replace(/{AMOUNT}/g, Math.floor(cust.current_due || 0))
+                            .replace(/{DUE}/g, Math.floor(cust.current_due || 0))
+                            .replace(/{DATE}/g, cust.expire_date || '');
 
-                    const msgType = /[\u0980-\u09FF]/.test(msg) ? "unicode" : "text";
-                    const finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${settings.sms_api_key}&callerID=${settings.sms_sender_id}&number=${cleanMobile}&message=${encodeURIComponent(msg)}&type=${msgType}`;
+                        const msgType = /[\u0980-\u09FF]/.test(msg) ? "unicode" : "text";
+                        const finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${settings.sms_api_key}&callerID=${settings.sms_sender_id}&number=${cust.mobile}&message=${encodeURIComponent(msg)}&type=${msgType}`;
 
-                    await fetch(finalUrl); // Trigger SMS via Proxy
-
-                    await supabaseAdmin.from('sms_logs').insert({
-                        customer_id: cust.id, customer_name: cust.name, mobile: cleanMobile,
-                        notification_type: 'Expired (Auto-Server)', message: msg, status: 'Sent', sent_timestamp: new Date().toISOString()
-                    });
+                        await fetch(finalUrl);
+                        await supabaseAdmin.from('sms_logs').insert({
+                            customer_id: cust.id, customer_name: cust.name, mobile: cust.mobile,
+                            notification_type: 'Expired (Auto-Server)', message: msg, status: 'Sent', sent_timestamp: new Date().toISOString()
+                        });
+                    }
                 }
             }
         }

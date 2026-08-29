@@ -1,12 +1,11 @@
 package com.example.localization
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 
-enum class AppLanguage(val code: String, val displayName: String, val nativeName: String) {
-    ENGLISH("en", "English", "English"),
-    BANGLA("bn", "Bangla", "বাংলা")
+enum class AppLanguage(val code: String) {
+    ENGLISH("en"),
+    BANGLA("bn")
 }
 
 val LocalAppLanguage = staticCompositionLocalOf { AppLanguage.BANGLA }
@@ -154,6 +153,9 @@ object Strings {
         "grid_search" to "Search",
         "grid_complaint_list" to "Complin List",
         "grid_bill_summary" to "Bill Summary",
+        "grid_edit_customer" to "Edit Customer",
+        "grid_expired_customer" to "Expired Customer",
+        "grid_new_customers" to "New Customers",
 
         // Customer Management
         "customer_crm" to "Customer CRM",
@@ -338,7 +340,15 @@ object Strings {
         "save_settings" to "Save Company Info",
         "settings_saved" to "Settings Updated!",
         "switch_to_bangla" to "বাংলা ভাষায় পরিবর্তন করুন",
-        "switch_to_english" to "Switch to English"
+        "switch_to_english" to "Switch to English",
+
+        // Actions Menu
+        "action_payment" to "PAYMENT",
+        "action_profile" to "FULL PROFILE",
+        "action_promise" to "BILL PROMISE",
+        "action_edit" to "EDIT / IDENTITY",
+        "action_delete" to "DELETE",
+        "bill_promise_reminders" to "BILL PROMISE REMINDERS",
     )
 
     private val bn = mapOf(
@@ -483,6 +493,9 @@ object Strings {
         "grid_search" to "অনুসন্ধান",
         "grid_complaint_list" to "অভিযোগ তালিকা",
         "grid_bill_summary" to "বিল সামারি",
+        "grid_edit_customer" to "তথ্য সংশোধন",
+        "grid_expired_customer" to "মেয়াদ উত্তীর্ণ",
+        "grid_new_customers" to "নতুন সংযোগ",
 
         // Customer Management
         "customer_crm" to "গ্রাহক সিআরএম",
@@ -667,7 +680,15 @@ object Strings {
         "save_settings" to "তথ্য সংরক্ষণ করুন",
         "settings_saved" to "সেটিংস আপডেট হয়েছে!",
         "switch_to_bangla" to "বাংলা ভাষায় পরিবর্তন করুন",
-        "switch_to_english" to "Switch to English"
+        "switch_to_english" to "Switch to English",
+
+        // Actions Menu
+        "action_payment" to "পেমেন্ট নিন",
+        "action_profile" to "পুরো প্রোফাইল",
+        "action_promise" to "বিলের প্রতিশ্রুতি",
+        "action_edit" to "তথ্য সংশোধন",
+        "action_delete" to "মুছে ফেলুন",
+        "bill_promise_reminders" to "আজকের বিল প্রতিশ্রুতি",
     )
 
     fun get(key: String, lang: AppLanguage): String {
@@ -677,7 +698,7 @@ object Strings {
 }
 
 @Composable
-fun AppTranslation(key: String): String {
+fun appTranslation(key: String): String {
     val currentLang = LocalAppLanguage.current
     return Strings.get(key, currentLang)
 }

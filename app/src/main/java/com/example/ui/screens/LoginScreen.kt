@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +27,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -48,30 +46,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.R
 import com.example.localization.AppLanguage
-import com.example.localization.AppTranslation
-import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.ElectricBlue
-import com.example.ui.theme.Navy800
-import com.example.ui.theme.Navy900
+import com.example.localization.appTranslation
 import com.example.viewmodel.LoginUiState
 import com.example.viewmodel.MainViewModel
 
 @Composable
 fun LoginScreen(
     viewModel: MainViewModel,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
 ) {
-    var isCustomerMode by remember { mutableStateOf(false) }
-    var isMobileMode by remember { mutableStateOf(false) }
+    var isCustomerMode by remember { mutableStateOf(value = false) }
+    var isMobileMode by remember { mutableStateOf(value = false) }
     var usernameOrMobile by remember { mutableStateOf("admin") }
     var password by remember { mutableStateOf("admin123") }
 
@@ -88,23 +80,23 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(com.example.ui.theme.SleekBg)
-            .padding(24.dp)
+            .padding(24.dp),
     ) {
         // Language Toggle Pill Top Right
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(
                 onClick = { viewModel.toggleLanguage() },
                 shape = CircleShape,
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = com.example.ui.theme.Teal50,
-                    contentColor = com.example.ui.theme.Teal600
+                    contentColor = com.example.ui.theme.Teal600,
                 ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.Teal100)
+                border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.Teal100),
             ) {
                 Icon(
                     imageVector = Icons.Default.Language,
@@ -133,7 +125,7 @@ fun LoginScreen(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.White.copy(alpha = 0.9f))
                     .padding(4.dp),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
             ) {
                 val staffModeColor = if (!isCustomerMode) com.example.ui.theme.Teal600 else Color.Transparent
                 val customerModeColor = if (isCustomerMode) com.example.ui.theme.Teal600 else Color.Transparent
@@ -150,7 +142,7 @@ fun LoginScreen(
                         "Admin / Staff", 
                         color = if (!isCustomerMode) Color.White else com.example.ui.theme.Slate700,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
                     )
                 }
                 Box(
@@ -165,7 +157,7 @@ fun LoginScreen(
                         "Customer Login", 
                         color = if (isCustomerMode) Color.White else com.example.ui.theme.Slate700,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
                     )
                 }
             }
@@ -195,18 +187,18 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = AppTranslation("login_title"),
+                text = appTranslation("login_title"),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = com.example.ui.theme.Slate900,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
 
             Text(
-                text = AppTranslation("login_subtitle"),
+                text = appTranslation("login_subtitle"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = com.example.ui.theme.Teal600,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -226,7 +218,7 @@ fun LoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = if (isCustomerMode) "Login with PPPoE Credentials" else if (isMobileMode) AppTranslation("use_mobile_login") else AppTranslation("use_user_pass_login"),
+                        text = if (isCustomerMode) "Login with PPPoE Credentials" else if (isMobileMode) appTranslation("use_mobile_login") else appTranslation("use_user_pass_login"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = com.example.ui.theme.Slate900
@@ -251,7 +243,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = usernameOrMobile,
                             onValueChange = { usernameOrMobile = it },
-                            label = { Text(AppTranslation("mobile_number")) },
+                            label = { Text(appTranslation("mobile_number")) },
                             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = com.example.ui.theme.Teal600) },
                             modifier = Modifier.fillMaxWidth(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -265,7 +257,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = usernameOrMobile,
                             onValueChange = { usernameOrMobile = it },
-                            label = { Text(AppTranslation("username")) },
+                            label = { Text(appTranslation("username")) },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = com.example.ui.theme.Teal600) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
@@ -281,7 +273,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text(if (isCustomerMode) "PPPoE Password" else AppTranslation("password")) },
+                        label = { Text(if (isCustomerMode) "PPPoE Password" else appTranslation("password")) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = com.example.ui.theme.Teal600) },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
@@ -330,7 +322,7 @@ fun LoginScreen(
                             )
                         } else {
                             Text(
-                                text = if (isCustomerMode) "Login to My Account" else AppTranslation("login_btn"),
+                                text = if (isCustomerMode) "Login to My Account" else appTranslation("login_btn"),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -343,7 +335,7 @@ fun LoginScreen(
                             onClick = { isMobileMode = !isMobileMode }
                         ) {
                             Text(
-                                text = if (isMobileMode) AppTranslation("use_user_pass_login") else AppTranslation("use_mobile_login"),
+                                text = if (isMobileMode) appTranslation("use_user_pass_login") else appTranslation("use_mobile_login"),
                                 color = com.example.ui.theme.Teal600,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold

@@ -64,7 +64,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.InvoiceEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.components.CarryForwardDueCard
 import com.example.ui.theme.AmberAlert
 import com.example.ui.theme.BkashPink
@@ -93,7 +93,7 @@ fun BillingScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
     val invoices by viewModel.invoicesList.collectAsState()
     val permissions by viewModel.currentPermissions.collectAsState()
     val context = LocalContext.current
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     var selectedTab by remember { mutableStateOf("All") }
     var searchQuery by remember { mutableStateOf("") }
@@ -154,7 +154,7 @@ fun BillingScreen(viewModel: MainViewModel, onBack: () -> Unit = {}) {
         ) {
             Column {
                 Text(
-                    text = AppTranslation("billing_management"),
+                    text = appTranslation("billing_management"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
                     color = Slate900,
@@ -963,7 +963,7 @@ fun GenerateBillsDialog(
                             Icon(Icons.Default.Info, contentDescription = null, tint = AmberAlert, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = AppTranslation("day_20_rule_title"),
+                                text = appTranslation("day_20_rule_title"),
                                 fontWeight = FontWeight.Bold,
                                 color = Slate900,
                                 fontSize = 13.sp
@@ -971,7 +971,7 @@ fun GenerateBillsDialog(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = AppTranslation("day_20_rule_desc"),
+                            text = appTranslation("day_20_rule_desc"),
                             color = Slate600,
                             fontSize = 11.sp,
                             lineHeight = 16.sp
@@ -985,7 +985,7 @@ fun GenerateBillsDialog(
                                 onClick = { day20Option = "NextMonth" },
                                 colors = RadioButtonDefaults.colors(selectedColor = Teal600)
                             )
-                            Text(AppTranslation("gen_next_month"), fontSize = 11.sp, color = Slate800, fontWeight = FontWeight.Medium)
+                            Text(appTranslation("gen_next_month"), fontSize = 11.sp, color = Slate800, fontWeight = FontWeight.Medium)
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -994,7 +994,7 @@ fun GenerateBillsDialog(
                                 onClick = { day20Option = "CurrentMonth" },
                                 colors = RadioButtonDefaults.colors(selectedColor = Teal600)
                             )
-                            Text(AppTranslation("gen_current_month"), fontSize = 11.sp, color = Slate800, fontWeight = FontWeight.Medium)
+                            Text(appTranslation("gen_current_month"), fontSize = 11.sp, color = Slate800, fontWeight = FontWeight.Medium)
                         }
                     }
                 }

@@ -148,90 +148,92 @@ const SupportTickets = ({ store, session, t, setActivePage }) => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 pb-20 uppercase font-black tracking-tighter transition-all">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4">
-        <div className="flex items-center space-x-4">
-           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-amber-500 shadow-sm border border-slate-100">
+    <div className="w-full max-w-7xl mx-auto space-y-4 md:space-y-6 pb-20 uppercase font-black tracking-tighter transition-all px-2 md:px-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div className="flex items-center space-x-3 md:space-x-4">
+           <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-amber-500 shadow-sm border border-slate-100">
               <i className="fas fa-arrow-left"></i>
            </button>
-           <div className="space-y-1">
-              <h3 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">Complaints</h3>
-              <p className="text-[10px] text-amber-600 tracking-widest font-black uppercase italic">Support System</p>
+           <div className="space-y-0.5 md:space-y-1">
+              <h3 className="text-xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">Complaints</h3>
+              <p className="text-[8px] md:text-[10px] text-amber-600 tracking-[2px] md:tracking-widest font-black uppercase italic">Support System</p>
            </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-            {/* NEW ISSUE PRESET ADDER IN HEADER - NOW ALWAYS UPPERCASE */}
-            <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[24px] border-2 border-indigo-500/10 shadow-inner">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
+            <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-900 p-1 md:p-1.5 rounded-xl md:rounded-[24px] border border-indigo-500/10 shadow-inner flex-1 md:flex-none">
                <input
                   type="text"
                   placeholder="NEW PRESET..."
                   value={customIssueInput}
                   onChange={e => setCustomIssueInput(e.target.value.toUpperCase())}
-                  className="bg-transparent border-none outline-none text-[9px] font-black w-32 ml-3 uppercase placeholder:text-slate-300"
+                  className="bg-transparent border-none outline-none text-[8px] md:text-[9px] font-black w-24 md:w-32 ml-2 md:ml-3 uppercase placeholder:text-slate-300"
                />
-               <button onClick={addQuickIssue} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[9px] font-black shadow-md hover:scale-105 active:scale-95 transition-all">ADD</button>
+               <button onClick={addQuickIssue} className="bg-indigo-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg md:rounded-xl text-[8px] md:text-[9px] font-black shadow-md transition-all">ADD</button>
             </div>
 
-            <button onClick={() => setShowAddModal(true)} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] shadow-lg hover:scale-105 transition-all flex items-center space-x-2"><i className="fas fa-plus-circle"></i><span>NEW</span></button>
+            <button onClick={() => setShowAddModal(true)} className="bg-emerald-600 text-white px-4 py-2.5 md:px-6 md:py-3 rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] shadow-lg flex items-center space-x-2"><i className="fas fa-plus-circle"></i><span className="hidden sm:inline">NEW</span><span className="sm:hidden">ADD</span></button>
 
-            <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[20px] shadow-inner">
-               {['Open', 'Pending', 'Resolved', 'All'].map(tab => (<button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[8px] font-black transition-all ${activeTab === tab ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-md' : 'text-slate-400'}`}>{tab}</button>))}
+            <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl md:rounded-[20px] shadow-inner w-full md:w-auto overflow-x-auto custom-scrollbar">
+               {['Open', 'Pending', 'Resolved', 'All'].map(tab => (<button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 md:flex-none px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[8px] font-black transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-sm' : 'text-slate-400'}`}>{tab}</button>))}
             </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredTickets.map(tk => {
+        {filteredTickets.length > 0 ? filteredTickets.map(tk => {
           const customer = store.customers?.find(c => c.id === tk.customerId || c.id === tk.customer_id);
           return (
-            <div key={tk.id} className="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-lg border border-slate-100 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-center gap-6 group hover:border-amber-500/30 transition-all">
-               {/* LEFT SIDE: Subscriber Info & Actions (WIDER & LARGER TEXT) */}
-               <div className="xl:w-1/3 w-full bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[32px] border-2 border-slate-100 dark:border-slate-800 space-y-4 shadow-inner text-center md:text-left">
+            <div key={tk.id} className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-[24px] md:rounded-3xl shadow-lg border border-slate-100 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-center gap-4 md:gap-6 group hover:border-amber-500/30 transition-all">
+               <div className="xl:w-1/3 w-full bg-slate-50 dark:bg-slate-950/50 p-4 md:p-6 rounded-[24px] md:rounded-[32px] border-2 border-slate-100 dark:border-slate-800 space-y-3 md:space-y-4 shadow-inner">
                   <div className="space-y-1">
-                     <span className="text-[12px] text-indigo-600 font-black uppercase tracking-[4px]">Subscriber</span>
-                     <h3 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">{customer?.name || 'Unknown Client'}</h3>
+                     <span className="text-[9px] md:text-[12px] text-indigo-600 font-black uppercase tracking-[2px] md:tracking-[4px] leading-none">Subscriber</span>
+                     <h3 className="text-xl md:text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none truncate">{customer?.name || 'Unknown Client'}</h3>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="grid grid-cols-2 gap-2 md:gap-4">
                      <div className="space-y-1">
-                        <span className="text-[14px] text-slate-400 font-black uppercase tracking-widest">Zone</span>
-                        <p className="text-[18px] font-black text-slate-700 dark:text-slate-200 leading-tight">{customer?.zone || 'Global'}</p>
+                        <span className="text-[8px] md:text-[14px] text-slate-400 font-black uppercase tracking-widest leading-none">Zone</span>
+                        <p className="text-[10px] md:text-[18px] font-black text-slate-700 dark:text-slate-200 leading-tight truncate">{customer?.zone || 'Global'}</p>
                      </div>
-                     <div className="space-y-1">
-                        <span className="text-[14px] text-slate-400 font-black uppercase tracking-widest">Phone</span>
-                        <p className="text-[18px] font-black text-emerald-600 leading-none">{customer?.mobile || 'No Mobile'}</p>
+                     <div className="space-y-1 text-right">
+                        <span className="text-[8px] md:text-[14px] text-slate-400 font-black uppercase tracking-widest leading-none">Phone</span>
+                        <p className="text-[10px] md:text-[18px] font-black text-emerald-600 leading-none">{customer?.mobile || 'N/A'}</p>
                      </div>
                   </div>
-                  <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200/50">
-                    {tk.status !== 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Resolved')} className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">RESOLVE</button>)}
-                    {tk.status === 'Open' && (<button onClick={() => updateTicketStatus(tk.id, 'Pending')} className="flex-1 bg-amber-500 text-white py-4 rounded-2xl font-black text-xs shadow-lg hover:scale-105 active:scale-95 transition-all">PENDING</button>)}
-                    {tk.status === 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Open')} className="flex-1 bg-slate-800 text-white py-4 rounded-2xl font-black text-xs hover:bg-amber-600 transition-all">RE-OPEN</button>)}
-                    <button onClick={async () => { if(window.confirm("Delete?")) await supabase.from('support_tickets').delete().eq('id', tk.id); }} className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-md"><i className="fas fa-trash-alt text-lg"></i></button>
+                  <div className="flex gap-2 pt-3 border-t border-slate-200/50">
+                    {tk.status !== 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Resolved')} className="flex-1 bg-emerald-600 text-white py-2.5 md:py-4 rounded-xl md:rounded-2xl font-black text-[9px] md:text-xs shadow-md">RESOLVE</button>)}
+                    {tk.status === 'Open' && (<button onClick={() => updateTicketStatus(tk.id, 'Pending')} className="flex-1 bg-amber-500 text-white py-2.5 md:py-4 rounded-xl md:rounded-2xl font-black text-[9px] md:text-xs shadow-md">PENDING</button>)}
+                    {tk.status === 'Resolved' && (<button onClick={() => updateTicketStatus(tk.id, 'Open')} className="flex-1 bg-slate-800 text-white py-2.5 md:py-4 rounded-xl md:rounded-2xl font-black text-[9px] md:text-xs">RE-OPEN</button>)}
+                    <button onClick={async () => { if(window.confirm("Delete?")) await supabase.from('support_tickets').delete().eq('id', tk.id); }} className="w-10 h-10 md:w-14 md:h-14 bg-rose-100 text-rose-600 rounded-xl md:rounded-2xl flex items-center justify-center hover:bg-rose-600 hover:text-white transition-all shadow-sm shrink-0"><i className="fas fa-trash-alt text-sm md:text-lg"></i></button>
                   </div>
                </div>
 
-               {/* LEFT SIDE MOVED TO RIGHT: Ticket Details */}
-               <div className="flex-1 flex flex-col md:flex-row items-center md:items-center gap-6 text-center md:text-left">
-                  <div className={`w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center text-2xl shadow-inner border-2 ${tk.status === 'Resolved' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'}`}><i className={`fas ${tk.status === 'Resolved' ? 'fa-check-circle' : 'fa-headset'}`}></i></div>
-                  <div className="space-y-2 flex-1">
-                     <div className="flex items-center justify-center md:justify-start space-x-3">
-                        <span className={`px-3 py-1 rounded-lg text-[8px] font-black border-2 ${getPriorityColor(tk.priority || 'Normal')}`}>{tk.priority || 'Normal'} PRIORITY</span>
-                        <p className="text-[10px] text-slate-400 font-bold tracking-widest bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded-lg border">#{tk.customerCode || customer?.customerCode}</p>
+               <div className="flex-1 flex flex-row items-start gap-3 md:gap-6 w-full">
+                  <div className={`w-10 h-10 md:w-16 md:h-16 shrink-0 rounded-xl md:rounded-2xl flex items-center justify-center text-lg md:text-2xl shadow-inner border ${tk.status === 'Resolved' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'}`}><i className={`fas ${tk.status === 'Resolved' ? 'fa-check-circle' : 'fa-headset'}`}></i></div>
+                  <div className="space-y-1.5 md:space-y-2 flex-1 min-w-0">
+                     <div className="flex items-center space-x-2 md:space-x-3 leading-none">
+                        <span className={`px-2 py-0.5 md:px-3 md:py-1 rounded-lg text-[7px] md:text-[8px] font-black border ${getPriorityColor(tk.priority || 'Normal')}`}>{tk.priority?.toUpperCase()}</span>
+                        <p className="text-[8px] md:text-[10px] text-slate-400 font-bold tracking-widest bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded-lg border">#{tk.customerCode || customer?.customerCode}</p>
                      </div>
                      <div className="space-y-0.5">
-                        <h4 className="text-xl font-black text-slate-800 dark:text-white tracking-tighter leading-tight uppercase">{tk.subject || 'No Subject'}</h4>
-                        <p className="text-xs font-black text-slate-400 normal-case tracking-normal max-w-2xl">{tk.description || 'No detailed description provided.'}</p>
+                        <h4 className="text-sm md:text-xl font-black text-slate-800 dark:text-white tracking-tighter leading-tight uppercase truncate">{tk.subject || 'No Subject'}</h4>
+                        <p className="text-[10px] md:text-xs font-black text-slate-400 normal-case tracking-normal line-clamp-2 md:line-clamp-none">{tk.description || 'No detailed description.'}</p>
                      </div>
-                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-1">
-                        <p className="text-[10px] font-black text-slate-600 dark:text-slate-300"><i className="far fa-calendar-alt mr-1"></i> {new Date(tk.createdAt || tk.created_at).toLocaleDateString()}</p>
-                        <div className="w-px h-4 bg-slate-100 dark:bg-slate-700 hidden sm:block"></div>
-                        <p className="text-[10px] font-black text-indigo-600 italic">Logged By: {tk.createdBy || tk.created_by || 'Admin'}</p>
+                     <div className="flex flex-wrap items-center gap-2 md:gap-4 pt-1">
+                        <p className="text-[8px] md:text-[10px] font-black text-slate-500"><i className="far fa-calendar-alt mr-1"></i> {new Date(tk.createdAt || tk.created_at).toLocaleDateString()}</p>
+                        <div className="w-px h-3 bg-slate-100 dark:bg-slate-700"></div>
+                        <p className="text-[8px] md:text-[10px] font-black text-indigo-600 italic truncate max-w-[100px]">BY: {tk.createdBy || tk.created_by}</p>
                      </div>
                   </div>
                </div>
             </div>
           );
-        })}
+        }) : (
+          <div className="py-24 text-center opacity-10 flex flex-col items-center space-y-6">
+             <i className="fas fa-headset text-8xl"></i>
+             <p className="text-2xl font-black tracking-[8px]">NO TICKETS</p>
+          </div>
+        )}
       </div>
 
       {showAddModal && (

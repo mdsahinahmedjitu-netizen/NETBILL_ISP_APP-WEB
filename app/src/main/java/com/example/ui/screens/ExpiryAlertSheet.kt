@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.*
 import com.example.util.ExpiryUtils
 import com.example.viewmodel.MainViewModel
@@ -35,7 +35,7 @@ fun ExpiryAlertBottomSheet(
     val expiringCustomers by viewModel.expiringTomorrowCustomers.collectAsState()
     val currentLang by viewModel.currentLanguage.collectAsState()
     val isBangla = currentLang == com.example.localization.AppLanguage.BANGLA
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     var customerToExtendExpiry by remember { mutableStateOf<CustomerEntity?>(null) }
 
@@ -73,7 +73,7 @@ fun ExpiryAlertBottomSheet(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = AppTranslation("customer_expiry_alert_title"),
+                            text = appTranslation("customer_expiry_alert_title"),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 16.sp,
                             color = Slate900
@@ -110,7 +110,7 @@ fun ExpiryAlertBottomSheet(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = AppTranslation("no_upcoming_expiry"),
+                            text = appTranslation("no_upcoming_expiry"),
                             color = Slate600,
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp
@@ -256,7 +256,7 @@ fun ExpiryCustomerCard(
             ) {
                 Column {
                     Text(
-                        text = AppTranslation("total_due"),
+                        text = appTranslation("total_due"),
                         fontSize = 11.sp,
                         color = Slate500
                     )
@@ -270,7 +270,7 @@ fun ExpiryCustomerCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = AppTranslation("expire_date"),
+                        text = appTranslation("expire_date"),
                         fontSize = 11.sp,
                         color = Slate500
                     )
@@ -309,7 +309,7 @@ fun ExpiryCustomerCard(
                 ) {
                     Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(AppTranslation("extend_expiry"), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(appTranslation("extend_expiry"), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -329,7 +329,7 @@ fun ExtendExpiryDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = AppTranslation("extend_expiry"),
+                text = appTranslation("extend_expiry"),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Slate900
@@ -347,7 +347,7 @@ fun ExtendExpiryDialog(
                 OutlinedTextField(
                     value = newDate,
                     onValueChange = { newDate = it },
-                    label = { Text(AppTranslation("expire_date")) },
+                    label = { Text(appTranslation("expire_date")) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -355,7 +355,7 @@ fun ExtendExpiryDialog(
                 OutlinedTextField(
                     value = newTime,
                     onValueChange = { newTime = it },
-                    label = { Text(AppTranslation("expire_time")) },
+                    label = { Text(appTranslation("expire_time")) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -397,7 +397,7 @@ fun ExtendExpiryDialog(
                 onClick = { onSave(newDate, newTime) },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
             ) {
-                Text(AppTranslation("update_expiry"), fontWeight = FontWeight.Bold)
+                Text(appTranslation("update_expiry"), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

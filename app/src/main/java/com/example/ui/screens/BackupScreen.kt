@@ -33,7 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.EmeraldSuccess
@@ -51,7 +51,7 @@ fun BackupScreen(viewModel: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = AppTranslation("database_backup"),
+            text = appTranslation("database_backup"),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = Slate900

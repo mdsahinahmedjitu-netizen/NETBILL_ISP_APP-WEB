@@ -1,13 +1,13 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.SmsLogEntity
-import com.example.localization.AppTranslation
 import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
 
@@ -29,7 +28,7 @@ import com.example.viewmodel.MainViewModel
 fun CustomerSmsLogsBottomSheet(
     customer: CustomerEntity,
     viewModel: MainViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val smsLogs by viewModel.smsLogsList.collectAsState()
@@ -37,15 +36,15 @@ fun CustomerSmsLogsBottomSheet(
     // Filter SMS logs for this specific customer
     val customerLogs = remember(smsLogs, customer) {
         smsLogs.filter { log ->
-            log.customerId == customer.id ||
+            (log.customerId == customer.id) ||
             log.customerCode.equals(customer.customerCode, ignoreCase = true) ||
-            log.mobile == customer.mobile
+            (log.mobile == customer.mobile)
         } // Already sorted by sentTimestamp in DAO
     }
 
     val lastSms = customerLogs.firstOrNull()
 
-    var showSendSmsDialog by remember { mutableStateOf(false) }
+    var showSendSmsDialog by remember { mutableStateOf(value = false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -58,7 +57,7 @@ fun CustomerSmsLogsBottomSheet(
                     .width(40.dp)
                     .height(4.dp),
                 shape = RoundedCornerShape(2.dp),
-                color = Slate200
+                color = Slate200,
             ) {}
         }
     ) {
@@ -157,24 +156,24 @@ fun CustomerSmsLogsBottomSheet(
                             letterSpacing = 0.5.sp
                         )
 
-                        if (lastSms != null) {
+                        lastSms?.let { sms ->
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
-                                color = if (lastSms.status == "Sent") Teal600 else Color(0xFFE11D48)
+                                color = if (sms.status == "Sent") Teal600 else Color(0xFFE11D48)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        if (lastSms.status == "Sent") Icons.Default.CheckCircle else Icons.Default.Error,
+                                        if (sms.status == "Sent") Icons.Default.CheckCircle else Icons.Default.Error,
                                         contentDescription = null,
                                         tint = Color.White,
                                         modifier = Modifier.size(12.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = lastSms.status.uppercase(),
+                                        text = sms.status.uppercase(),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
@@ -279,7 +278,7 @@ fun CustomerSmsLogsBottomSheet(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Send SMS", fontSize = 11.sp)
                 }
@@ -320,8 +319,7 @@ fun CustomerSmsLogsBottomSheet(
                     items(customerLogs, key = { it.id }) { item ->
                         CustomerSmsItemCard(
                             log = item,
-                            onResend = { viewModel.resendFailedSms(item) }
-                        )
+                        ) { viewModel.resendFailedSms(item) }
                     }
                 }
             }
@@ -332,8 +330,7 @@ fun CustomerSmsLogsBottomSheet(
         SendCustomerSingleSmsDialog(
             customer = customer,
             viewModel = viewModel,
-            onDismiss = { showSendSmsDialog = false }
-        )
+        ) { showSendSmsDialog = false }
     }
 }
 
@@ -439,7 +436,7 @@ fun CustomerSmsItemCard(
 fun SendCustomerSingleSmsDialog(
     customer: CustomerEntity,
     viewModel: MainViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var notificationType by remember { mutableStateOf("Billing Alert") }
     var smsText by remember {
@@ -501,7 +498,7 @@ fun SendCustomerSingleSmsDialog(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Teal600)
             ) {
-                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Send Now", fontSize = 12.sp)
             }

@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,15 +30,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.localization.AppLanguage
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.service.GatewayConfig
 import com.example.service.GatewayEnvironment
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.CoralWarning
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.NagadOrange
-import com.example.ui.theme.SleekBorder
-import com.example.ui.theme.SleekCard
 import com.example.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,7 +44,7 @@ import com.example.viewmodel.MainViewModel
 fun SettingsScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit = {},
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
 ) {
     val settings by viewModel.settingsState.collectAsState()
     val gatewayConfig by viewModel.gatewayConfig.collectAsState()
@@ -85,27 +82,27 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(AppTranslation("settings_title"), fontWeight = FontWeight.Black) },
+                title = { Text(appTranslation("settings_title"), fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 Text(
-                    text = AppTranslation("settings_title"),
+                    text = appTranslation("settings_title"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -234,7 +231,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = null, tint = com.example.ui.theme.Teal600, modifier = Modifier.size(18.dp))
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = com.example.ui.theme.Teal600, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Automatic SMS Gateway (Billing Alerts)", fontWeight = FontWeight.Bold, color = com.example.ui.theme.Teal600, fontSize = 14.sp)
                             }
@@ -445,7 +442,7 @@ fun SettingsScreen(
             // Web Version & Web Admin Portal Card
             item {
                 var webUrl by remember { mutableStateOf("https://netbill-isp-portal.web.app") }
-                var isWebSyncEnabled by remember { mutableStateOf(true) }
+                var isWebSyncEnabled by remember { mutableStateOf(value = true) }
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -482,9 +479,11 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             trailingIcon = {
-                                IconButton(onClick = {
-                                    viewModel.showToast("Web URL Copied: $webUrl")
-                                }) {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.showToast("Web URL Copied: $webUrl")
+                                    },
+                                ) {
                                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy Web URL", tint = com.example.ui.theme.Teal600)
                                 }
                             }
@@ -502,7 +501,7 @@ fun SettingsScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Open Web Portal")
                             }

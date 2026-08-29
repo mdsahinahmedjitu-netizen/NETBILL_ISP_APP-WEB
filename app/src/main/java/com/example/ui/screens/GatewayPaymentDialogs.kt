@@ -1,12 +1,8 @@
 package com.example.ui.screens
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,18 +14,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Verified
@@ -40,15 +32,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -64,9 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,15 +63,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
 import com.example.data.entity.InvoiceEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.service.GatewayApiResult
 import com.example.service.PaymentGatewayType
-import com.example.ui.theme.AmberAlert
 import com.example.ui.theme.BkashPink
 import com.example.ui.theme.CoralWarning
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.NagadOrange
-import com.example.ui.theme.SleekBorder
 import com.example.ui.theme.SleekCard
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
@@ -94,8 +81,8 @@ import com.example.ui.theme.Slate900
 import com.example.ui.theme.Teal100
 import com.example.ui.theme.Teal50
 import com.example.ui.theme.Teal600
-import com.example.ui.theme.Teal700
 import com.example.viewmodel.MainViewModel
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -108,27 +95,27 @@ fun OnlineGatewayCheckoutDialog(
     viewModel: MainViewModel,
     preSelectedCustomer: CustomerEntity? = null,
     preSelectedInvoice: InvoiceEntity? = null,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val customers by viewModel.customersList.collectAsState()
     val invoices by viewModel.invoicesList.collectAsState()
     val gatewayConfig by viewModel.gatewayConfig.collectAsState()
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var selectedCustomer by remember { mutableStateOf(preSelectedCustomer ?: customers.firstOrNull()) }
-    var selectedInvoice by remember { mutableStateOf(preSelectedInvoice ?: invoices.firstOrNull { it.customerId == selectedCustomer?.id && (it.status == "Unpaid" || it.status == "Partial") }) }
-    var expandedCustDropdown by remember { mutableStateOf(false) }
+    var selectedInvoice by remember { mutableStateOf(preSelectedInvoice ?: invoices.firstOrNull { ((it.customerId == selectedCustomer?.id) && ((it.status == "Unpaid") || (it.status == "Partial"))) }) }
+    var expandedCustDropdown by remember { mutableStateOf(value = false) }
 
     var selectedGateway by remember { mutableStateOf(PaymentGatewayType.BKASH) }
     var amountText by remember { mutableStateOf(selectedInvoice?.dueAmount?.toInt()?.toString() ?: selectedCustomer?.monthlyBill?.toInt()?.toString() ?: "800") }
     var customerMobile by remember { mutableStateOf(selectedCustomer?.mobile ?: "01712345678") }
 
     // Processing State Flow
-    var isProcessing by remember { mutableStateOf(false) }
+    var isProcessing by remember { mutableStateOf(value = false) }
     var currentStepMessage by remember { mutableStateOf("") }
-    var processSuccess by remember { mutableStateOf(false) }
+    var processSuccess by remember { mutableStateOf(value = false) }
     var resultTrxId by remember { mutableStateOf("") }
     var resultMessage by remember { mutableStateOf("") }
 
@@ -140,7 +127,7 @@ fun OnlineGatewayCheckoutDialog(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -148,7 +135,7 @@ fun OnlineGatewayCheckoutDialog(
                             .size(36.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(activeGatewayColor.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Default.Payment, contentDescription = null, tint = activeGatewayColor, modifier = Modifier.size(20.dp))
                     }
@@ -158,8 +145,8 @@ fun OnlineGatewayCheckoutDialog(
                         Text(
                             text = "${gatewayConfig.environment.name} Mode • bKash & Nagad API",
                             fontSize = 11.sp,
-                            color = Slate500
-                        )
+                            color = Slate500,
+)
                     }
                 }
                 if (!isProcessing) {
@@ -189,7 +176,7 @@ fun OnlineGatewayCheckoutDialog(
                             Text(resultMessage, fontSize = 12.sp, color = Slate600, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 
                             Spacer(modifier = Modifier.height(12.dp))
-                            Divider(color = Slate200)
+                            HorizontalDivider(color = Slate200)
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Row(
@@ -342,7 +329,7 @@ fun OnlineGatewayCheckoutDialog(
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCustDropdown) },
                             modifier = Modifier
-                                .menuAnchor()
+                                .menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                                 .fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -364,7 +351,7 @@ fun OnlineGatewayCheckoutDialog(
                                         selectedCustomer = cust
                                         customerMobile = cust.mobile
                                         amountText = if (cust.currentDue > 0) cust.currentDue.toInt().toString() else cust.monthlyBill.toInt().toString()
-                                        selectedInvoice = invoices.firstOrNull { it.customerId == cust.id && (it.status == "Unpaid" || it.status == "Partial") }
+                                        selectedInvoice = invoices.firstOrNull { ((it.customerId == cust.id) && ((it.status == "Unpaid") || (it.status == "Partial"))) }
                                         expandedCustDropdown = false
                                     }
                                 )
@@ -424,7 +411,7 @@ fun OnlineGatewayCheckoutDialog(
                     onClick = {
                         val cust = selectedCustomer
                         val amt = amountText.toDoubleOrNull() ?: 0.0
-                        if (cust == null || amt <= 0.0) {
+                        if ((cust == null) || (amt <= 0.0)) {
                             Toast.makeText(context, "Please select customer & valid amount", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
@@ -432,9 +419,9 @@ fun OnlineGatewayCheckoutDialog(
                         isProcessing = true
                         scope.launch {
                             currentStepMessage = "Step 1/3: Authenticating API & Requesting Token..."
-                            delay(600)
+                            delay(600.milliseconds)
                             currentStepMessage = "Step 2/3: Creating ${selectedGateway.name} Payment Session..."
-                            delay(700)
+                            delay(700.milliseconds)
                             currentStepMessage = "Step 3/3: Executing Direct Gateway Settlement..."
 
                             viewModel.processAutomatedGatewayPayment(
@@ -482,15 +469,11 @@ fun GatewayReconciliationDialog(
     viewModel: MainViewModel,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
-
     var queryTrxId by remember { mutableStateOf("BK89201472X") }
     var selectedGateway by remember { mutableStateOf(PaymentGatewayType.BKASH) }
-    var isVerifying by remember { mutableStateOf(false) }
+    var isVerifying by remember { mutableStateOf(value = false) }
     var verificationResult by remember { mutableStateOf<String?>(null) }
-    var isError by remember { mutableStateOf(false) }
+    var isError by remember { mutableStateOf(value = false) }
 
     val activeColor = if (selectedGateway == PaymentGatewayType.BKASH) BkashPink else NagadOrange
 
@@ -500,7 +483,7 @@ fun GatewayReconciliationDialog(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Search, contentDescription = null, tint = Teal600)
@@ -532,7 +515,7 @@ fun GatewayReconciliationDialog(
                             .background(if (selectedGateway == PaymentGatewayType.BKASH) BkashPink else Slate100)
                             .clickable { selectedGateway = PaymentGatewayType.BKASH }
                             .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text("bKash Query", color = if (selectedGateway == PaymentGatewayType.BKASH) Color.White else Slate700, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
@@ -544,7 +527,7 @@ fun GatewayReconciliationDialog(
                             .background(if (selectedGateway == PaymentGatewayType.NAGAD) NagadOrange else Slate100)
                             .clickable { selectedGateway = PaymentGatewayType.NAGAD }
                             .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text("Nagad Verify", color = if (selectedGateway == PaymentGatewayType.NAGAD) Color.White else Slate700, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
@@ -570,7 +553,7 @@ fun GatewayReconciliationDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = activeColor, strokeWidth = 2.dp, modifier = Modifier.size(32.dp))

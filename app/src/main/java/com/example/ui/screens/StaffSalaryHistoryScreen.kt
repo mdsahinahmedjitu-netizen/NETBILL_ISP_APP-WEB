@@ -2,10 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.StaffPayoutEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
@@ -45,20 +42,20 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     var selectedStaffId by remember { mutableStateOf("all") }
     var editingPayout by remember { mutableStateOf<StaffPayoutEntity?>(null) }
 
-    val filteredPayouts = payouts.filter { p ->
-        (selectedMonth == "All Months" || p.month == selectedMonth) &&
-        (selectedStaffId == "all" || p.staffId == selectedStaffId)
-    }.sortedByDescending { it.date }
+    val filteredPayouts = payouts.asSequence().filter { p ->
+        ((selectedMonth == "All Months") || (p.month == selectedMonth)) &&
+        ((selectedStaffId == "all") || (p.staffId == selectedStaffId))
+    }.sortedByDescending { it.date }.toList()
 
-    val totalAdded = filteredPayouts.filter { it.type == "salary_add" }.sumOf { it.amount }
-    val totalPaid = filteredPayouts.filter { it.type == "payment" }.sumOf { it.amount }
+    val totalAdded = filteredPayouts.asSequence().filter { it.type == "salary_add" }.sumOf { it.amount }
+    val totalPaid = filteredPayouts.asSequence().filter { it.type == "payment" }.sumOf { it.amount }
     val netBalance = totalAdded - totalPaid
 
     val months = remember {
         val list = mutableListOf("All Months")
         val sdf = SimpleDateFormat("MMMM yyyy", Locale.US)
         val cal = Calendar.getInstance()
-        for (i in 0 until 12) {
+        repeat(12) {
             list.add(sdf.format(cal.time))
             cal.add(Calendar.MONTH, -1)
         }
@@ -66,7 +63,7 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     }
 
     Scaffold(
-        containerColor = SleekBg
+        containerColor = SleekBg,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -74,7 +71,7 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             // Back Button Row
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -83,7 +80,7 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     modifier = Modifier
                         .size(52.dp)
                         .background(Color.White, RoundedCornerShape(16.dp))
-                        .border(1.dp, SleekBorder, RoundedCornerShape(16.dp))
+                        .border(1.dp, SleekBorder, RoundedCornerShape(16.dp)),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ElectricBlue)
                 }
@@ -95,14 +92,14 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     .fillMaxWidth()
                     .background(Color.White, RoundedCornerShape(44.dp))
                     .border(1.dp, SleekBorder, RoundedCornerShape(44.dp))
-                    .padding(28.dp)
+                    .padding(28.dp),
             ) {
                 Text(
-                    text = AppTranslation("salary_ledger").uppercase(),
+                    text = appTranslation("salary_ledger").uppercase(),
                     fontWeight = FontWeight.Black,
                     fontSize = 28.sp,
                     letterSpacing = 2.sp,
-                    color = Slate900
+                    color = Slate900,
                 )
                 Text(
                     text = "PAYROLL INTELLIGENCE • REAL-TIME AUDIT",
@@ -110,7 +107,7 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     fontWeight = FontWeight.Black,
                     letterSpacing = 4.sp,
                     color = IspTealPrimary,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
 
@@ -118,21 +115,21 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (isAdmin) {
                     Box(modifier = Modifier.weight(1f)) {
-                        var expanded by remember { mutableStateOf(false) }
+                        var expanded by remember { mutableStateOf(value = false) }
                         OutlinedCard(
                             onClick = { expanded = true },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
                         ) {
                             Text(
-                                text = staffList.find { it.id == selectedStaffId }?.name ?: AppTranslation("all_staff"),
+                                text = staffList.find { it.id == selectedStaffId }?.name ?: appTranslation("all_staff"),
                                 modifier = Modifier.padding(12.dp),
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                         }
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            DropdownMenuItem(text = { Text(AppTranslation("all_staff")) }, onClick = { selectedStaffId = "all"; expanded = false })
+                            DropdownMenuItem(text = { Text(appTranslation("all_staff")) }, onClick = { selectedStaffId = "all"; expanded = false })
                             staffList.forEach { s ->
                                 DropdownMenuItem(text = { Text(s.name) }, onClick = { selectedStaffId = s.id; expanded = false })
                             }
@@ -141,22 +138,22 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 }
 
                 Box(modifier = Modifier.weight(1f)) {
-                    var expanded by remember { mutableStateOf(false) }
+                    var expanded by remember { mutableStateOf(value = false) }
                     OutlinedCard(
                         onClick = { expanded = true },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
                     ) {
                         Text(
-                            text = if (selectedMonth == "All Months") AppTranslation("all_months") else selectedMonth,
+                            text = if (selectedMonth == "All Months") appTranslation("all_months") else selectedMonth,
                             modifier = Modifier.padding(12.dp),
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         months.forEach { m ->
-                            DropdownMenuItem(text = { Text(if (m == "All Months") AppTranslation("all_months") else m) }, onClick = { selectedMonth = m; expanded = false })
+                            DropdownMenuItem(text = { Text(if (m == "All Months") appTranslation("all_months") else m) }, onClick = { selectedMonth = m; expanded = false })
                         }
                     }
                 }
@@ -166,27 +163,27 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
             // Summary Cards
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryCard(Modifier.weight(1f), AppTranslation("total_salary_accrued"), "৳${String.format(Locale.US, "%,.0f", totalAdded)}", Teal600)
-                SummaryCard(Modifier.weight(1f), AppTranslation("total_disbursed"), "৳${String.format(Locale.US, "%,.0f", totalPaid)}", Color.Red)
+                SummaryCard(Modifier.weight(1f), appTranslation("total_salary_accrued"), "৳${String.format(Locale.US, "%,.0f", totalAdded)}", Teal600)
+                SummaryCard(Modifier.weight(1f), appTranslation("total_disbursed"), "৳${String.format(Locale.US, "%,.0f", totalPaid)}", Color.Red)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = borderStroke()
+                border = borderStroke(),
             ) {
                 Column(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(AppTranslation("net_balance"), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400)
+                    Text(appTranslation("net_balance"), fontSize = 10.sp, fontWeight = FontWeight.Black, color = Slate400)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("৳${String.format(Locale.US, "%,.0f", Math.abs(netBalance))}", fontSize = 28.sp, fontWeight = FontWeight.Black, color = if (netBalance >= 0) ElectricBlue else Color(0xFFF58220))
+                        Text("৳${String.format(Locale.US, "%,.0f", kotlin.math.abs(netBalance))}", fontSize = 28.sp, fontWeight = FontWeight.Black, color = if (netBalance >= 0) ElectricBlue else Color(0xFFF58220))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (netBalance >= 0) "(${AppTranslation("pao_na")})" else "(${AppTranslation("advance")})",
+                            text = if (netBalance >= 0) "(${appTranslation("pao_na")})" else "(${appTranslation("advance")})",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
                             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                            color = if (netBalance >= 0) Color(0xFF1A237E) else Color(0xFFE65100)
+                            color = if (netBalance >= 0) Color(0xFF1A237E) else Color(0xFFE65100),
                         )
                     }
                 }
@@ -197,11 +194,15 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             // List
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 filteredPayouts.forEach { p ->
-                    PayoutItemCard(p, isAdmin, onDelete = { viewModel.deleteStaffPayout(p) }, onEdit = { editingPayout = p })
+                    PayoutItemCard(
+                        p = p, 
+                        isAdmin = isAdmin, 
+                        onDelete = { viewModel.deleteStaffPayout(p) },
+                    ) { editingPayout = p }
                 }
                 if (filteredPayouts.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                        Text(AppTranslation("no_records"), color = Slate400, fontWeight = FontWeight.Bold)
+                        Text(appTranslation("no_records"), color = Slate400, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -211,13 +212,11 @@ fun StaffSalaryHistoryScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     editingPayout?.let { payout ->
         EditPayoutDialog(
             payout = payout,
-            staffList = staffList,
             onDismiss = { editingPayout = null },
-            onUpdate = { updatedPayout ->
-                viewModel.updateStaffPayout(updatedPayout, payout.amount, payout.type)
-                editingPayout = null
-            }
-        )
+        ) { updatedPayout ->
+            viewModel.updateStaffPayout(updatedPayout, payout.amount, payout.type)
+            editingPayout = null
+        }
     }
 }
 
@@ -227,7 +226,7 @@ fun SummaryCard(modifier: Modifier, label: String, value: String, color: Color) 
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = borderStroke()
+        border = borderStroke(),
     ) {
         Column(modifier = Modifier.padding(12.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(label, fontSize = 9.sp, fontWeight = FontWeight.Black, color = Slate400, textAlign = TextAlign.Center)
@@ -242,7 +241,7 @@ fun PayoutItemCard(p: StaffPayoutEntity, isAdmin: Boolean, onDelete: () -> Unit,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = borderStroke()
+        border = borderStroke(),
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -262,19 +261,19 @@ fun PayoutItemCard(p: StaffPayoutEntity, isAdmin: Boolean, onDelete: () -> Unit,
                     text = "${if (p.type == "salary_add") "+" else "-"} ৳${String.format(Locale.US, "%,.0f", p.amount)}",
                     fontWeight = FontWeight.Black,
                     fontSize = 16.sp,
-                    color = if (p.type == "salary_add") Teal600 else Color.Red
+                    color = if (p.type == "salary_add") Teal600 else Color.Red,
                 )
                 Surface(
                     color = Color(0xFFF8FAFC), // Slate 50
                     shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
                 ) {
                     Text(
                         "৳${String.format(Locale.US, "%,.0f", p.newBalance)}",
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Slate600
+                        color = Slate600,
                     )
                 }
             }
@@ -295,9 +294,8 @@ fun PayoutItemCard(p: StaffPayoutEntity, isAdmin: Boolean, onDelete: () -> Unit,
 @Composable
 fun EditPayoutDialog(
     payout: StaffPayoutEntity,
-    staffList: List<com.example.data.entity.StaffEntity>,
     onDismiss: () -> Unit,
-    onUpdate: (StaffPayoutEntity) -> Unit
+    onUpdate: (StaffPayoutEntity) -> Unit,
 ) {
     var amount by remember { mutableStateOf(payout.amount.toString()) }
     var remarks by remember { mutableStateOf(payout.remarks) }
@@ -308,29 +306,31 @@ fun EditPayoutDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(AppTranslation("edit_salary_record"), fontWeight = FontWeight.Bold) },
+        title = { Text(appTranslation("edit_salary_record"), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text(AppTranslation("amount_label")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = remarks, onValueChange = { remarks = it }, label = { Text(AppTranslation("remarks_label")) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text(appTranslation("amount_label")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = remarks, onValueChange = { remarks = it }, label = { Text(appTranslation("remarks_label")) }, modifier = Modifier.fillMaxWidth())
                 
-                Text(AppTranslation("transaction_type"), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate400)
+                Text(appTranslation("transaction_type"), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate400)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = type == "salary_add", onClick = { type = "salary_add" }, label = { Text(AppTranslation("salary_accrued")) })
-                    FilterChip(selected = type == "payment", onClick = { type = "payment" }, label = { Text(AppTranslation("cash_disbursed")) })
+                    FilterChip(selected = type == "salary_add", onClick = { type = "salary_add" }, label = { Text(appTranslation("salary_accrued")) })
+                    FilterChip(selected = type == "payment", onClick = { type = "payment" }, label = { Text(appTranslation("cash_disbursed")) })
                 }
             }
         },
         confirmButton = {
-            Button(onClick = { 
-                onUpdate(payout.copy(amount = amount.toDoubleOrNull() ?: payout.amount, remarks = remarks, type = type, staffId = staffId, month = month, date = date)) 
-            }) {
-                Text(AppTranslation("update_record"))
+            Button(
+                onClick = { 
+                    onUpdate(payout.copy(amount = amount.toDoubleOrNull() ?: payout.amount, remarks = remarks, type = type, staffId = staffId, month = month, date = date)) 
+                },
+            ) {
+                Text(appTranslation("update_record"))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(AppTranslation("cancel")) }
-        }
+            TextButton(onClick = onDismiss) { Text(appTranslation("cancel")) }
+        },
     )
 }
 

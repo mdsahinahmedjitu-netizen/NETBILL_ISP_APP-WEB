@@ -104,7 +104,7 @@ fun MainApp(viewModel: MainViewModel) {
     }
 
     @Composable
-    fun t(key: String) = com.example.localization.AppTranslation(key)
+    fun t(key: String) = com.example.localization.appTranslation(key)
 
     val menuItems = remember(permissions, currentUser) {
         val items = mutableListOf<MenuItem>()

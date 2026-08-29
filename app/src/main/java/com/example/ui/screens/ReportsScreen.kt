@@ -4,7 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,23 +17,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.theme.*
-import com.example.viewmodel.MainViewModel
 import com.example.viewmodel.ReportsViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun ReportsScreen(
-    mainViewModel: MainViewModel, 
     reportsViewModel: ReportsViewModel = viewModel(),
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
 ) {
     val stats by reportsViewModel.reportStats.collectAsState()
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     var activeTab by remember { mutableStateOf("COLLECTION") }
-    var searchTerm by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -41,7 +38,7 @@ fun ReportsScreen(
             .background(SleekBg)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // Back Button Row
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -65,7 +62,7 @@ fun ReportsScreen(
                 .padding(28.dp)
         ) {
             Text(
-                text = AppTranslation("reports_analytics").uppercase(),
+                text = appTranslation("reports_analytics").uppercase(),
                 fontWeight = FontWeight.Black,
                 fontSize = 32.sp,
                 letterSpacing = 2.sp,
@@ -87,7 +84,7 @@ fun ReportsScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             ReportStatCard(label = "TOTAL CUSTOMERS", value = "1,248", icon = Icons.Default.People, color = IspIndigo, modifier = Modifier.width(160.dp))
-            ReportStatCard(label = "COLLECTED", value = "$currency${stats.totalRevenue.toInt()}", icon = Icons.Default.TrendingUp, color = EmeraldSuccess, modifier = Modifier.width(160.dp))
+            ReportStatCard(label = "COLLECTED", value = "$currency${stats.totalRevenue.toInt()}", icon = Icons.AutoMirrored.Filled.TrendingUp, color = EmeraldSuccess, modifier = Modifier.width(160.dp))
             ReportStatCard(label = "DUE BALANCE", value = "$currency${stats.totalOutstanding.toInt()}", icon = Icons.Default.Warning, color = IspRose, modifier = Modifier.width(160.dp))
             ReportStatCard(label = "TOTAL BILL", value = "$currency${stats.totalRevenue.toInt() + stats.totalOutstanding.toInt()}", icon = Icons.Default.Receipt, color = Color(0xFF3B82F6), modifier = Modifier.width(160.dp))
         }
@@ -139,7 +136,7 @@ fun ReportsScreen(
                 Box(modifier = Modifier.fillMaxWidth().height(8.dp).background(gradient))
 
                 Column(modifier = Modifier.padding(24.dp).padding(top = 16.dp)) {
-                    Text("${activeTab} ANALYSIS", fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = 2.sp, color = Slate900)
+                    Text("$activeTab ANALYSIS", fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = 2.sp, color = Slate900)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -147,9 +144,28 @@ fun ReportsScreen(
                         "COLLECTION" -> {
                             Box(modifier = Modifier.horizontalScroll(rememberScrollState())) {
                                 Column {
-                                    ReportTableHeader(listOf("#", "ID", "SUBSCRIBER", "METHOD", "AMOUNT"))
-                                    stats.zoneReports.take(10).forEachIndexed { index, zone ->
-                                        ReportTableRow(listOf((index + 1).toString(), "#1234", zone.zoneName.uppercase(), "CASH", "${currency}${zone.monthlyRevenue.toInt()}"))
+                                    ReportTableHeader(listOf("#", "DATE", "SUBSCRIBER", "COLLECTOR", "METHOD", "AMOUNT"))
+                                    stats.recentPayments.forEachIndexed { index, payment ->
+                                        val collectorColor = remember(payment.collectorName) {
+                                            getCollectorColor(payment.collectorName)
+                                        }
+                                        val methodColor = remember(payment.paymentMethod) {
+                                            getMethodColor(payment.paymentMethod)
+                                        }
+                                        ReportTableRow(
+                                            cells = listOf(
+                                                (index + 1).toString(),
+                                                formatDateDisplay(payment.paymentDate),
+                                                payment.customerName.uppercase(),
+                                                payment.collectorName.uppercase(),
+                                                payment.paymentMethod.uppercase(),
+                                                "$currency${payment.amount.toInt()}"
+                                            ),
+                                            cellColors = mapOf(
+                                                3 to collectorColor,
+                                                4 to methodColor
+                                            )
+                                        )
                                     }
                                 }
                             }
@@ -207,13 +223,70 @@ fun ReportTableHeader(headers: List<String>) {
 }
 
 @Composable
-fun ReportTableRow(cells: List<String>) {
+fun ReportTableRow(cells: List<String>, cellColors: Map<Int, Color> = emptyMap()) {
     Row(modifier = Modifier.padding(vertical = 16.dp)) {
-        cells.forEach { cell ->
-            Text(text = cell, modifier = Modifier.width(120.dp), fontSize = 13.sp, fontWeight = FontWeight.Black, color = Slate800, textAlign = TextAlign.Center, letterSpacing = 1.sp)
+        cells.forEachIndexed { index, cell ->
+            Text(
+                text = cell,
+                modifier = Modifier.width(120.dp),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                color = cellColors[index] ?: Slate800,
+                textAlign = TextAlign.Center,
+                letterSpacing = 1.sp
+            )
         }
     }
     HorizontalDivider(color = SleekBorder.copy(alpha = 0.3f))
+}
+
+fun getMethodColor(method: String): Color {
+    return when (method.uppercase()) {
+        "CASH" -> Color(0xFF10B981) // Emerald Success
+        "BKASH" -> Color(0xFFE2136E) // bKash Pink
+        "NAGAD" -> Color(0xFFF7921E) // Nagad Orange
+        else -> Color(0xFF475569) // Slate 600
+    }
+}
+
+fun formatDateDisplay(dateStr: String?): String {
+    if (dateStr.isNullOrEmpty()) return "---"
+    val parts = dateStr.split("-")
+    return if ((parts.size == 3) && (parts[0].length == 4)) {
+        "${parts[2]}-${parts[1]}-${parts[0]}"
+    } else {
+        dateStr
+    }
+}
+
+fun getCollectorColor(name: String): Color {
+    if (name.isEmpty() || name.equals("Admin / Direct", ignoreCase = true)) return Color(0xFF475569) // Slate 600
+    
+    // Explicit colors
+    if (name.contains("TOMA", ignoreCase = true)) return Color(0xFFEC4899) // Pink 600
+    if (name.contains("SUPER ADMIN", ignoreCase = true)) return Color(0xFF10B981) // Emerald 600
+    if (name.contains("JITU", ignoreCase = true)) return Color(0xFF2563EB) // Blue 600
+    
+    // Improved hashing for Android as well
+    var hash = 0
+    for (char in name) {
+        hash = (hash shl 5) - hash + char.code
+    }
+    
+    val colors = listOf(
+        Color(0xFF4F46E5), // Indigo
+        Color(0xFF0D9488), // Teal
+        Color(0xFFF43F5E), // Rose
+        Color(0xFFF59E0B), // Amber
+        Color(0xFF0284C7), // Blue
+        Color(0xFF8B5CF6), // Violet
+        Color(0xFFEC4899), // Pink
+        Color(0xFFF97316), // Orange
+        Color(0xFF06B6D4), // Cyan
+        Color(0xFF10B981), // Emerald
+        Color(0xFFD946EF)  // Fuchsia
+    )
+    return colors[kotlin.math.abs(hash) % colors.size]
 }
 
 @Composable

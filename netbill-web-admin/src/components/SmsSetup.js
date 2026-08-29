@@ -28,13 +28,17 @@ const SmsSetup = ({ store, t, setActivePage }) => {
     "Complain to Customer", "Create Customer", "Create Customer to Owner",
     "Customer Complaint Notification Message", "Free Customer List",
     "Inactive Customer List", "Failed to Disable at Mikrotik", "Expired Customer",
-    "Expiry Reminder (Tomorrow)", "Staff Salary Alert"
+    "Expiry Reminder (Tomorrow)", "Expiry Reminder (Today)", "Staff Salary Alert"
   ];
 
   const defaultLibrary = {
     "Collection": {
         en: "Dear {NAME}, your payment of {AMOUNT} TK has been received. Thank you.",
         bn: "প্রিয় {NAME}, আপনার {AMOUNT} টাকা পেমেন্ট গ্রহণ করা হয়েছে। ধন্যবাদ।"
+    },
+    "Expiry Reminder (Today)": {
+        en: "Dear {NAME}, your internet validity expires today. Please pay {AMOUNT} TK to avoid disconnection. Thank you.",
+        bn: "প্রিয় {NAME}, আপনার ইন্টারনেটের মেয়াদ আজ শেষ হবে। সংযোগ বিচ্ছিন্ন এড়াতে দ্রুত {AMOUNT} টাকা পরিশোধ করুন। ধন্যবাদ।"
     },
     "Default": {
         en: "Dear {NAME}, this is a notification from NetBill ISP regarding your account {CUSTOMER_CODE}.",
@@ -56,8 +60,13 @@ const SmsSetup = ({ store, t, setActivePage }) => {
         const senderId = (settings.smsSenderId || "").trim();
         const msgType = isUnicode ? "unicode" : "text";
 
+        let finalMsg = message;
+        if (isUnicode) {
+            finalMsg = message.replace(/\d/g, d => "০১২৩৪৫৬৭৮৯"[d]);
+        }
+
         // Use Supabase Proxy (HTTPS) to bypass Mixed Content and CORS
-        let finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(message)}&type=${msgType}`;
+        let finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${apiKey}&callerID=${senderId}&number=${cleanMobile}&message=${encodeURIComponent(finalMsg)}&type=${msgType}`;
 
         console.log("SMS Final URL:", finalUrl);
 
@@ -82,6 +91,10 @@ const SmsSetup = ({ store, t, setActivePage }) => {
     let targets = store.customers;
     if (type.includes("Due")) targets = targets.filter(c => (parseFloat(c.currentDue) || parseFloat(c.current_due)) > 0);
     if (type.includes("Expired")) targets = targets.filter(c => c.status !== "Active");
+    if (type === "Expiry Reminder (Today)") {
+        const todayISO = new Date().toLocaleDateString('en-CA');
+        targets = targets.filter(c => (c.expireDate || c.expire_date) === todayISO && c.status === "Active");
+    }
 
     if (targets.length === 0) return alert("No targets found.");
     if (!window.confirm(`Broadcasting to ${targets.length} customers. Proceed?`)) return;
@@ -150,59 +163,64 @@ const SmsSetup = ({ store, t, setActivePage }) => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-12 pb-20 uppercase font-black tracking-tighter">
-      <div className="flex justify-between items-end">
+    <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-12 pb-20 uppercase font-black tracking-tighter px-2 md:px-0 transition-all">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="flex items-center space-x-4">
-           <button onClick={() => setActivePage('dashboard')} className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
+           <button onClick={() => setActivePage('dashboard')} className="w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center text-teal-600 shadow-sm border border-slate-100">
               <i className="fas fa-arrow-left"></i>
            </button>
-           <div className="space-y-2">
-              <h3 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest">SMS GATEWAY</h3>
-              <p className="text-xs text-teal-600 tracking-widest font-black italic">Web Control Center</p>
+           <div className="space-y-1">
+              <h3 className="text-2xl md:text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none tracking-widest uppercase">SMS Gateway</h3>
+              <p className="text-[8px] md:text-xs text-teal-600 tracking-widest font-black italic uppercase">Web Control Center</p>
            </div>
         </div>
-        <div className="flex space-x-6">
+        <div className="flex items-center space-x-3 md:space-x-6 w-full md:w-auto">
             <button
               onClick={() => setShowTestModal(true)}
-              className="bg-indigo-600 text-white px-8 py-4 rounded-2xl shadow-xl font-black text-xs hover:scale-105 active:scale-95 transition-all flex items-center space-x-3"
+              className="flex-1 md:flex-none bg-indigo-600 text-white px-4 py-2.5 md:px-8 md:py-4 rounded-xl md:rounded-2xl shadow-xl font-black text-[9px] md:text-xs hover:scale-105 active:scale-95 transition-all flex items-center justify-center space-x-2"
             >
                <i className="fas fa-vial"></i>
                <span>TEST GATEWAY</span>
             </button>
 
-            <div className="bg-white dark:bg-slate-800 px-8 py-6 rounded-[32px] shadow-2xl border-2 border-teal-500/20 text-center">
-                <p className="text-[10px] text-slate-400 font-bold tracking-widest">GATEWAY CREDIT</p>
-                <p className="text-4xl font-black text-teal-600 tracking-tighter">{gatewayCredit}</p>
+            <div className="flex-1 md:flex-none bg-white dark:bg-slate-800 px-4 py-2 md:px-8 md:py-6 rounded-xl md:rounded-[32px] shadow-2xl border-2 border-teal-500/20 text-center">
+                <p className="text-[8px] md:text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1">CREDIT</p>
+                <p className="text-xl md:text-4xl font-black text-teal-600 tracking-tighter leading-none">{gatewayCredit}</p>
             </div>
         </div>
       </div>
 
       {isDispatching && (
-        <div className="bg-slate-900 text-white p-10 rounded-[48px] shadow-2xl space-y-6">
-            <h4 className="text-3xl font-black">{dispatchProgress.current} / {dispatchProgress.total} COMPLETED</h4>
-            <div className="h-4 w-full bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-teal-500 transition-all" style={{ width: `${(dispatchProgress.current / dispatchProgress.total) * 100}%` }}></div>
+        <div className="bg-slate-950 text-white p-6 md:p-10 rounded-2xl md:rounded-[48px] shadow-2xl space-y-4 md:space-y-6 animate-pulse">
+            <h4 className="text-lg md:text-3xl font-black uppercase">{dispatchProgress.current} / {dispatchProgress.total} COMPLETED</h4>
+            <div className="h-2 md:h-4 w-full bg-white/10 rounded-full overflow-hidden shadow-inner">
+                <div className="h-full bg-teal-500 transition-all duration-300" style={{ width: `${(dispatchProgress.current / dispatchProgress.total) * 100}%` }}></div>
             </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {systemSmsTypes.map((type) => {
           const template = templates.find(t => t.title === type);
           const isActive = template?.is_active || template?.isActive || false;
           return (
-            <div key={type} className={`p-8 rounded-[36px] border-2 transition-all ${isActive ? 'bg-teal-50/30 border-teal-100' : 'bg-slate-50 opacity-60'}`}>
-              <div className="flex justify-between items-start mb-6">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isActive ? 'bg-teal-500 text-white' : 'bg-slate-200 text-slate-400'}`}><i className={`fas ${isActive ? 'fa-check-circle' : 'fa-power-off'}`}></i></div>
+            <div key={type} className={`p-6 md:p-8 rounded-[24px] md:rounded-[36px] border-2 transition-all flex flex-col shadow-sm ${isActive ? 'bg-white dark:bg-slate-800 border-teal-500/20' : 'bg-slate-50 dark:bg-slate-900/50 opacity-60'}`}>
+              <div className="flex justify-between items-start mb-4 md:mb-6">
+                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center text-lg ${isActive ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/40' : 'bg-slate-200 text-slate-400 dark:bg-slate-800'}`}><i className={`fas ${isActive ? 'fa-check-circle' : 'fa-power-off'}`}></i></div>
                 <div className="flex space-x-2">
-                    {isActive && <button onClick={() => runBroadcast(type)} className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center"><i className="fas fa-paper-plane text-xs"></i></button>}
-                    <button onClick={() => openEdit(type)} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border"><i className="fas fa-edit text-xs"></i></button>
+                    {isActive && <button onClick={() => runBroadcast(type)} className="w-8 h-8 md:w-10 md:h-10 bg-indigo-600 text-white rounded-lg md:rounded-xl flex items-center justify-center hover:scale-110 transition-all"><i className="fas fa-paper-plane text-[10px]"></i></button>}
+                    <button onClick={() => openEdit(type)} className="w-8 h-8 md:w-10 md:h-10 bg-white dark:bg-slate-950 rounded-lg md:rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 dark:border-slate-800 hover:text-teal-600 transition-colors"><i className="fas fa-edit text-[10px]"></i></button>
                 </div>
               </div>
-              <h4 className={`text-sm font-black mb-4 leading-tight ${isActive ? 'text-slate-800' : 'text-slate-400'}`}>{type}</h4>
-              <div className="flex items-center justify-between mt-auto pt-4 border-t border-dashed">
-                <span className="text-[9px] font-bold">{isActive ? 'ENABLED' : 'DISABLED'}</span>
-                <input type="checkbox" checked={isActive} onChange={(e) => handleToggle(type, e.target.checked)} className="w-10 h-5" />
+              <h4 className={`text-[11px] md:text-sm font-black mb-4 leading-tight uppercase ${isActive ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>{type}</h4>
+              <div className="flex items-center justify-between mt-auto pt-4 border-t border-dashed border-slate-100 dark:border-slate-700">
+                <span className={`text-[8px] font-black tracking-widest ${isActive ? 'text-teal-600' : 'text-slate-400'}`}>{isActive ? 'ENABLED' : 'DISABLED'}</span>
+                <div
+                    onClick={() => handleToggle(type, !isActive)}
+                    className={`w-10 h-5 md:w-12 md:h-6 rounded-full relative cursor-pointer transition-all duration-300 ${isActive ? 'bg-teal-500' : 'bg-slate-300'}`}
+                >
+                    <div className={`absolute top-0.5 md:top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${isActive ? 'left-5 md:left-7' : 'left-1'}`}></div>
+                </div>
               </div>
             </div>
           );

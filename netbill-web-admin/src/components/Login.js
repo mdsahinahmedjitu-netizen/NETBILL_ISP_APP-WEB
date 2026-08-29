@@ -69,49 +69,49 @@ const Login = ({ onLoginSuccess }) => {
 
 
   return (
-    <div className="fixed inset-0 bg-[#0F172A] z-[2000] flex items-center justify-center p-6 font-black uppercase">
-      <div className="bg-white rounded-[56px] w-full max-w-md p-12 shadow-2xl space-y-8 text-center relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-3 bg-teal-500"></div>
+    <div className="fixed inset-0 bg-[#0F172A] z-[2000] flex items-center justify-center p-4 md:p-6 font-black uppercase overflow-y-auto">
+      <div className="bg-white rounded-[32px] md:rounded-[56px] w-full max-w-md p-8 md:p-12 shadow-2xl space-y-6 md:space-y-8 text-center relative overflow-hidden my-auto">
+        <div className="absolute top-0 left-0 w-full h-2 md:h-3 bg-teal-500"></div>
 
-        <div className="flex bg-slate-50 p-2 rounded-3xl mb-4">
-           <button onClick={() => setLoginType('admin')} className={`flex-1 py-3 rounded-2xl text-[10px] transition-all ${loginType === 'admin' ? 'bg-white shadow-md text-teal-600' : 'text-slate-400'}`}>Admin / Staff</button>
-           <button onClick={() => setLoginType('customer')} className={`flex-1 py-3 rounded-2xl text-[10px] transition-all ${loginType === 'customer' ? 'bg-white shadow-md text-teal-600' : 'text-slate-400'}`}>Customer Portal</button>
+        <div className="flex bg-slate-50 p-1.5 md:p-2 rounded-2xl md:rounded-3xl mb-2 md:mb-4">
+           <button onClick={() => setLoginType('admin')} className={`flex-1 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] transition-all ${loginType === 'admin' ? 'bg-white shadow-md text-teal-600' : 'text-slate-400'}`}>Admin / Staff</button>
+           <button onClick={() => setLoginType('customer')} className={`flex-1 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] transition-all ${loginType === 'customer' ? 'bg-white shadow-md text-teal-600' : 'text-slate-400'}`}>Customer Portal</button>
         </div>
 
-        <div className="w-20 h-20 bg-teal-50 text-teal-600 rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
-          <i className={`fas ${loginType === 'admin' ? 'fa-user-shield' : 'fa-user-tie'} text-4xl`}></i>
+        <div className="w-16 h-16 md:w-20 md:h-20 bg-teal-50 text-teal-600 rounded-2xl md:rounded-[32px] flex items-center justify-center mx-auto shadow-inner">
+          <i className={`fas ${loginType === 'admin' ? 'fa-user-shield' : 'fa-user-tie'} text-3xl md:text-4xl`}></i>
         </div>
 
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase leading-none">NetBill ISP</h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[4px] mt-3">{loginType === 'admin' ? 'Enterprise Console' : 'My Internet Hub'}</p>
+          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase leading-none">NetBill ISP</h2>
+          <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[3px] md:tracking-[4px] mt-2 md:mt-3">{loginType === 'admin' ? 'Enterprise Console' : 'My Internet Hub'}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="text-left space-y-2">
-            <label className="text-[9px] font-black text-slate-400 uppercase ml-4 tracking-widest">{loginType === 'admin' ? 'Email or Staff ID' : 'PPPoE Username'}</label>
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+          <div className="text-left space-y-1 md:space-y-2">
+            <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase ml-3 md:ml-4 tracking-widest">{loginType === 'admin' ? 'Email or Staff ID' : 'PPPoE Username'}</label>
             <input
               type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-transparent focus:border-teal-500 rounded-[24px] p-5 font-black text-slate-800 outline-none transition-all"
+              className="w-full bg-slate-50 border-2 border-transparent focus:border-teal-500 rounded-xl md:rounded-[24px] p-4 md:p-5 font-black text-slate-800 outline-none transition-all text-sm md:text-base"
               required
             />
           </div>
-          <div className="text-left space-y-2">
-            <label className="text-[9px] font-black text-slate-400 uppercase ml-4 tracking-widest">{loginType === 'admin' ? 'Secure Password' : 'PPPoE Password'}</label>
+          <div className="text-left space-y-1 md:space-y-2">
+            <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase ml-3 md:ml-4 tracking-widest">{loginType === 'admin' ? 'Secure Password' : 'PPPoE Password'}</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-transparent focus:border-teal-500 rounded-[24px] p-5 font-black text-slate-800 outline-none transition-all"
+              className="w-full bg-slate-50 border-2 border-transparent focus:border-teal-500 rounded-xl md:rounded-[24px] p-4 md:p-5 font-black text-slate-800 outline-none transition-all text-sm md:text-base"
               required
             />
           </div>
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-teal-600 text-white py-6 rounded-[28px] font-black uppercase tracking-[5px] shadow-xl shadow-teal-500/20 hover:scale-105 active:scale-95 transition-all mt-4"
+            className="w-full bg-teal-600 text-white py-5 md:py-6 rounded-xl md:rounded-[28px] font-black uppercase tracking-[4px] md:tracking-[5px] shadow-xl shadow-teal-500/20 hover:scale-105 active:scale-95 transition-all mt-2 md:mt-4 h-14 md:h-auto"
           >
             {isLoading ? 'Authenticating...' : 'Secure Access'}
           </button>

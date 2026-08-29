@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.entity.CustomerEntity
-import com.example.localization.AppTranslation
+import com.example.localization.appTranslation
 import com.example.ui.components.ReadonlyDateField
 import com.example.ui.theme.*
 import com.example.viewmodel.MainViewModel
@@ -39,10 +39,12 @@ fun CustomerManagementScreen(
     val allCustomers by viewModel.customersList.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
     val permissions by viewModel.currentPermissions.collectAsState()
-    val currency = AppTranslation("currency_symbol")
+    val currency = appTranslation("currency_symbol")
 
     var showAddCustomerDialog by remember { mutableStateOf(false) }
+    var showPromiseDialog by remember { mutableStateOf(false) }
     var customerToEdit by remember { mutableStateOf<CustomerEntity?>(null) }
+    var customerForPromise by remember { mutableStateOf<CustomerEntity?>(null) }
     val selectedIds by remember { mutableStateOf(setOf<String>()) }
     var activeMenuId by remember { mutableStateOf<String?>(null) }
 
@@ -96,7 +98,7 @@ fun CustomerManagementScreen(
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = AppTranslation("subscribers_crm").uppercase(),
+                        text = appTranslation("subscribers_crm").uppercase(),
                         fontWeight = FontWeight.Black,
                         fontSize = 32.sp,
                         letterSpacing = 2.sp,
@@ -136,7 +138,7 @@ fun CustomerManagementScreen(
                     OutlinedTextField(
                         value = filterState.searchQuery,
                         onValueChange = { viewModel.updateFilter(query = it) },
-                        placeholder = { Text(AppTranslation("search_placeholder").uppercase(), color = Color.LightGray, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp) },
+                        placeholder = { Text(appTranslation("search_placeholder").uppercase(), color = Color.LightGray, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Slate300, modifier = Modifier.size(28.dp)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -180,6 +182,7 @@ fun CustomerManagementScreen(
                             TableHeaderCell("SL", width = 50.dp)
                             TableHeaderCell("ID", width = 80.dp)
                             TableHeaderCell("CUSTOMER", width = 250.dp, textAlign = TextAlign.Left)
+                            TableHeaderCell("COLLECTOR", width = 150.dp)
                             TableHeaderCell("PLAN", width = 100.dp)
                             TableHeaderCell("BILL", width = 100.dp)
                             TableHeaderCell("DUE", width = 100.dp)
@@ -207,6 +210,10 @@ fun CustomerManagementScreen(
                                     customerToEdit = customer
                                     showAddCustomerDialog = true
                                 },
+                                onPromiseClick = {
+                                    customerForPromise = customer
+                                    showPromiseDialog = true
+                                },
                                 onDelete = { viewModel.deleteCustomer(customer) }
                             )
                             HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f))
@@ -226,6 +233,17 @@ fun CustomerManagementScreen(
             onSave = { newCust, disc, choice ->
                 viewModel.addOrUpdateCustomer(newCust, disc, choice)
                 showAddCustomerDialog = false
+            }
+        )
+    }
+
+    if (showPromiseDialog && customerForPromise != null) {
+        QuickPromiseDialog(
+            customer = customerForPromise!!,
+            onDismiss = { showPromiseDialog = false },
+            onSave = { date, note ->
+                viewModel.addOrUpdateCustomer(customerForPromise!!.copy(promiseDate = date, promiseNote = note))
+                showPromiseDialog = false
             }
         )
     }
@@ -268,6 +286,7 @@ fun TableRow(
     onPaymentClick: (CustomerEntity) -> Unit = {},
     onSelectCustomer: (CustomerEntity) -> Unit = {},
     onEdit: () -> Unit = {},
+    onPromiseClick: () -> Unit = {},
     onDelete: () -> Unit = {}
 ) {
     Row(
@@ -284,6 +303,25 @@ fun TableRow(
         Column(modifier = Modifier.width(250.dp)) {
             Text(text = customer.name.uppercase(), fontWeight = FontWeight.Black, fontSize = 18.sp, color = Slate900, letterSpacing = 1.sp)
             Text(text = customer.mobile.uppercase(), fontWeight = FontWeight.Black, fontSize = 16.sp, color = IspIndigo, letterSpacing = 1.sp)
+        }
+        // COLLECTOR
+        Box(modifier = Modifier.width(150.dp), contentAlignment = Alignment.Center) {
+            val collectorName = customer.assignedStaffId ?: "---"
+            val collectorColor = remember(collectorName) { getCollectorColor(collectorName) }
+            Surface(
+                color = collectorColor.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, collectorColor.copy(alpha = 0.2f))
+            ) {
+                Text(
+                    text = collectorName.uppercase(),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    color = collectorColor,
+                    letterSpacing = 1.sp
+                )
+            }
         }
         // PLAN
         Text(text = "${customer.packageName.filter { it.isDigit() }}MB", modifier = Modifier.width(100.dp), fontSize = 18.sp, fontWeight = FontWeight.Black, color = IspTealPrimary, textAlign = TextAlign.Center)
@@ -313,25 +351,84 @@ fun TableRow(
                 onDismissRequest = { onMenuToggle(customer.id) },
                 modifier = Modifier.background(Color.White, RoundedCornerShape(32.dp)).border(1.dp, SleekBorder, RoundedCornerShape(32.dp)).padding(vertical = 8.dp)
             ) {
-                ActionMenuItem(icon = Icons.Default.Payments, label = "PAYMENT", color = EmeraldSuccess) { 
+                ActionMenuItem(icon = Icons.Default.Payments, label = appTranslation("action_payment"), color = EmeraldSuccess) { 
                     onPaymentClick(customer)
                     onMenuToggle(customer.id) 
                 }
-                ActionMenuItem(icon = Icons.Default.Person, label = "FULL PROFILE", color = Color(0xFF2563EB)) { 
+                ActionMenuItem(icon = Icons.Default.Person, label = appTranslation("action_profile"), color = Color(0xFF2563EB)) { 
                     onSelectCustomer(customer)
                     onMenuToggle(customer.id) 
                 }
-                ActionMenuItem(icon = Icons.Default.Edit, label = "EDIT / IDENTITY", color = Slate600) { 
+                ActionMenuItem(icon = Icons.Default.EventAvailable, label = appTranslation("action_promise"), color = IspIndigo) { 
+                    onPromiseClick()
+                    onMenuToggle(customer.id) 
+                }
+                ActionMenuItem(icon = Icons.Default.Edit, label = appTranslation("action_edit"), color = Slate600) { 
                     onEdit()
                     onMenuToggle(customer.id) 
                 }
-                ActionMenuItem(icon = Icons.Default.Delete, label = "DELETE", color = Color(0xFFEF4444)) { 
+                ActionMenuItem(icon = Icons.Default.Delete, label = appTranslation("action_delete"), color = Color(0xFFEF4444)) { 
                     onDelete()
                     onMenuToggle(customer.id) 
                 }
             }
         }
     }
+}
+
+@Composable
+fun QuickPromiseDialog(
+    customer: CustomerEntity,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var promiseDate by remember { mutableStateOf(customer.promiseDate ?: "") }
+    var promiseNote by remember { mutableStateOf(customer.promiseNote ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "BILL PROMISE - ${customer.name.uppercase()}",
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+                letterSpacing = 1.sp
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                ReadonlyDateField(
+                    value = promiseDate,
+                    label = "PROMISE DATE (বিল দেওয়ার তারিখ)",
+                    onDateSelected = { promiseDate = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = promiseNote,
+                    onValueChange = { promiseNote = it },
+                    label = { Text("PROMISE NOTE (মন্তব্য)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(promiseDate, promiseNote) },
+                colors = ButtonDefaults.buttonColors(containerColor = IspIndigo),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("SAVE PROMISE", fontWeight = FontWeight.Black)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", fontWeight = FontWeight.Bold, color = Slate400)
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(32.dp)
+    )
 }
 
 @Composable
@@ -411,6 +508,8 @@ fun AddEditCustomerDialog(
     val onuSerial by remember { mutableStateOf(customer?.onuSerial ?: "") }
     val notes by remember { mutableStateOf(customer?.notes ?: "") }
     var status by remember { mutableStateOf(customer?.status ?: "Active") }
+    var promiseDate by remember { mutableStateOf(customer?.promiseDate ?: "") }
+    var promiseNote by remember { mutableStateOf(customer?.promiseNote ?: "") }
 
     val billChoiceFor21stPlus by remember { mutableStateOf("NextMonth") }
 
@@ -482,6 +581,21 @@ fun AddEditCustomerDialog(
                     )
                 }
 
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ReadonlyDateField(
+                        value = promiseDate,
+                        label = "PROMISE DATE (বিল দেওয়ার তারিখ)",
+                        onDateSelected = { promiseDate = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = promiseNote,
+                        onValueChange = { promiseNote = it },
+                        label = { Text("PROMISE NOTE (মন্তব্য)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
                 OutlinedTextField(value = pppoeUser, onValueChange = { pppoeUser = it }, label = { Text("PPPOE USERNAME", fontWeight = FontWeight.Black) }, modifier = Modifier.fillMaxWidth())
             }
         },
@@ -512,6 +626,8 @@ fun AddEditCustomerDialog(
                         expireTime = expireTime,
                         requestDate = requestDate,
                         status = status,
+                        promiseDate = promiseDate,
+                        promiseNote = promiseNote,
                         currentDue = currentDue.toDoubleOrNull() ?: 0.0,
                         notes = notes
                     )
