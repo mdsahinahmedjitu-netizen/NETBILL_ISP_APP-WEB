@@ -201,6 +201,8 @@ data class ISPSettingsEntity(
     @SerialName("whatsapp_token") val whatsappToken: String = "",
     @SerialName("admin_whatsapp_number") val adminWhatsappNumber: String = "",
     @SerialName("is_whatsapp_alert_enabled") val isWhatsappAlertEnabled: Boolean = false,
+    @SerialName("admin_identifier") val adminIdentifier: String = "admin@isp.com",
+    @SerialName("admin_password") val adminPassword: String = "123456",
     @SerialName("monthly_target") val monthlyTarget: Double = 0.0,
     @SerialName("personal_bkash_no") val personalBkashNo: String = "017XXXXXXXX",
     @SerialName("personal_nagad_no") val personalNagadNo: String = "018XXXXXXXX",

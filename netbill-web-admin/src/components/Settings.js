@@ -14,6 +14,7 @@ const Settings = ({ store, t, lang, setActivePage }) => {
     smsApiUrl: '', smsApiKey: '', smsSenderId: '', isAutoSmsEnabled: false, apiMode: 'Production',
     bkashAppKey: '', bkashAppSecret: '', bkashUsername: '', bkashPassword: '',
     nagadMerchantId: '', nagadMobile: '', rocketMerchant: '',
+    adminIdentifier: 'admin@isp.com', adminPassword: '123456',
     rolePermissions: {
       Collector: {
         canCollect: true, canCollectDirect: false, canSeeMobile: true, canSeeAddress: true, canEdit: false, canDelete: false, canAdd: false, canSeeRevenue: false,
@@ -85,6 +86,8 @@ const Settings = ({ store, t, lang, setActivePage }) => {
             billingDay: data.billing_day || 1,
             autoDisableDays: data.auto_disable_days || 10,
             isAutoSmsEnabled: data.is_auto_sms_enabled === true,
+            adminIdentifier: data.admin_identifier || 'admin@isp.com',
+            adminPassword: data.admin_password || '123456',
             rolePermissions: data.role_permissions || settings.rolePermissions
           });
         }
@@ -111,6 +114,8 @@ const Settings = ({ store, t, lang, setActivePage }) => {
         personal_nagad_no: settings.personalNagadNo,
         billing_day: settings.billingDay,
         auto_disable_days: settings.autoDisableDays,
+        admin_identifier: settings.adminIdentifier,
+        admin_password: settings.adminPassword,
         role_permissions: settings.rolePermissions
       };
 
@@ -241,6 +246,25 @@ const Settings = ({ store, t, lang, setActivePage }) => {
               <SettingField label={t.company_name_label} value={settings.companyName} onChange={v => setSettings({...settings, companyName: v})} />
               <SettingField label={t.hotline} value={settings.companyPhone} onChange={v => setSettings({...settings, companyPhone: v})} />
            </div>
+        </div>
+
+        {/* Super Admin Security Section */}
+        <div className="bg-slate-900 text-white p-6 md:p-12 rounded-[32px] md:rounded-[56px] shadow-2xl border-2 border-rose-500/20 lg:col-span-1">
+           <div className="flex items-center space-x-3 md:space-x-4 text-rose-500 mb-6 md:mb-8 leading-none">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-rose-500/10 rounded-2xl flex items-center justify-center shadow-inner"><i className="fas fa-user-shield text-xl md:text-3xl"></i></div>
+              <h3 className="text-lg md:text-2xl font-black uppercase tracking-tight">Super Admin Security</h3>
+           </div>
+           <div className="grid grid-cols-1 gap-4 md:gap-6">
+              <div className="space-y-2 uppercase font-black w-full">
+                <label className="text-[10px] text-slate-500 ml-4 tracking-widest uppercase">Admin Identifier (Email/ID)</label>
+                <input type="text" value={settings.adminIdentifier} onChange={e => setSettings({...settings, adminIdentifier: e.target.value})} className="bg-slate-800 border-none p-5 rounded-[28px] font-black text-lg w-full shadow-inner focus:ring-2 focus:ring-rose-500/20 transition-all text-white" />
+              </div>
+              <div className="space-y-2 uppercase font-black w-full">
+                <label className="text-[10px] text-slate-500 ml-4 tracking-widest uppercase">New Admin Password</label>
+                <input type="password" value={settings.adminPassword} onChange={e => setSettings({...settings, adminPassword: e.target.value})} className="bg-slate-800 border-none p-5 rounded-[28px] font-black text-lg w-full shadow-inner focus:ring-2 focus:ring-rose-500/20 transition-all text-white" />
+              </div>
+           </div>
+           <p className="text-[8px] text-slate-500 mt-6 ml-4 leading-relaxed">CAUTION: CHANGING THESE WILL LOG YOU OUT. DO NOT LOSE THESE CREDENTIALS AS THEY PROVIDE FULL SYSTEM ACCESS.</p>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 md:p-12 rounded-[32px] md:rounded-[56px] shadow-2xl border-2 border-slate-100 dark:border-slate-700 space-y-6 md:space-y-8 xl:col-span-2">

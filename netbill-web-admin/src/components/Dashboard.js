@@ -14,6 +14,10 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
   });
 
   const [showNewJoinRangeModal, setShowNewJoinRangeModal] = useState(false);
+  const [showPromiseDateModal, setShowPromiseDateModal] = useState(false);
+  const [selectedPromiseCust, setSelectedPromiseCust] = useState(null);
+  const [newPromiseDate, setNewPromiseDate] = useState('');
+  const [isUpdatingPromise, setIsUpdatingPromise] = useState(false);
   const [newJoinRange, setNewJoinRange] = useState({
       start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
       end: new Date().toLocaleDateString('en-CA')
@@ -255,6 +259,43 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
   const todaysPromises = billPromises.filter(c => c.promiseDate === todayStr);
   const overduePromises = billPromises.filter(c => c.promiseDate < todayStr);
 
+  const handleUpdatePromiseDate = async () => {
+    if (!selectedPromiseCust || !newPromiseDate) return;
+    setIsUpdatingPromise(true);
+    try {
+        const { error } = await supabase
+            .from('customers')
+            .update({ promise_date: newPromiseDate })
+            .eq('id', selectedPromiseCust.id);
+
+        if (error) throw error;
+        alert("Promise Date Updated!");
+        setShowPromiseDateModal(false);
+    } catch (e) {
+        console.error(e);
+        alert("Update Failed!");
+    } finally {
+        setIsUpdatingPromise(false);
+    }
+  };
+
+  const handleDismissPromise = async (customerId) => {
+    if (window.confirm("Remove this bill promise reminder?")) {
+        try {
+            const { error } = await supabase
+                .from('customers')
+                .update({ promise_date: null, promise_note: null })
+                .eq('id', customerId);
+
+            if (error) throw error;
+            alert("Reminder Removed!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to remove reminder.");
+        }
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-12 pb-20 uppercase font-black tracking-widest transition-all relative">
 
@@ -276,10 +317,10 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fadeIn">
                 {/* Overdue first */}
                 {overduePromises.map(c => (
-                  <PromiseCard key={c.id} customer={c} isOverdue={true} onPay={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
+                  <PromiseCard key={c.id} customer={c} isOverdue={true} onPay={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} onDismiss={() => handleDismissPromise(c.id)} onEdit={() => { setSelectedPromiseCust(c); setNewPromiseDate(c.promiseDate || ''); setShowPromiseDateModal(true); }} />
                 ))}
                 {todaysPromises.map(c => (
-                  <PromiseCard key={c.id} customer={c} isOverdue={false} onPay={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} />
+                  <PromiseCard key={c.id} customer={c} isOverdue={false} onPay={() => { setPreSelectedCustomer(c); setActivePage('payments'); }} onDismiss={() => handleDismissPromise(c.id)} onEdit={() => { setSelectedPromiseCust(c); setNewPromiseDate(c.promiseDate || ''); setShowPromiseDateModal(true); }} />
                 ))}
              </div>
            )}
@@ -524,11 +565,49 @@ const Dashboard = ({ store, session, permissions, setActivePage, setSearchMode, 
         </div>
       )}
 
+      {/* PROMISE DATE UPDATER MODAL */}
+      {showPromiseDateModal && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-2xl z-[10000] flex items-center justify-center p-6 uppercase font-black">
+            <div className="bg-white dark:bg-slate-800 rounded-[64px] w-full max-w-md p-12 shadow-2xl space-y-10 relative border-4 border-indigo-500/20 animate-scaleIn overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-4 bg-indigo-600 shadow-lg"></div>
+
+               <div className="text-center space-y-2">
+                  <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mx-auto text-4xl text-indigo-500 shadow-inner mb-4"><i className="fas fa-calendar-plus"></i></div>
+                  <h3 className="text-3xl font-black tracking-tighter">Reschedule Promise</h3>
+                  <p className="text-[10px] text-slate-400 tracking-[3px] font-bold">Client: {selectedPromiseCust?.name}</p>
+               </div>
+
+               <div className="space-y-4">
+                  <div className="space-y-3">
+                    <label className="text-[11px] text-slate-400 ml-4 tracking-[4px] font-black uppercase">New Promise Date</label>
+                    <input
+                      type="date"
+                      value={newPromiseDate}
+                      onChange={e => setNewPromiseDate(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl font-black text-lg outline-none border-4 border-transparent focus:border-indigo-500/20 shadow-inner cursor-pointer"
+                    />
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 gap-4">
+                  <button
+                    onClick={handleUpdatePromiseDate}
+                    disabled={isUpdatingPromise}
+                    className="w-full bg-indigo-600 text-white py-8 rounded-[40px] font-black uppercase tracking-[5px] shadow-[0_20px_40px_rgba(79,70,229,0.3)] hover:scale-105 active:scale-95 transition-all border-b-8 border-indigo-900"
+                  >
+                     {isUpdatingPromise ? 'UPDATING...' : 'CONFIRM NEW DATE'}
+                  </button>
+                  <button onClick={() => setShowPromiseDateModal(false)} className="py-4 text-slate-400 text-xs font-black tracking-[4px] hover:text-indigo-600 transition-colors">CANCEL</button>
+               </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };
 
-const PromiseCard = ({ customer, isOverdue, onPay }) => (
+const PromiseCard = ({ customer, isOverdue, onPay, onDismiss, onEdit }) => (
   <div className={`p-5 rounded-[28px] border-2 flex items-center justify-between shadow-xl transition-all hover:scale-[1.02] ${isOverdue ? 'bg-rose-50 border-rose-100 text-rose-700 animate-pulse' : 'bg-white border-slate-100 dark:bg-slate-800 dark:border-slate-700'}`}>
      <div className="flex items-center space-x-4">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-lg ${isOverdue ? 'bg-rose-500 text-white' : 'bg-indigo-600 text-white'}`}>
@@ -539,13 +618,16 @@ const PromiseCard = ({ customer, isOverdue, onPay }) => (
            <div className="flex flex-col space-y-1">
               <span className="text-[10px] font-black text-slate-500">ZONE: <span className="text-slate-800 dark:text-slate-200 font-black">{customer.zone || 'Global'}</span></span>
               <span className="text-[11px] font-black">DUE: <span className={isOverdue ? 'text-rose-600' : 'text-emerald-600'}>৳{Math.floor(customer.currentDue || customer.current_due || 0)}</span></span>
+              <span className={`text-[10px] font-black ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`}><i className="far fa-calendar-alt mr-1"></i> PROMISE: {customer.promiseDate}</span>
               {customer.promiseNote && <span className="text-[9px] font-bold text-indigo-500 italic">"{customer.promiseNote}"</span>}
            </div>
         </div>
      </div>
      <div className="flex items-center space-x-2">
+        <button onClick={onEdit} className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all"><i className="fas fa-calendar-edit"></i></button>
         <a href={`tel:${customer.mobile}`} className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all"><i className="fas fa-phone"></i></a>
         <button onClick={onPay} className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"><i className="fas fa-hand-holding-dollar"></i></button>
+        <button onClick={onDismiss} className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all"><i className="fas fa-times"></i></button>
      </div>
   </div>
 );

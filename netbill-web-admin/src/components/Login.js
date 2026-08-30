@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
 const Login = ({ onLoginSuccess }) => {
-  const [loginType, setLoginType] = useState('admin'); // 'admin' or 'customer'
-  const [email, setEmail] = useState('admin@isp.com');
-  const [password, setPassword] = useState('123456');
+  const [loginType, setLoginType] = useState(() => {
+     const params = new URLSearchParams(window.location.search);
+     return params.get('type') === 'customer' ? 'customer' : 'admin';
+  });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -13,7 +16,19 @@ const Login = ({ onLoginSuccess }) => {
 
     try {
       if (loginType === 'admin') {
-        if (email === 'admin@isp.com' && password === '123456') {
+        // 1. Fetch Dynamic Admin Credentials from Settings
+        const { data: settingsData } = await supabase.from('settings').select('admin_identifier, admin_password').limit(1).maybeSingle();
+
+        if (!settingsData || !settingsData.admin_identifier) {
+           alert("System Configuration Error: Admin credentials not found in database.");
+           setIsLoading(false);
+           return;
+        }
+
+        const masterUser = settingsData.admin_identifier;
+        const masterPass = settingsData.admin_password;
+
+        if (email === masterUser && password === masterPass) {
           onLoginSuccess({ role: 'admin', data: { name: 'Super Admin' } });
         } else {
           // Check Staff table in Supabase
@@ -87,25 +102,29 @@ const Login = ({ onLoginSuccess }) => {
           <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[3px] md:tracking-[4px] mt-2 md:mt-3">{loginType === 'admin' ? 'Enterprise Console' : 'My Internet Hub'}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5" autoComplete="off">
           <div className="text-left space-y-1 md:space-y-2">
             <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase ml-3 md:ml-4 tracking-widest">{loginType === 'admin' ? 'Email or Staff ID' : 'PPPoE Username'}</label>
             <input
               type="text"
+              name="user_identifier"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-slate-50 border-2 border-transparent focus:border-teal-500 rounded-xl md:rounded-[24px] p-4 md:p-5 font-black text-slate-800 outline-none transition-all text-sm md:text-base"
               required
+              autoComplete="one-time-code"
             />
           </div>
           <div className="text-left space-y-1 md:space-y-2">
             <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase ml-3 md:ml-4 tracking-widest">{loginType === 'admin' ? 'Secure Password' : 'PPPoE Password'}</label>
             <input
               type="password"
+              name="user_password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-slate-50 border-2 border-transparent focus:border-teal-500 rounded-xl md:rounded-[24px] p-4 md:p-5 font-black text-slate-800 outline-none transition-all text-sm md:text-base"
               required
+              autoComplete="new-password"
             />
           </div>
           <button

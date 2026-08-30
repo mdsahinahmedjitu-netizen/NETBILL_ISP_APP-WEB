@@ -56,6 +56,17 @@ class ISPRepository(db: AppDatabase) {
     val allPayouts: Flow<List<StaffPayoutEntity>> = payoutDao.getAllPayouts()
     val allPaymentRequests: Flow<List<PaymentRequestEntity>> = paymentRequestDao.getAllRequests()
 
+    suspend fun getSettingsFromCloud(): ISPSettingsEntity? {
+        return try {
+            supabase.postgrest.from("settings").select {
+                limit(1)
+            }.decodeSingleOrNull<ISPSettingsEntity>()
+        } catch (e: Exception) {
+            Log.e("ISPRepository", "Failed to fetch cloud settings", e)
+            null
+        }
+    }
+
     suspend fun submitPaymentRequest(data: Map<String, Any>) {
         supabase.postgrest.from("payment_requests").insert(data)
     }

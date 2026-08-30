@@ -322,16 +322,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _loginUiState.value = LoginUiState.Loading
             
-            // 1. Check Hardcoded Admin (Same as Web)
-            if (identifier == "admin@isp.com" && pass == "123456") {
-                _localUser.value = UserEntity(id = "admin", username = identifier, name = "Super Admin", mobile = "", role = "admin")
-                _loginUiState.value = LoginUiState.Success
-                authManager.signInAnonymously() // For sync
-                showToast("Logged in as Super Admin")
+            // 1. Check Dynamic Admin from Settings Cloud
+            try {
+                val settings = repository.getSettingsFromCloud()
+                
+                if (settings == null || settings.adminIdentifier.isBlank()) {
+                    _loginUiState.value = LoginUiState.Error("Security Error: Admin not configured.")
+                    return@launch
+                }
+
+                val masterUser = settings.adminIdentifier
+                val masterPass = settings.adminPassword
+
+                if (identifier == masterUser && pass == masterPass) {
+                    _localUser.value = UserEntity(id = "admin", username = identifier, name = "Super Admin", mobile = "", role = "admin")
+                    _loginUiState.value = LoginUiState.Success
+                    authManager.signInAnonymously() // For sync
+                    showToast("Logged in as Super Admin")
+                    return@launch
+                }
+            } catch (e: Exception) {
+                Log.e("Login", "Settings check failed", e)
+                _loginUiState.value = LoginUiState.Error("Connection Failed")
                 return@launch
             }
 
-            // 2. Try Supabase Authentication (Cloud Primary)
+            // 2. Try Supabase Authentication (Cloud Staff)
             val supabaseResult = authManager.signIn(identifier, pass)
             if (supabaseResult.isSuccess) {
                 _loginUiState.value = LoginUiState.Success
@@ -882,6 +898,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismiss20thDayAlert(id: String) { _dismissedExpiryAlerts.value += id }
+    
+    fun dismissBillPromise(customerId: String) {
+        viewModelScope.launch {
+            val cust = customersList.value.find { it.id == customerId } ?: return@launch
+            repository.updateCustomer(cust.copy(promiseDate = "", promiseNote = ""))
+            showToast("Reminder Removed")
+        }
+    }
+
+    fun updatePromiseDate(customerId: String, newDate: String) {
+        viewModelScope.launch {
+            val cust = customersList.value.find { it.id == customerId } ?: return@launch
+            repository.updateCustomer(cust.copy(promiseDate = newDate))
+            showToast("Promise Date Updated")
+        }
+    }
+
     fun updateCustomerExpiry(id: String, date: String, time: String) {
         viewModelScope.launch {
             val cust = customersList.value.find { it.id == id } ?: return@launch

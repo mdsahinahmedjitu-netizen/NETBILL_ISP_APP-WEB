@@ -90,30 +90,7 @@ fun MainApp(viewModel: MainViewModel) {
     var showExpiryModal by remember { mutableStateOf(value = false) }
 
     val customersList by viewModel.customersList.collectAsState()
-    val expiringTomorrow = remember(customersList, currentUser) {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-        val cal = java.util.Calendar.getInstance()
-        cal.add(java.util.Calendar.DATE, 1)
-        val tomorrow = sdf.format(cal.time)
-
-        val isStaff = (currentUser?.role?.lowercase() ?: "") != "admin"
-        val staffId = currentUser?.id ?: ""
-        val staffName = currentUser?.name ?: ""
-        
-        customersList.filter { c -> 
-            val matchStaff = if (isStaff) {
-                val assignedId = c.assignedStaffId?.trim() ?: ""
-                (assignedId.isNotBlank()) && (
-                    (assignedId == staffId) || 
-                    assignedId.equals(staffName, ignoreCase = true)
-                )
-            } else {
-                true
-            }
-            val isDue = (c.currentDue > 0)
-            matchStaff && c.status == "Active" && isDue && c.expireDate == tomorrow
-        }
-    }
+    val expiringTomorrow by viewModel.expiringTomorrowCustomers.collectAsState()
 
     @Composable
     fun t(key: String) = com.example.localization.appTranslation(key)

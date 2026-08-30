@@ -69,6 +69,10 @@ fun DashboardScreen(
     var showNewJoinsDialog by remember { mutableStateOf(false) }
     var showExpiredDialog by remember { mutableStateOf(false) }
     var isPromiseExpanded by remember { mutableStateOf(true) }
+    
+    // Promise Date Update State
+    var showPromiseDatePicker by remember { mutableStateOf(false) }
+    var selectedPromiseCustId by remember { mutableStateOf("") }
 
     val complainTitlesList = remember {
         mutableStateListOf<ComplainTitleItem>(
@@ -172,7 +176,12 @@ fun DashboardScreen(
                                     isDarkMode = isDarkMode,
                                     currency = currency,
                                     onCall = { /* handle call */ },
-                                    onPay = { onNavigateToPayments(); viewModel.setPreSelectedCustomerForPayment(cust) }
+                                    onPay = { onNavigateToPayments(); viewModel.setPreSelectedCustomerForPayment(cust) },
+                                    onDismiss = { viewModel.dismissBillPromise(cust.id) },
+                                    onEdit = { 
+                                        selectedPromiseCustId = cust.id
+                                        showPromiseDatePicker = true
+                                    }
                                 )
                             }
 
@@ -184,7 +193,12 @@ fun DashboardScreen(
                                     isDarkMode = isDarkMode,
                                     currency = currency,
                                     onCall = { /* handle call */ },
-                                    onPay = { onNavigateToPayments(); viewModel.setPreSelectedCustomerForPayment(cust) }
+                                    onPay = { onNavigateToPayments(); viewModel.setPreSelectedCustomerForPayment(cust) },
+                                    onDismiss = { viewModel.dismissBillPromise(cust.id) },
+                                    onEdit = { 
+                                        selectedPromiseCustId = cust.id
+                                        showPromiseDatePicker = true
+                                    }
                                 )
                             }
                         }
@@ -428,6 +442,28 @@ fun DashboardScreen(
             onDismiss = { showExpiredDialog = false }
         )
     }
+
+    if (showPromiseDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showPromiseDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                        val formattedDate = sdf.format(Date(millis))
+                        viewModel.updatePromiseDate(selectedPromiseCustId, formattedDate)
+                    }
+                    showPromiseDatePicker = false
+                }) { Text("Confirm") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPromiseDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }
 
 @Composable
@@ -536,7 +572,9 @@ fun PromiseReminderCard(
     isDarkMode: Boolean,
     currency: String,
     onCall: () -> Unit,
-    onPay: () -> Unit
+    onPay: () -> Unit,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -573,16 +611,27 @@ fun PromiseReminderCard(
                         color = if (isOverdue) Color(0xFFE11D48) else IspTealPrimary
                     )
                 }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                    Icon(Icons.Default.Event, null, tint = if (isOverdue) Color(0xFFE11D48) else Slate400, modifier = Modifier.size(10.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "PROMISE: ${customer.promiseDate}", fontSize = 10.sp, color = if (isOverdue) Color(0xFFE11D48) else Slate400, fontWeight = FontWeight.Bold)
+                }
                 if (!customer.promiseNote.isNullOrBlank()) {
                     Text(text = "\"${customer.promiseNote}\"", fontSize = 10.sp, color = Slate400, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 2.dp))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(onClick = onEdit, modifier = Modifier.background(Color(0xFFEEF2FF), CircleShape).size(40.dp)) {
+                    Icon(Icons.Default.EditCalendar, null, tint = IspIndigo, modifier = Modifier.size(20.dp))
+                }
                 IconButton(onClick = onCall, modifier = Modifier.background(Color(0xFFEEF2FF), CircleShape).size(40.dp)) {
                     Icon(Icons.Default.Phone, null, tint = IspIndigo, modifier = Modifier.size(20.dp))
                 }
                 IconButton(onClick = onPay, modifier = Modifier.background(IspTealPrimary.copy(alpha = 0.1f), CircleShape).size(40.dp)) {
                     Icon(Icons.Default.Payments, null, tint = IspTealPrimary, modifier = Modifier.size(20.dp))
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.background(Color(0xFFFEE2E2), CircleShape).size(40.dp)) {
+                    Icon(Icons.Default.Close, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
                 }
             }
         }
