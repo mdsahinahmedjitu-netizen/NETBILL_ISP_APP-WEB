@@ -901,6 +901,42 @@ const Customers = ({ store, session, setActivePage, t, lang, autoOpenModal, setA
             reference_no: invNo
           });
         }
+
+        // --- NEW: TRIGGER AUTO SMS FOR CREATE CUSTOMER ---
+        const settings = store.settings || {};
+        if (settings.isAutoSmsEnabled || settings.is_auto_sms_enabled) {
+          const template = store.smsTemplates?.find(t => t.title === 'Create Customer' && (t.isActive || t.is_active));
+          if (template && newCust && newCust.mobile) {
+            let msg = (template.messageContent || template.message_content)
+              .replace(/{NAME}/g, newCust.name || '')
+              .replace(/{CUSTOMER_CODE}/g, newCust.customerCode || newCust.customer_code || '')
+              .replace(/{COMPANY_NAME}/g, settings.companyName || settings.company_name || 'NetBill ISP')
+              .replace(/{SUPPORT_PHONE}/g, settings.companyPhone || settings.company_phone || '');
+
+            let phone = (newCust.mobile || "").replace(/[^0-9]/g, "");
+            if (phone.startsWith('0')) phone = '88' + phone;
+            else if (phone.length === 10) phone = '880' + phone;
+            else if (!phone.startsWith('88')) phone = '88' + phone;
+
+            const isUni = /[\u0980-\u09FF]/.test(msg);
+            const finalUrl = `https://tglplinxvrqsrxeicvpr.supabase.co/functions/v1/sms-proxy?apikey=${settings.smsApiKey || settings.sms_api_key}&callerID=${settings.smsSenderId || settings.sms_sender_id}&number=${phone}&message=${encodeURIComponent(msg)}&type=${isUni ? "unicode" : "text"}`;
+
+            // Dispatch using Image ping (CORS-safe)
+            new Image().src = finalUrl;
+
+            // Record in SMS Logs
+            await supabase.from('sms_logs').insert({
+              customer_id: newCust.id,
+              customer_name: newCust.name,
+              mobile: phone,
+              notification_type: 'Create Customer',
+              message: msg,
+              status: 'Sent',
+              sent_timestamp: new Date().toISOString()
+            });
+          }
+        }
+
         alert("Customer Enrolled Successfully!");
       }
       setShowModal(false);
